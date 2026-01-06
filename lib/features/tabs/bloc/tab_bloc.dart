@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../data/models/tab_model.dart';
-import '../../../data/repositories/tab_repository_impl.dart';
-import '../../../data/services/storage_service.dart';
+import '../../../../data/models/tab_model.dart';
+import '../../../../data/repositories/tab_repository_impl.dart';
+import '../../../../data/services/storage_service.dart';
 import 'tab_event.dart';
 import 'tab_state.dart';
 
@@ -113,6 +113,24 @@ class TabBloc extends Bloc<TabEvent, TabState> {
   }
 
   Future<void> _onUpdateTab(UpdateTabEvent event, Emitter<TabState> emit) async {
+    // Kiểm tra nếu tab thực sự thay đổi rồi mới emit
+    final existingTab = repository.getTabs().firstWhere(
+      (t) => t.id == event.tab.id,
+      orElse: () => event.tab,
+    );
+
+    // Chỉ emit khi URL, title, hoặc thumbnail thay đổi
+    // KHÔNG emit khi chỉ isLoading hoặc loadProgress thay đổi
+    final hasMeaningfulChange = existingTab.url != event.tab.url ||
+        existingTab.title != event.tab.title ||
+        existingTab.thumbnail != event.tab.thumbnail;
+
+    if (!hasMeaningfulChange && !event.forceUpdate) {
+      // Chỉ update trong repository, không emit state
+      repository.updateTab(event.tab);
+      return;
+    }
+
     repository.updateTab(event.tab);
 
     final updatedTabs = repository.getTabs();

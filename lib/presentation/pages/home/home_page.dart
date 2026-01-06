@@ -7,17 +7,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../../data/repositories/tab_repository_impl.dart';
 import '../../../data/services/storage_service.dart';
-import '../../bloc/tab/tab_bloc.dart';
-import '../../bloc/tab/tab_event.dart';
-import '../../bloc/tab/tab_state.dart';
-import '../../bloc/webview/webview_bloc.dart';
+import '../../../features/tabs/bloc/tab_bloc.dart';
+import '../../../features/tabs/bloc/tab_event.dart';
+import '../../../features/tabs/bloc/tab_state.dart';
 import 'models/quick_access_item.dart';
-import 'widgets/empty_page.dart';
-import 'widgets/webview_page.dart';
 import 'widgets/mini_url_bar.dart';
 import 'widgets/bottom_bar.dart';
-import 'widgets/tabs_sheet.dart';
 import 'widgets/history_sheet.dart';
+import '../../../features/tabs/widgets/empty_page.dart';
+import '../../../features/webview/widgets/webview_page.dart';
+import '../../../features/tabs/widgets/tabs_sheet.dart';
+import '../../../features/search/widgets/search_page.dart';
+import '../../../features/search/bloc/search_bloc.dart';
+import '../../../features/search/bloc/search_event.dart';
+import '../../../features/search/search_service.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -27,7 +30,7 @@ class HomePage extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (context) => TabBloc(TabRepositoryImpl())),
-        BlocProvider(create: (context) => WebViewBloc()),
+        BlocProvider(create: (context) => SearchBloc()),
       ],
       child: const HomeView(),
     );
@@ -262,17 +265,16 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return BlocBuilder<TabBloc, TabState>(
       buildWhen: (previous, current) {
-        // Rebuild khi:
-        // 1. Chuyển tab
-        // 2. Số lượng tabs thay đổi
-        // 3. URL thay đổi từ empty → có URL hoặc ngược lại (cần tạo/destroy WebView)
-        final prevUrlEmpty = previous.activeTab?.url.isEmpty ?? true;
-        final currUrlEmpty = current.activeTab?.url.isEmpty ?? true;
-        final urlStateChanged = prevUrlEmpty != currUrlEmpty;
+        final prevTab = previous.activeTab;
+        final currTab = current.activeTab;
 
-        return previous.activeTab?.id != current.activeTab?.id ||
-            previous.tabs.length != current.tabs.length ||
-            urlStateChanged;
+        if (prevTab?.id != currTab?.id) return true; // Chuyển tab
+        if (previous.tabs.length != current.tabs.length) return true; // Thêm/xoá tab
+
+        final prevUrlEmpty = prevTab?.url.isEmpty ?? true;
+        final currUrlEmpty = currTab?.url.isEmpty ?? true;
+        if (prevUrlEmpty != currUrlEmpty) return true;
+        return false;
       },
       builder: (context, tabState) {
         final activeTab = tabState.activeTab;
@@ -300,19 +302,15 @@ class _HomeViewState extends State<HomeView> {
                       activeTabId: activeTab.id,
                       controller: _getController(activeTab.id),
                       onShowTabs: () => _showTabsSheet(context),
-                      onAddressBarTap: () {
-                        setState(() {
-                          _isSearching = true;
-                        });
-                        _searchFocusNode.requestFocus();
-                      },
+                      onAddressBarTap: () => _showSearchPage(context),
                       onShowHistory: () => _showHistorySheet(context),
                       isSearching: _isSearching,
                       searchController: _searchController,
                       searchFocusNode: _searchFocusNode,
                       onSearch: (query) {
                         _searchController.text = query;
-                        // Lấy activeTab mới nhất từ Bloc để đảm bảo URL đã được update
+                        // Lưu vào search history
+                        context.read<SearchBloc>().add(PerformSearchEvent(query));
                         final bloc = context.read<TabBloc>();
                         final currentTab = bloc.state.activeTab;
                         if (currentTab != null) {
@@ -332,13 +330,7 @@ class _HomeViewState extends State<HomeView> {
                   child: _MiniUrlBarWrapper(
                     activeTabId: activeTab.id,
                     controller: _getController(activeTab.id),
-                    onTap: () {
-                      setState(() {
-                        _isToolbarVisible = true;
-                        _isSearching = true;
-                      });
-                      _searchFocusNode.requestFocus();
-                    },
+                    onTap: () => _showSearchPage(context),
                   ),
                 ),
               ],
@@ -366,14 +358,14 @@ class _HomeViewState extends State<HomeView> {
             final bloc = context.read<TabBloc>();
             bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
 
-            // Sau khi update URL, load ngay nếu controller đã tồn tại
-            // Nếu chưa có controller, WebView sẽ tự load khi được tạo
-            Future.microtask(() {
-              final controller = _getController(activeTab.id);
-              if (controller != null) {
-                controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
-              }
-            });
+            print('🔗 Quick Access: URL = $url, current controller = ${_getController(activeTab.id) != null ? "EXISTS" : "NULL"}');
+
+            // Nếu controller đã tồn tại, load ngay
+            // Nếu chưa, WebView sẽ tự load khi được tạo với initialUrlRequest
+            final controller = _getController(activeTab.id);
+            if (controller != null) {
+              controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+            }
           },
         ),
       );
@@ -495,6 +487,39 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  void _showSearchPage(BuildContext context) {
+    final bloc = context.read<TabBloc>();
+    final searchBloc = context.read<SearchBloc>();
+    final currentTab = bloc.state.activeTab;
+    if (currentTab == null) return;
+
+    setState(() {
+      _isSearching = false;
+      _searchFocusNode.unfocus();
+    });
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => BlocProvider.value(
+        value: searchBloc,
+        child: SearchPage(
+          initialUrl: currentTab.url.isNotEmpty ? currentTab.url : null,
+          onSearch: (query) {
+            // Dùng formatUrl để tự động detect URL hoặc search query
+            final url = SearchService.formatUrl(query);
+            bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
+            final controller = _getController(currentTab.id);
+            if (controller != null) {
+              controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   String _formatUrl(String input) {
     if (input.startsWith('http://') || input.startsWith('https://')) {
       return input;
@@ -506,7 +531,7 @@ class _HomeViewState extends State<HomeView> {
   }
 }
 
-// Widget wrapper riêng để rebuild chỉ khi URL/isLoading thay đổi
+// Widget wrapper riêng để rebuild chỉ khi URL/title thay đổi
 class _BottomBarWrapper extends StatelessWidget {
   final String activeTabId;
   final InAppWebViewController? controller;
@@ -534,9 +559,12 @@ class _BottomBarWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<TabBloc, TabState>(
       buildWhen: (previous, current) {
+        // Chỉ rebuild khi URL, title, hoặc số lượng tabs thay đổi
+        // Không rebuild khi isLoading hoặc loadProgress thay đổi
         final prevTab = previous.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => previous.activeTab!);
         final currTab = current.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => current.activeTab!);
         return prevTab.url != currTab.url ||
+               prevTab.title != currTab.title ||
                previous.tabs.length != current.tabs.length;
       },
       builder: (context, tabState) {
@@ -552,7 +580,7 @@ class _BottomBarWrapper extends StatelessWidget {
           searchController: searchController,
           searchFocusNode: searchFocusNode,
           onSearch: onSearch,
-          loadProgress: activeTab.loadProgress.toDouble(),
+          // Truyền activeTab để BottomBar tự lấy isLoading và loadProgress
         );
       },
     );

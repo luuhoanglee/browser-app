@@ -80,20 +80,17 @@ class MiniUrlBar extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  if (!activeTab.isLoading)
-                    GestureDetector(
-                      onTap: () => controller?.reload(),
-                      child: SizedBox(
-                        width: 22,
-                        child: Icon(
-                          Icons.refresh,
-                          size: 14,
-                          color: Colors.grey[600],
-                        ),
+                  GestureDetector(
+                    onTap: () => controller?.reload(),
+                    child: SizedBox(
+                      width: 22,
+                      child: Icon(
+                        Icons.refresh,
+                        size: 14,
+                        color: Colors.grey[600],
                       ),
-                    )
-                  else
-                    const SizedBox(width: 22),
+                    ),
+                  )
                 ],
               ),
             ),

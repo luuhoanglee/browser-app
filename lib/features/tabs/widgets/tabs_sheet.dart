@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../bloc/tab/tab_bloc.dart';
-import '../../../bloc/tab/tab_state.dart';
-import '../../../bloc/tab/tab_event.dart';
+import '../bloc/tab_bloc.dart';
+import '../bloc/tab_state.dart';
+import '../bloc/tab_event.dart';
 
 class TabsSheet extends StatelessWidget {
   final Function(String) onCloseTab;

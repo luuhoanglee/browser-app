@@ -12,38 +12,8 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isLoading) return const SizedBox.shrink();
-
-    if (progress > 0) {
-      return Container(
-        height: 3,
-        margin: const EdgeInsets.only(top: 4),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            value: progress / 100,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              progress < 100 ? Colors.blue : Colors.green,
-            ),
-            backgroundColor: Colors.grey[300],
-            minHeight: 3,
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: 3,
-      margin: const EdgeInsets.only(top: 4),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: const LinearProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-          backgroundColor: Colors.transparent,
-          minHeight: 3,
-        ),
-      ),
-    );
+    // Loading indicator disabled - removed to improve performance
+    return const SizedBox.shrink();
   }
 }
 
@@ -58,7 +28,6 @@ class BottomBar extends StatelessWidget {
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final Function(String) onSearch;
-  final double loadProgress;
 
   const BottomBar({
     super.key,
@@ -72,7 +41,6 @@ class BottomBar extends StatelessWidget {
     required this.searchController,
     required this.searchFocusNode,
     required this.onSearch,
-    this.loadProgress = 0,
   });
 
   String _formatDisplayUrl(String url) {
@@ -106,10 +74,12 @@ class BottomBar extends StatelessWidget {
               child: Column(
                 children: [
                   _buildAddressBar(context),
-                  // Progress indicator under address bar
-                  _ProgressBar(
-                    progress: loadProgress,
-                    isLoading: activeTab.isLoading,
+                  // Progress indicator under address bar - isolated to prevent full rebuild
+                  RepaintBoundary(
+                    child: _ProgressBar(
+                      progress: activeTab.loadProgress.toDouble(),
+                      isLoading: activeTab.isLoading,
+                    ),
                   ),
                 ],
               ),
@@ -122,31 +92,17 @@ class BottomBar extends StatelessWidget {
                 children: [
                   _buildNavBarItem(Icons.chevron_left, () {
                     controller?.goBack();
-                  }, isActive: !activeTab.isLoading),
+                  }),
                   _buildNavBarItem(Icons.chevron_right, () {
                     controller?.goForward();
-                  }, isActive: !activeTab.isLoading),
-                  _buildNavBarItem(Icons.share, () {}, isActive: !activeTab.isLoading),
-                  _buildNavBarItem(Icons.bookmark_border, onShowHistory, isActive: !activeTab.isLoading),
+                  }),
+                  _buildNavBarItem(Icons.share, () {}),
+                  _buildNavBarItem(Icons.bookmark_border, onShowHistory),
                   _buildNavBarItemWithBadge(
                     Icons.copy,
                     onShowTabs,
-                    isActive: !activeTab.isLoading,
                     badgeCount: tabState.tabs.length,
                   ),
-                  if (activeTab.isLoading)
-                    Container(
-                      width: 50,
-                      alignment: Alignment.center,
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -240,7 +196,7 @@ class BottomBar extends StatelessWidget {
                 maxLines: 1,
               ),
             ),
-            if (showUrl && !activeTab.isLoading)
+            if (showUrl)
               GestureDetector(
                 onTap: () => controller?.reload(),
                 child: Container(

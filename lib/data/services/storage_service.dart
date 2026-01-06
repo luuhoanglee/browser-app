@@ -6,6 +6,7 @@ class StorageService {
   static const String _tabsKey = 'cached_tabs';
   static const String _activeTabKey = 'active_tab_id';
   static const String _historyKey = 'browser_history';
+  static const String _searchHistoryKey = 'search_history';
   static const int _maxHistorySize = 100; // Giới hạn 100 mục lịch sử
 
   // Save tabs to cache
@@ -127,6 +128,49 @@ class StorageService {
       print('✅ History cleared');
     } catch (e) {
       print('❌ Error clearing history: $e');
+    }
+  }
+
+  // Save search history
+  static Future<void> saveSearchHistory(List<String> searchHistory) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_searchHistoryKey, jsonEncode(searchHistory));
+      print('✅ Saved ${searchHistory.length} search history items');
+    } catch (e) {
+      print('❌ Error saving search history: $e');
+    }
+  }
+
+  // Load search history
+  static Future<List<String>> loadSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final searchHistoryJson = prefs.getString(_searchHistoryKey);
+
+      if (searchHistoryJson == null) {
+        print('No cached search history found');
+        return [];
+      }
+
+      final List<dynamic> decoded = jsonDecode(searchHistoryJson);
+      final searchHistory = decoded.cast<String>();
+      print('✅ Loaded ${searchHistory.length} search history items');
+      return searchHistory;
+    } catch (e) {
+      print('❌ Error loading search history: $e');
+      return [];
+    }
+  }
+
+  // Clear search history
+  static Future<void> clearSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_searchHistoryKey);
+      print('✅ Search history cleared');
+    } catch (e) {
+      print('❌ Error clearing search history: $e');
     }
   }
 }

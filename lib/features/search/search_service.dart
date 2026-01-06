@@ -1,5 +1,43 @@
+enum SearchEngine {
+  google,
+  bing,
+  duckduckgo,
+  youtube,
+  wikipedia,
+  github,
+}
+
 class SearchService {
   SearchService._();
+
+  static SearchEngine _defaultEngine = SearchEngine.google;
+
+  static SearchEngine get defaultEngine => _defaultEngine;
+
+  static void setDefaultEngine(SearchEngine engine) {
+    _defaultEngine = engine;
+  }
+
+  static String getSearchUrl(SearchEngine engine, String query) {
+    switch (engine) {
+      case SearchEngine.google:
+        return 'https://www.google.com/search?q=${Uri.encodeComponent(query)}';
+      case SearchEngine.bing:
+        return 'https://www.bing.com/search?q=${Uri.encodeComponent(query)}';
+      case SearchEngine.duckduckgo:
+        return 'https://duckduckgo.com/?q=${Uri.encodeComponent(query)}';
+      case SearchEngine.youtube:
+        return 'https://www.youtube.com/results?search_query=${Uri.encodeComponent(query)}';
+      case SearchEngine.wikipedia:
+        return 'https://en.wikipedia.org/wiki/Special:Search?search=${Uri.encodeComponent(query)}';
+      case SearchEngine.github:
+        return 'https://github.com/search?q=${Uri.encodeComponent(query)}';
+    }
+  }
+
+  static String formatUrlWithKeyword(String query) {
+    return getSearchUrl(_defaultEngine, query);
+  }
 
   /// Format input to proper URL
   /// - If input starts with http:// or https://, return as is

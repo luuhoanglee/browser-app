@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../models/quick_access_item.dart';
-import '../../../bloc/tab/tab_bloc.dart';
-import '../../../bloc/tab/tab_state.dart';
-import '../../../bloc/tab/tab_event.dart';
+import '../../../../presentation/pages/home/models/quick_access_item.dart';
+import '../bloc/tab_bloc.dart';
+import '../bloc/tab_state.dart';
+import '../bloc/tab_event.dart';
 
 class EmptyPage extends StatelessWidget {
   final dynamic activeTab;

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../domain/entities/tab_entity.dart';
+import '../../../../domain/entities/tab_entity.dart';
 
 class TabBarWidget extends StatelessWidget {
   final List<TabEntity> tabs;

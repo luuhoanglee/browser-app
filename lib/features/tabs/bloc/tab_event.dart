@@ -19,6 +19,7 @@ class SelectTabEvent extends TabEvent {
 class UpdateTabEvent extends TabEvent {
   final TabEntity tab;
   final bool skipCache;
+  final bool forceUpdate;
 
-  UpdateTabEvent(this.tab, {this.skipCache = false});
+  UpdateTabEvent(this.tab, {this.skipCache = false, this.forceUpdate = false});
 }
