@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../../data/repositories/tab_repository_impl.dart';
+import '../../../data/services/storage_service.dart';
 import '../../bloc/tab/tab_bloc.dart';
 import '../../bloc/tab/tab_event.dart';
 import '../../bloc/tab/tab_state.dart';
@@ -16,6 +17,7 @@ import 'widgets/webview_page.dart';
 import 'widgets/mini_url_bar.dart';
 import 'widgets/bottom_bar.dart';
 import 'widgets/tabs_sheet.dart';
+import 'widgets/history_sheet.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -48,6 +50,7 @@ class _HomeViewState extends State<HomeView> {
   bool _isToolbarVisible = true;
   int _lastScrollY = 0;
   Timer? _scrollDebounce;
+  final List<String> _history = [];
 
   // Quick Access Items
   static const List<QuickAccessItem> _quickAccessItems = [
@@ -118,11 +121,42 @@ class _HomeViewState extends State<HomeView> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollDebounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadHistory() async {
+    final history = await StorageService.loadHistory();
+    setState(() {
+      _history.clear();
+      _history.addAll(history);
+    });
+  }
+
+  Future<void> _addToHistory(String url) async {
+    // Nếu URL đã có trong history, xóa nó trước
+    _history.remove(url);
+    // Thêm vào đầu danh sách
+    _history.insert(0, url);
+    // Giới hạn số lượng history
+    if (_history.length > 100) {
+      _history.removeLast();
+    }
+    // Lưu vào cache (không await để không blocking)
+    StorageService.saveHistory(_history);
+    // Chỉ setState khi cần thiết
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _captureThumbnail(String tabId) async {
@@ -261,28 +295,31 @@ class _HomeViewState extends State<HomeView> {
                   left: 0,
                   right: 0,
                   bottom: _isToolbarVisible ? 0 : -150,
-                  child: _BottomBarWrapper(
-                    activeTabId: activeTab.id,
-                    controller: _getController(activeTab.id),
-                    onShowTabs: () => _showTabsSheet(context),
-                    onAddressBarTap: () {
-                      setState(() {
-                        _isSearching = true;
-                      });
-                      _searchFocusNode.requestFocus();
-                    },
-                    isSearching: _isSearching,
-                    searchController: _searchController,
-                    searchFocusNode: _searchFocusNode,
-                    onSearch: (query) {
-                      _searchController.text = query;
-                      // Lấy activeTab mới nhất từ Bloc để đảm bảo URL đã được update
-                      final bloc = context.read<TabBloc>();
-                      final currentTab = bloc.state.activeTab;
-                      if (currentTab != null) {
-                        _performSearch(currentTab);
-                      }
-                    },
+                  child: RepaintBoundary(
+                    child: _BottomBarWrapper(
+                      activeTabId: activeTab.id,
+                      controller: _getController(activeTab.id),
+                      onShowTabs: () => _showTabsSheet(context),
+                      onAddressBarTap: () {
+                        setState(() {
+                          _isSearching = true;
+                        });
+                        _searchFocusNode.requestFocus();
+                      },
+                      onShowHistory: () => _showHistorySheet(context),
+                      isSearching: _isSearching,
+                      searchController: _searchController,
+                      searchFocusNode: _searchFocusNode,
+                      onSearch: (query) {
+                        _searchController.text = query;
+                        // Lấy activeTab mới nhất từ Bloc để đảm bảo URL đã được update
+                        final bloc = context.read<TabBloc>();
+                        final currentTab = bloc.state.activeTab;
+                        if (currentTab != null) {
+                          _performSearch(currentTab);
+                        }
+                      },
+                    ),
                   ),
                 ),
                 // Mini URL bar - hiển thị dài hết màn hình khi scroll
@@ -337,49 +374,56 @@ class _HomeViewState extends State<HomeView> {
     }
 
     print('✅ Showing WebViewPage for tab ${activeTab.id}');
-    return WebViewPage(
-      activeTab: activeTab,
-      controller: _getController(activeTab.id),
-      onWebViewCreated: (controller) => _setController(activeTab.id, controller),
-      onLoadStart: (controller, url) {
-        _resetScrollState();
-        final bloc = context.read<TabBloc>();
-        final tab = bloc.state.activeTab;
-        if (tab != null) {
-          bloc.add(UpdateTabEvent(tab.copyWith(isLoading: true, url: url?.toString() ?? '')));
-        }
-      },
-      onLoadStop: (controller, url) async {
-        final bloc = context.read<TabBloc>();
-        final tab = bloc.state.activeTab;
-        if (tab != null) {
-          bloc.add(UpdateTabEvent(tab.copyWith(isLoading: false, url: url?.toString() ?? '')));
-          // Capture thumbnail after page loads
-          if (url != null && url.toString().isNotEmpty) {
-            await Future.delayed(const Duration(milliseconds: 500));
-            _captureThumbnail(activeTab.id);
-          }
-        }
-      },
-      onTitleChanged: (controller, title) {
-        final bloc = context.read<TabBloc>();
-        final tab = bloc.state.activeTab;
-        if (tab != null && title != null) {
-          bloc.add(UpdateTabEvent(tab.copyWith(title: title), skipCache: true));
-        }
-      },
-      onProgressChanged: (controller, progress) {
-        if (progress == 100) {
+    return RepaintBoundary(
+      key: ValueKey('webview_${activeTab.id}'),
+      child: WebViewPage(
+        activeTab: activeTab,
+        controller: _getController(activeTab.id),
+        onWebViewCreated: (controller) => _setController(activeTab.id, controller),
+        onLoadStart: (controller, url) {
+          _resetScrollState();
           final bloc = context.read<TabBloc>();
           final tab = bloc.state.activeTab;
           if (tab != null) {
-            bloc.add(UpdateTabEvent(tab.copyWith(isLoading: false), skipCache: true));
+            bloc.add(UpdateTabEvent(tab.copyWith(isLoading: true, url: url?.toString() ?? '')));
           }
-        }
-      },
-      onScrollChanged: (y) {
-        _handleScrollChange(y);
-      },
+        },
+        onLoadStop: (controller, url) async {
+          final bloc = context.read<TabBloc>();
+          final tab = bloc.state.activeTab;
+          if (tab != null) {
+            bloc.add(UpdateTabEvent(tab.copyWith(isLoading: false, url: url?.toString() ?? '')));
+            // Capture thumbnail after page loads
+            if (url != null && url.toString().isNotEmpty) {
+              await Future.delayed(const Duration(milliseconds: 500));
+              _captureThumbnail(activeTab.id);
+              // Thêm vào history
+              final urlStr = url.toString();
+              _addToHistory(urlStr);
+            }
+          }
+        },
+        onTitleChanged: (controller, title) {
+          final bloc = context.read<TabBloc>();
+          final tab = bloc.state.activeTab;
+          if (tab != null && title != null) {
+            bloc.add(UpdateTabEvent(tab.copyWith(title: title), skipCache: true));
+          }
+        },
+        onProgressChanged: (controller, progress) {
+          final bloc = context.read<TabBloc>();
+          final tab = bloc.state.activeTab;
+          if (tab != null) {
+            bloc.add(UpdateTabEvent(
+              tab.copyWith(loadProgress: progress, isLoading: progress < 100),
+              skipCache: true,
+            ));
+          }
+        },
+        onScrollChanged: (y) {
+          _handleScrollChange(y);
+        },
+      ),
     );
   }
 
@@ -399,6 +443,11 @@ class _HomeViewState extends State<HomeView> {
           onCloseTab: (tabId) {
             context.read<TabBloc>().add(RemoveTabEvent(tabId));
             _controllers.remove(tabId);
+            // Clear search khi đóng tab
+            _searchController.clear();
+            setState(() {
+              _isSearching = false;
+            });
           },
           onSelectTab: (tabId) {
             context.read<TabBloc>().add(SelectTabEvent(tabId));
@@ -409,6 +458,33 @@ class _HomeViewState extends State<HomeView> {
             Navigator.pop(sheetContext);
           },
         ),
+      ),
+    );
+  }
+
+  void _showHistorySheet(BuildContext context) {
+    setState(() {
+      _isSearching = false;
+      _searchFocusNode.unfocus();
+    });
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => HistorySheet(
+        history: _history,
+        onSelectHistory: (url) {
+          final bloc = context.read<TabBloc>();
+          final currentTab = bloc.state.activeTab;
+          if (currentTab != null) {
+            bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
+            final controller = _getController(currentTab.id);
+            if (controller != null) {
+              controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+            }
+          }
+        },
       ),
     );
   }
@@ -430,6 +506,7 @@ class _BottomBarWrapper extends StatelessWidget {
   final InAppWebViewController? controller;
   final VoidCallback onShowTabs;
   final VoidCallback onAddressBarTap;
+  final VoidCallback onShowHistory;
   final bool isSearching;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
@@ -440,6 +517,7 @@ class _BottomBarWrapper extends StatelessWidget {
     required this.controller,
     required this.onShowTabs,
     required this.onAddressBarTap,
+    required this.onShowHistory,
     required this.isSearching,
     required this.searchController,
     required this.searchFocusNode,
@@ -452,9 +530,7 @@ class _BottomBarWrapper extends StatelessWidget {
       buildWhen: (previous, current) {
         final prevTab = previous.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => previous.activeTab!);
         final currTab = current.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => current.activeTab!);
-        // Rebuild khi URL, isLoading thay đổi hoặc số lượng tabs thay đổi
         return prevTab.url != currTab.url ||
-               prevTab.isLoading != currTab.isLoading ||
                previous.tabs.length != current.tabs.length;
       },
       builder: (context, tabState) {
@@ -465,10 +541,12 @@ class _BottomBarWrapper extends StatelessWidget {
           controller: controller,
           onShowTabs: onShowTabs,
           onAddressBarTap: onAddressBarTap,
+          onShowHistory: onShowHistory,
           isSearching: isSearching,
           searchController: searchController,
           searchFocusNode: searchFocusNode,
           onSearch: onSearch,
+          loadProgress: activeTab.loadProgress.toDouble(),
         );
       },
     );

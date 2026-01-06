@@ -74,14 +74,20 @@ class TabBloc extends Bloc<TabEvent, TabState> {
   }
 
   Future<void> _onRemoveTab(RemoveTabEvent event, Emitter<TabState> emit) async {
-    if (state.tabs.length <= 1) {
-      return;
-    }
-
     repository.removeTab(event.tabId);
-    final updatedTabs = repository.getTabs();
-    final activeTab = repository.getActiveTab();
-    final activeIndex = repository.getTabIndex(activeTab?.id ?? '');
+    var updatedTabs = repository.getTabs();
+    var activeTab = repository.getActiveTab();
+    var activeIndex = repository.getTabIndex(activeTab?.id ?? '');
+
+    // Chỉ tạo empty page nếu không còn tab nào
+    if (updatedTabs.isEmpty) {
+      final newTab = TabModel.create(index: 0);
+      repository.addTab(newTab);
+      repository.setActiveTab(newTab.id);
+      updatedTabs = repository.getTabs();
+      activeTab = repository.getActiveTab();
+      activeIndex = 0;
+    }
 
     emit(state.copyWith(
       tabs: updatedTabs,

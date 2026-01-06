@@ -25,8 +25,9 @@ class TabRepositoryImpl implements TabRepository {
   @override
   void removeTab(String id) {
     _tabs.removeWhere((tab) => tab.id == id);
-    if (_activeTabId == id && _tabs.isNotEmpty) {
-      _activeTabId = _tabs.last.id;
+    // Không tự động chuyển sang tab khác khi đóng tab
+    if (_activeTabId == id) {
+      _activeTabId = null;
     }
   }
 

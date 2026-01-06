@@ -38,70 +38,72 @@ class EmptyPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Quick Access Section
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Quick Access',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: quickAccessItems.length,
-                  itemBuilder: (context, index) {
-                    final item = quickAccessItems[index];
-                    return _buildQuickAccessItem(context, item);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            // Recent Tabs Section
-            BlocBuilder<TabBloc, TabState>(
-              builder: (context, tabState) {
-                final recentTabs = tabState.tabs.where((t) => t.id != activeTab.id && t.url.isNotEmpty).take(4).toList();
-
-                if (recentTabs.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Recent Tabs',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+    return RepaintBoundary(
+      child: Container(
+        color: Colors.white,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Quick Access Section
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Quick Access',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                    const SizedBox(height: 12),
-                    ...recentTabs.map((tab) => _buildRecentTabItem(context, tab, tabState)),
-                  ],
-                );
-              },
-            ),
-          ],
+                  ),
+                  const SizedBox(height: 20),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 1,
+                    ),
+                    itemCount: quickAccessItems.length,
+                    itemBuilder: (context, index) {
+                      final item = quickAccessItems[index];
+                      return _buildQuickAccessItem(context, item);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              // Recent Tabs Section
+              BlocBuilder<TabBloc, TabState>(
+                builder: (context, tabState) {
+                  final recentTabs = tabState.tabs.where((t) => t.id != activeTab.id && t.url.isNotEmpty).take(4).toList();
+
+                  if (recentTabs.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Recent Tabs',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...recentTabs.map((tab) => _buildRecentTabItem(context, tab, tabState)),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

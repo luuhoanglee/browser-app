@@ -5,6 +5,8 @@ import '../../domain/entities/tab_entity.dart';
 class StorageService {
   static const String _tabsKey = 'cached_tabs';
   static const String _activeTabKey = 'active_tab_id';
+  static const String _historyKey = 'browser_history';
+  static const int _maxHistorySize = 100; // Giới hạn 100 mục lịch sử
 
   // Save tabs to cache
   static Future<void> saveTabs(List<TabEntity> tabs, String? activeTabId) async {
@@ -82,6 +84,49 @@ class StorageService {
       print('✅ Cache cleared');
     } catch (e) {
       print('❌ Error clearing cache: $e');
+    }
+  }
+
+  // Save history to cache
+  static Future<void> saveHistory(List<String> history) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_historyKey, jsonEncode(history));
+      print('✅ Saved ${history.length} history items to cache');
+    } catch (e) {
+      print('❌ Error saving history: $e');
+    }
+  }
+
+  // Load history from cache
+  static Future<List<String>> loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson = prefs.getString(_historyKey);
+
+      if (historyJson == null) {
+        print('No cached history found');
+        return [];
+      }
+
+      final List<dynamic> decoded = jsonDecode(historyJson);
+      final history = decoded.cast<String>();
+      print('✅ Loaded ${history.length} history items from cache');
+      return history;
+    } catch (e) {
+      print('❌ Error loading history: $e');
+      return [];
+    }
+  }
+
+  // Clear history
+  static Future<void> clearHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_historyKey);
+      print('✅ History cleared');
+    } catch (e) {
+      print('❌ Error clearing history: $e');
     }
   }
 }

@@ -28,7 +28,8 @@ class WebViewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     print('🔨 Building WebViewPage for ${activeTab.url} (id: ${activeTab.id})');
 
-    return InAppWebView(
+    return RepaintBoundary(
+      child: InAppWebView(
       key: ValueKey(activeTab.id),
       initialUrlRequest: activeTab.url.isEmpty
           ? null
@@ -77,6 +78,7 @@ class WebViewPage extends StatelessWidget {
         // print('📜 Scroll: x=$x, y=$y');
         onScrollChanged(y);
       },
+      ),
     );
   }
 }

@@ -211,7 +211,7 @@ class TabsSheet extends StatelessWidget {
                 ),
               ],
             ),
-            if (tabState.tabs.length > 1)
+            if (tabState.tabs.length > 0)
               Positioned(
                 top: 6,
                 right: 6,

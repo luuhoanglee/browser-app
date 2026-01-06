@@ -9,6 +9,7 @@ class TabModel extends TabEntity {
     required super.index,
     super.isLoading = false,
     super.thumbnail,
+    super.loadProgress = 0,
   });
 
   factory TabModel.fromEntity(TabEntity entity) {
@@ -19,6 +20,7 @@ class TabModel extends TabEntity {
       index: entity.index,
       isLoading: entity.isLoading,
       thumbnail: entity.thumbnail,
+      loadProgress: entity.loadProgress,
     );
   }
 
@@ -32,6 +34,7 @@ class TabModel extends TabEntity {
       url: '',
       title: 'New Tab',
       index: index,
+      loadProgress: 0,
     );
   }
 }

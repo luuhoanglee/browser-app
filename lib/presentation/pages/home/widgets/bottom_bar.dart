@@ -1,16 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+class _ProgressBar extends StatelessWidget {
+  final double progress;
+  final bool isLoading;
+
+  const _ProgressBar({
+    required this.progress,
+    required this.isLoading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isLoading) return const SizedBox.shrink();
+
+    if (progress > 0) {
+      return Container(
+        height: 3,
+        margin: const EdgeInsets.only(top: 4),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: progress / 100,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              progress < 100 ? Colors.blue : Colors.green,
+            ),
+            backgroundColor: Colors.grey[300],
+            minHeight: 3,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 3,
+      margin: const EdgeInsets.only(top: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: const LinearProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+          backgroundColor: Colors.transparent,
+          minHeight: 3,
+        ),
+      ),
+    );
+  }
+}
+
 class BottomBar extends StatelessWidget {
   final dynamic activeTab;
   final dynamic tabState;
   final InAppWebViewController? controller;
   final VoidCallback onShowTabs;
   final VoidCallback onAddressBarTap;
+  final VoidCallback onShowHistory;
   final bool isSearching;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final Function(String) onSearch;
+  final double loadProgress;
 
   const BottomBar({
     super.key,
@@ -19,10 +67,12 @@ class BottomBar extends StatelessWidget {
     required this.controller,
     required this.onShowTabs,
     required this.onAddressBarTap,
+    required this.onShowHistory,
     required this.isSearching,
     required this.searchController,
     required this.searchFocusNode,
     required this.onSearch,
+    this.loadProgress = 0,
   });
 
   String _formatDisplayUrl(String url) {
@@ -57,15 +107,10 @@ class BottomBar extends StatelessWidget {
                 children: [
                   _buildAddressBar(context),
                   // Progress indicator under address bar
-                  if (activeTab.isLoading)
-                    Container(
-                      height: 2,
-                      margin: const EdgeInsets.only(top: 4),
-                      child: LinearProgressIndicator(
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                        backgroundColor: Colors.grey[300],
-                      ),
-                    ),
+                  _ProgressBar(
+                    progress: loadProgress,
+                    isLoading: activeTab.isLoading,
+                  ),
                 ],
               ),
             ),
@@ -82,7 +127,7 @@ class BottomBar extends StatelessWidget {
                     controller?.goForward();
                   }, isActive: !activeTab.isLoading),
                   _buildNavBarItem(Icons.share, () {}, isActive: !activeTab.isLoading),
-                  _buildNavBarItem(Icons.bookmark_border, () {}, isActive: !activeTab.isLoading),
+                  _buildNavBarItem(Icons.bookmark_border, onShowHistory, isActive: !activeTab.isLoading),
                   _buildNavBarItemWithBadge(
                     Icons.copy,
                     onShowTabs,
