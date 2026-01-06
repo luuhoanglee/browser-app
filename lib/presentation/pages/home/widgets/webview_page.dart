@@ -44,20 +44,17 @@ class WebViewPage extends StatelessWidget {
         print('✅ WebView created for ${activeTab.id}');
         onWebViewCreated(controller);
 
-        // Nếu có URL, load ngay khi WebView được tạo
-        if (activeTab.url.isNotEmpty) {
-          print('📄 Loading URL in onWebViewCreated: ${activeTab.url}');
-          await controller.loadUrl(urlRequest: URLRequest(url: WebUri(activeTab.url)));
-          print('✅ loadUrl completed');
-        } else {
-          print('⚠️ No URL to load in onWebViewCreated');
-        }
-
         // Cập nhật settings sau khi tạo
         await controller.setSettings(settings: InAppWebViewSettings(
           disallowOverScroll: false,
         ));
         print('✅ Settings updated');
+
+        // Không cần loadUrl ở đây vì initialUrlRequest đã xử lý
+        // Chỉ load nếu URL rỗng và cần load sau
+        if (activeTab.url.isEmpty) {
+          print('⚠️ No URL to load in onWebViewCreated');
+        }
       },
       onLoadStart: (controller, url) {
         print('📄 Page loading: $url');

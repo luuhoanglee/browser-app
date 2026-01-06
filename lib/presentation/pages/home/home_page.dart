@@ -366,8 +366,14 @@ class _HomeViewState extends State<HomeView> {
             final bloc = context.read<TabBloc>();
             bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
 
-            // Không cần gọi loadUrl ở đây vì WebView sẽ tự load khi được tạo
-            // (xem WebViewPage.onWebViewCreated)
+            // Sau khi update URL, load ngay nếu controller đã tồn tại
+            // Nếu chưa có controller, WebView sẽ tự load khi được tạo
+            Future.microtask(() {
+              final controller = _getController(activeTab.id);
+              if (controller != null) {
+                controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+              }
+            });
           },
         ),
       );
