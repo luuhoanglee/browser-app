@@ -29,3 +29,13 @@ class RemoveSearchHistoryEvent extends SearchEvent {
 
   RemoveSearchHistoryEvent(this.query);
 }
+
+class LoadHistoryEvent extends SearchEvent {}
+
+class LoadTrendingEvent extends SearchEvent {}
+
+class LoadSuggestionsEvent extends SearchEvent {
+  final String query;
+
+  LoadSuggestionsEvent(this.query);
+}

@@ -111,9 +111,17 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                           children: [
                             const SizedBox(height: 16),
 
-                            // Recent History Section
-                            if (state.searchHistory.isNotEmpty)
+                            // Search Suggestions Section (hiển thị khi có query)
+                            if (state.query.isNotEmpty && state.searchSuggestions.isNotEmpty)
+                              _buildSuggestionsSection(state),
+
+                            // Recent History Section (chỉ hiển thị khi không có query)
+                            if (state.query.isEmpty && state.searchHistory.isNotEmpty)
                               _buildRecentSection(state),
+
+                            // Trending Searches Section (chỉ hiển thị khi không có query)
+                            if (state.query.isEmpty && state.trendingSearches.isNotEmpty)
+                              _buildTrendingSection(state),
 
                             const SizedBox(height: 20),
                           ],
@@ -185,7 +193,11 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
-              onChanged: (value) => setState(() {}),
+              onChanged: (value) {
+                setState(() {});
+                // Trigger suggestions update
+                _searchBloc.add(UpdateQueryEvent(value));
+              },
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
                   final query = value.trim();
@@ -234,6 +246,113 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildSuggestionsSection(SearchState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.search,
+                size: 22,
+                color: Color(0xFF8E8E93),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Suggestions',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        if (state.isLoadingSuggestions)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else
+          ...state.searchSuggestions.take(10).toList().asMap().entries.map((entry) {
+            final index = entry.key;
+            final query = entry.value;
+            return _buildSuggestionItem(query, index);
+          }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildSuggestionItem(String query, int index) {
+    return TweenAnimationBuilder(
+      duration: Duration(milliseconds: 250 + (index * 30)),
+      tween: Tween<double>(begin: 0, end: 1),
+      builder: (context, double value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: InkWell(
+        onTap: () {
+          widget.onSearch(query);
+          Navigator.pop(context);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F2F7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.search,
+                  size: 18,
+                  color: Color(0xFF8E8E93),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Text(
+                  query,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+              const Icon(
+                Icons.arrow_upward,
+                size: 16,
+                color: Color(0xFF34C759),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRecentSection(SearchState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,6 +394,125 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           return _buildRecentItem(query, index);
         }).toList(),
       ],
+    );
+  }
+
+  Widget _buildTrendingSection(SearchState state) {
+    print('🎨 [UI] Building trending section');
+    print('🎨 [UI] isLoadingTrending: ${state.isLoadingTrending}');
+    print('🎨 [UI] trendingSearches.length: ${state.trendingSearches.length}');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.trending_up,
+                size: 22,
+                color: Color(0xFF8E8E93),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Trending Searches',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        if (state.isLoadingTrending)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else
+          ...state.trendingSearches.take(10).toList().asMap().entries.map((entry) {
+            final index = entry.key;
+            final query = entry.value;
+            return _buildTrendingItem(query, index);
+          }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildTrendingItem(String query, int index) {
+    return TweenAnimationBuilder(
+      duration: Duration(milliseconds: 250 + (index * 30)),
+      tween: Tween<double>(begin: 0, end: 1),
+      builder: (context, double value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: InkWell(
+        onTap: () {
+          widget.onSearch(query);
+          Navigator.pop(context);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              // Ranking number badge
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: index < 3
+                      ? const Color(0xFFFF6B6B)
+                      : const Color(0xFFF2F2F7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: index < 3 ? Colors.white : const Color(0xFF8E8E93),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Text(
+                  query,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+
+              const Icon(
+                Icons.arrow_upward,
+                size: 16,
+                color: Color(0xFF34C759),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -12,16 +12,33 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     on<ClearSearchEvent>(_onClearSearch);
     on<ClearSearchHistoryEvent>(_onClearSearchHistory);
     on<RemoveSearchHistoryEvent>(_onRemoveSearchHistory);
-    _loadHistory();
-  }
-
-  Future<void> _loadHistory() async {
-    final history = await StorageService.loadSearchHistory();
-    emit(state.copyWith(searchHistory: history));
+    on<LoadHistoryEvent>(_onLoadHistory);
+    on<LoadTrendingEvent>(_onLoadTrending);
+    on<LoadSuggestionsEvent>(_onLoadSuggestions);
+    // Load initial data using events
+    add(LoadHistoryEvent());
+    add(LoadTrendingEvent());
   }
 
   void _onUpdateQuery(UpdateQueryEvent event, Emitter<SearchState> emit) {
     emit(state.copyWith(query: event.query));
+    // Load suggestions khi query thay đổi
+    if (event.query.isNotEmpty) {
+      add(LoadSuggestionsEvent(event.query));
+    } else {
+      emit(state.copyWith(searchSuggestions: []));
+    }
+  }
+
+  Future<void> _onLoadSuggestions(LoadSuggestionsEvent event, Emitter<SearchState> emit) async {
+    emit(state.copyWith(isLoadingSuggestions: true));
+    try {
+      final suggestions = await state.selectedEngine.getSearchSuggest(event.query);
+      emit(state.copyWith(searchSuggestions: suggestions, isLoadingSuggestions: false));
+    } catch (e) {
+      print('🎯 [Bloc] Error loading suggestions: $e');
+      emit(state.copyWith(isLoadingSuggestions: false));
+    }
   }
 
   void _onSetEngine(SetEngineEvent event, Emitter<SearchState> emit) {
@@ -64,6 +81,26 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     updatedHistory.remove(event.query);
     await StorageService.saveSearchHistory(updatedHistory);
     emit(state.copyWith(searchHistory: updatedHistory));
+  }
+
+  Future<void> _onLoadHistory(LoadHistoryEvent event, Emitter<SearchState> emit) async {
+    final history = await StorageService.loadSearchHistory();
+    emit(state.copyWith(searchHistory: history));
+  }
+
+  Future<void> _onLoadTrending(LoadTrendingEvent event, Emitter<SearchState> emit) async {
+    print('🎯 [Bloc] LoadTrendingEvent received');
+    emit(state.copyWith(isLoadingTrending: true));
+    try {
+      final trending = await SearchService.fetchTrendingSearches();
+      print('🎯 [Bloc] Fetched ${trending.length} trending searches');
+      print('🎯 [Bloc] Trending list: $trending');
+      emit(state.copyWith(trendingSearches: trending, isLoadingTrending: false));
+      print('🎯 [Bloc] State updated: trendingSearches = ${state.trendingSearches.length}');
+    } catch (e) {
+      print('🎯 [Bloc] Error loading trending: $e');
+      emit(state.copyWith(isLoadingTrending: false));
+    }
   }
 
   /// Get search URL without emitting state (cho immediate use)
