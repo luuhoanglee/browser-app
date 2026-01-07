@@ -119,11 +119,12 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       orElse: () => event.tab,
     );
 
-    // Chỉ emit khi URL, title, hoặc thumbnail thay đổi
-    // KHÔNG emit khi chỉ isLoading hoặc loadProgress thay đổi
+    // Chỉ emit khi URL, title, thumbnail, isLoading, hoặc loadProgress thay đổi
     final hasMeaningfulChange = existingTab.url != event.tab.url ||
         existingTab.title != event.tab.title ||
-        existingTab.thumbnail != event.tab.thumbnail;
+        existingTab.thumbnail != event.tab.thumbnail ||
+        existingTab.isLoading != event.tab.isLoading ||
+        existingTab.loadProgress != event.tab.loadProgress;
 
     if (!hasMeaningfulChange && !event.forceUpdate) {
       // Chỉ update trong repository, không emit state

@@ -12,8 +12,30 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Loading indicator disabled - removed to improve performance
-    return const SizedBox.shrink();
+    // Ẩn progress bar khi không còn loading
+    if (!isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    // Use AnimatedBuilder for smooth animation
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(progress),
+      tween: Tween(begin: 0, end: progress / 100),
+      duration: const Duration(milliseconds: 100),
+      builder: (context, value, child) {
+        return SizedBox(
+          height: 2,
+          child: LinearProgressIndicator(
+            value: value,
+            backgroundColor: Colors.transparent,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Colors.blue.withOpacity(0.8),
+            ),
+            minHeight: 2,
+          ),
+        );
+      },
+    );
   }
 }
 

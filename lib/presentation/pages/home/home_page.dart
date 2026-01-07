@@ -54,6 +54,8 @@ class _HomeViewState extends State<HomeView> {
   int _lastScrollY = 0;
   Timer? _scrollDebounce;
   final List<String> _history = [];
+  int _lastProgress = 0;
+  Timer? _progressDebounce;
 
   // Quick Access Items
   static const List<QuickAccessItem> _quickAccessItems = [
@@ -134,6 +136,7 @@ class _HomeViewState extends State<HomeView> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollDebounce?.cancel();
+    _progressDebounce?.cancel();
     super.dispose();
   }
 
@@ -409,14 +412,27 @@ class _HomeViewState extends State<HomeView> {
           }
         },
         onProgressChanged: (controller, progress) {
-          final bloc = context.read<TabBloc>();
-          final tab = bloc.state.activeTab;
-          if (tab != null) {
-            bloc.add(UpdateTabEvent(
-              tab.copyWith(loadProgress: progress, isLoading: progress < 100),
-              skipCache: true,
-            ));
-          }
+          // Throttle progress updates để giảm số lần rebuild
+          // Chỉ update khi progress thay đổi ít nhất 10% hoặc khi hoàn thành (100%)
+          final shouldUpdate = (progress - _lastProgress).abs() >= 10 ||
+              progress == 100 ||
+              progress == 0;
+
+          if (!shouldUpdate) return;
+
+          _lastProgress = progress;
+
+          // Debounce nhanh để tránh quá nhiều update liên tiếp
+          _progressDebounce?.cancel();
+          _progressDebounce = Timer(const Duration(milliseconds: 50), () {
+            final bloc = context.read<TabBloc>();
+            final tab = bloc.state.activeTab;
+            if (tab != null) {
+              bloc.add(UpdateTabEvent(
+                tab.copyWith(loadProgress: progress, isLoading: progress < 100),
+              ));
+            }
+          });
         },
         onScrollChanged: (y) {
           _handleScrollChange(y);
@@ -571,12 +587,27 @@ class _BottomBarWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<TabBloc, TabState>(
       buildWhen: (previous, current) {
-        // Chỉ rebuild khi URL, title, hoặc số lượng tabs thay đổi
-        // Không rebuild khi isLoading hoặc loadProgress thay đổi
-        final prevTab = previous.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => previous.activeTab!);
-        final currTab = current.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => current.activeTab!);
-        return prevTab.url != currTab.url ||
-               prevTab.title != currTab.title ||
+        // Rebuild khi URL, title, isLoading, loadProgress, hoặc số lượng tabs thay đổi
+        // Ưu tiên so sánh activeTab vì onProgressChanged chỉ cập nhật activeTab
+        final prevActiveTab = previous.activeTab;
+        final currActiveTab = current.activeTab;
+
+        // Nếu activeTabId khác với activeTab hiện tại, tìm trong list tabs
+        if (prevActiveTab?.id != activeTabId || currActiveTab?.id != activeTabId) {
+          final prevTab = previous.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => previous.activeTab!);
+          final currTab = current.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => current.activeTab!);
+          return prevTab.url != currTab.url ||
+                 prevTab.title != currTab.title ||
+                 prevTab.isLoading != currTab.isLoading ||
+                 prevTab.loadProgress != currTab.loadProgress ||
+                 previous.tabs.length != current.tabs.length;
+        }
+
+        // So sánh activeTab (trường hợp phổ biến nhất)
+        return prevActiveTab?.url != currActiveTab?.url ||
+               prevActiveTab?.title != currActiveTab?.title ||
+               prevActiveTab?.isLoading != currActiveTab?.isLoading ||
+               prevActiveTab?.loadProgress != currActiveTab?.loadProgress ||
                previous.tabs.length != current.tabs.length;
       },
       builder: (context, tabState) {
