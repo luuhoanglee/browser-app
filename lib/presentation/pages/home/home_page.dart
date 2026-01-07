@@ -483,6 +483,18 @@ class _HomeViewState extends State<HomeView> {
             }
           }
         },
+        onClearHistory: () {
+          setState(() {
+            _history.clear();
+          });
+          StorageService.saveHistory(_history);
+        },
+        onRemoveHistory: (url) {
+          setState(() {
+            _history.remove(url);
+          });
+          StorageService.saveHistory(_history);
+        },
       ),
     );
   }

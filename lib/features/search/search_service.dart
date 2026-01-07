@@ -20,7 +20,7 @@ extension SearchEngineExtension on SearchEngine {
       case SearchEngine.bing:
         return 'https://api.bing.com/osjson.aspx?query=';
       case SearchEngine.google:
-        return 'https://suggestqueries.google.com/complete/search?client=chrome&q=';
+        return 'https://suggestqueries.google.com/complete/search?client=firefox&q=';
       case SearchEngine.youtube:
         return 'https://suggestqueries.google.com/complete/search?hl=en&ds=yt&client=youtube&hjson=t&cp=1&q=';
       case SearchEngine.duckduckgo:
@@ -68,16 +68,16 @@ extension SearchEngineExtension on SearchEngine {
           return list;
 
         case SearchEngine.google:
-          final document = xml.XmlDocument.parse(response.body);
-          final suggestions = document.findAllElements('Suggestion');
-          final List<String> list = [];
-          for (final suggestion in suggestions) {
-            final data = suggestion.getAttribute('data');
-            if (data != null) {
-              list.add(data);
+          final decoded = jsonDecode(response.body) as List;
+          if (decoded.length > 1) {
+            final data = decoded[1] as List;
+            final List<String> list = [];
+            for (int i = 0; i < data.length; i++) {
+              list.add(data[i].toString());
             }
+            return list;
           }
-          return list;
+          return [];
 
         case SearchEngine.youtube:
           final decoded = jsonDecode(response.body) as List;
@@ -163,7 +163,7 @@ class SearchService {
   /// Format input to proper URL
   /// - If input starts with http:// or https://, return as is
   /// - If input contains '.' and no spaces, treat as domain and add https://
-  /// - Otherwise, treat as search query and use Google Search
+  /// - Otherwise, treat as search query and use selected search engine
   static String formatUrl(String input) {
     if (input.startsWith('http://') || input.startsWith('https://')) {
       return input;
@@ -171,7 +171,7 @@ class SearchService {
     if (input.contains('.') && !input.contains(' ')) {
       return 'https://$input';
     }
-    return 'https://www.google.com/search?q=${Uri.encodeComponent(input)}';
+    return getSearchUrl(_defaultEngine, input);
   }
 
   /// Check if input is a valid URL format

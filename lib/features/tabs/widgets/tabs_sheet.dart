@@ -69,7 +69,7 @@ class TabsSheet extends StatelessWidget {
                       crossAxisCount: 2,
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
-                      childAspectRatio: 0.85,
+                      childAspectRatio: 0.75,
                     ),
                     itemCount: tabState.tabs.length,
                     itemBuilder: (context, index) {
@@ -178,9 +178,9 @@ class TabsSheet extends StatelessWidget {
                 ),
                 // Info
                 Expanded(
-                  flex: 2,
+                  flex: 1,
                   child: Padding(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,

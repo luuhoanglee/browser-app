@@ -140,7 +140,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
 
   Widget _buildSafariSearchBar(SearchState state) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -358,7 +358,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -370,8 +370,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                   color: Colors.black87,
                 ),
               ),
-              TextButton(
-                onPressed: () {
+              GestureDetector(
+                onTap: () {
                   context.read<SearchBloc>().add(ClearSearchHistoryEvent());
                 },
                 child: const Text(
@@ -386,7 +386,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           ),
         ),
         
-        const SizedBox(height: 8),
+        const SizedBox(height: 3),
 
         ...state.searchHistory.take(10).toList().asMap().entries.map((entry) {
           final index = entry.key;
@@ -398,25 +398,15 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
   }
 
   Widget _buildTrendingSection(SearchState state) {
-    print('🎨 [UI] Building trending section');
-    print('🎨 [UI] isLoadingTrending: ${state.isLoadingTrending}');
-    print('🎨 [UI] trendingSearches.length: ${state.trendingSearches.length}');
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
             children: [
-              const Icon(
-                Icons.trending_up,
-                size: 22,
-                color: Color(0xFF8E8E93),
-              ),
-              const SizedBox(width: 8),
               const Text(
-                'Trending Searches',
+                'Trending Search',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -427,7 +417,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 3),
 
         if (state.isLoadingTrending)
           const Padding(
@@ -465,28 +455,20 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           Navigator.pop(context);
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
             children: [
-              // Ranking number badge
               Container(
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: index < 3
-                      ? const Color(0xFFFF6B6B)
-                      : const Color(0xFFF2F2F7),
+                  color: const Color(0xFFF2F2F7),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: index < 3 ? Colors.white : const Color(0xFF8E8E93),
-                    ),
-                  ),
+                child: const Icon(
+                  Icons.trending_up,
+                  size: 18,
+                  color: Color(0xFF8E8E93),
                 ),
               ),
 
@@ -535,7 +517,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           Navigator.pop(context);
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
             children: [
               Container(
@@ -566,17 +548,17 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                 ),
               ),
 
-              IconButton(
-                icon: const Icon(
-                  Icons.close,
-                  size: 18,
-                  color: Color(0xFF8E8E93),
-                ),
-                onPressed: () {
+              GestureDetector(
+                onTap: () {
                   context.read<SearchBloc>().add(
                     RemoveSearchHistoryEvent(query),
                   );
                 },
+                child: const Icon(
+                  Icons.close,
+                  size: 16,
+                  color: Color(0xFF8E8E93),
+                ),
               ),
             ],
           ),
@@ -659,9 +641,9 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
   IconData _getEngineIcon(SearchEngine engine) {
     switch (engine) {
       case SearchEngine.google:
-        return Icons.search;
+        return Icons.public;
       case SearchEngine.bing:
-        return Icons.search;
+        return Icons.bubble_chart;
       case SearchEngine.duckduckgo:
         return Icons.shield;
       case SearchEngine.youtube:

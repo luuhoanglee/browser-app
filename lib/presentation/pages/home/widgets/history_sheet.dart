@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 class HistorySheet extends StatelessWidget {
   final List<String> history;
   final Function(String) onSelectHistory;
+  final VoidCallback onClearHistory;
+  final Function(String) onRemoveHistory;
 
   const HistorySheet({
     super.key,
     required this.history,
     required this.onSelectHistory,
+    required this.onClearHistory,
+    required this.onRemoveHistory,
   });
 
   @override
@@ -26,13 +30,32 @@ class HistorySheet extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${history.length} History',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '${history.length} History',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    if (history.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: () {
+                          onClearHistory();
+                        },
+                        child: const Text(
+                          'Clear',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Color(0xFF007AFF),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
@@ -97,6 +120,16 @@ class HistorySheet extends StatelessWidget {
                             style: const TextStyle(fontSize: 13),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: GestureDetector(
+                            onTap: () {
+                              onRemoveHistory(url);
+                            },
+                            child: Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Colors.grey[500],
+                            ),
                           ),
                           onTap: () {
                             onSelectHistory(url);
