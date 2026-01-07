@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class HistorySheet extends StatelessWidget {
+class HistorySheet extends StatefulWidget {
   final List<String> history;
   final Function(String) onSelectHistory;
   final VoidCallback onClearHistory;
@@ -13,6 +13,33 @@ class HistorySheet extends StatelessWidget {
     required this.onClearHistory,
     required this.onRemoveHistory,
   });
+
+  @override
+  State<HistorySheet> createState() => _HistorySheetState();
+}
+
+class _HistorySheetState extends State<HistorySheet> {
+  late List<String> _localHistory;
+
+  @override
+  void initState() {
+    super.initState();
+    _localHistory = List.from(widget.history);
+  }
+
+  void _handleClear() {
+    widget.onClearHistory();
+    setState(() {
+      _localHistory.clear();
+    });
+  }
+
+  void _handleRemove(String url) {
+    widget.onRemoveHistory(url);
+    setState(() {
+      _localHistory.remove(url);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,19 +60,17 @@ class HistorySheet extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${history.length} History',
+                      '${_localHistory.length} History',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[700],
                       ),
                     ),
-                    if (history.isNotEmpty) ...[
+                    if (_localHistory.isNotEmpty) ...[
                       const SizedBox(width: 12),
                       GestureDetector(
-                        onTap: () {
-                          onClearHistory();
-                        },
+                        onTap: _handleClear,
                         child: const Text(
                           'Clear',
                           style: TextStyle(
@@ -74,7 +99,7 @@ class HistorySheet extends StatelessWidget {
           ),
           // History list
           Expanded(
-            child: history.isEmpty
+            child: _localHistory.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -97,9 +122,9 @@ class HistorySheet extends StatelessWidget {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    itemCount: history.length,
+                    itemCount: _localHistory.length,
                     itemBuilder: (context, index) {
-                      final url = history[index];
+                      final url = _localHistory[index];
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
@@ -122,9 +147,7 @@ class HistorySheet extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           trailing: GestureDetector(
-                            onTap: () {
-                              onRemoveHistory(url);
-                            },
+                            onTap: () => _handleRemove(url),
                             child: Icon(
                               Icons.close,
                               size: 18,
@@ -132,7 +155,7 @@ class HistorySheet extends StatelessWidget {
                             ),
                           ),
                           onTap: () {
-                            onSelectHistory(url);
+                            widget.onSelectHistory(url);
                             Navigator.pop(context);
                           },
                         ),
