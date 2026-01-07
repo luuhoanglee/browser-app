@@ -31,31 +31,30 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
   void initState() {
     super.initState();
 
-    // Set initial URL if provided
-    if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
-      _controller.text = widget.initialUrl!;
-      // Select all text for easy editing
-      _controller.selection = TextSelection(baseOffset: 0, extentOffset: _controller.text.length);
-    }
-
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ),
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
+      begin: const Offset(0, 0.08),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
 
     _animationController.forward();
 
     // Đợi animation hoàn tất rồi mới focus
-    Future.delayed(const Duration(milliseconds: 400), () {
+    Future.delayed(const Duration(milliseconds: 550), () {
       if (mounted) {
         _focusNode.requestFocus();
       }
@@ -66,6 +65,16 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
   void didChangeDependencies() {
     super.didChangeDependencies();
     _searchBloc = context.read<SearchBloc>();
+
+    // Reset query khi mở popup để hiển thị recent/trending
+    _searchBloc.add(UpdateQueryEvent(''));
+
+    // Set initial URL if provided
+    if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
+      _controller.text = widget.initialUrl!;
+      // Select all text for easy editing
+      _controller.selection = TextSelection(baseOffset: 0, extentOffset: _controller.text.length);
+    }
   }
 
   @override
@@ -78,23 +87,25 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<SearchBloc, SearchState>(
-      builder: (context, state) {
-        return Scaffold(
-          backgroundColor: const Color(0xFFF2F2F7),
-          body: SafeArea(
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      child: BlocBuilder<SearchBloc, SearchState>(
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF2F2F7),
+            body: SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
               child: SlideTransition(
                 position: _slideAnimation,
                 child: Column(
                   children: [
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 12),
 
                     // Safari Search Bar
                     _buildSafariSearchBar(state),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
 
                     // Content Area with rounded corners
                     Expanded(
@@ -134,7 +145,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
             ),
           ),
         );
-      },
+        },
+      ),
     );
   }
 
@@ -215,6 +227,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
             GestureDetector(
               onTap: () {
                 _controller.clear();
+                // Reset query để ẩn suggestions
+                _searchBloc.add(UpdateQueryEvent(''));
                 setState(() {});
               },
               child: const Padding(
@@ -247,33 +261,10 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
   }
 
   Widget _buildSuggestionsSection(SearchState state) {
+    final query = state.query.toLowerCase();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.search,
-                size: 22,
-                color: Color(0xFF8E8E93),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Suggestions',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
         if (state.isLoadingSuggestions)
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -284,63 +275,47 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         else
           ...state.searchSuggestions.take(10).toList().asMap().entries.map((entry) {
             final index = entry.key;
-            final query = entry.value;
-            return _buildSuggestionItem(query, index);
+            final suggestion = entry.value;
+            return _buildSuggestionItem(suggestion, query, index);
           }).toList(),
       ],
     );
   }
 
-  Widget _buildSuggestionItem(String query, int index) {
+
+  Widget _buildSuggestionItem(String suggestion, String query, int index) {
     return TweenAnimationBuilder(
-      duration: Duration(milliseconds: 250 + (index * 30)),
+      duration: Duration(milliseconds: 300 + (index * 40)),
       tween: Tween<double>(begin: 0, end: 1),
       builder: (context, double value, child) {
         return Opacity(
-          opacity: value,
+          opacity: Curves.easeOutCubic.transform(value),
           child: Transform.translate(
-            offset: Offset(0, 10 * (1 - value)),
+            offset: Offset(0, 15 * (1 - Curves.easeOutCubic.transform(value))),
             child: child,
           ),
         );
       },
       child: InkWell(
         onTap: () {
-          widget.onSearch(query);
+          // Lưu vào search history trước khi search
+          _searchBloc.add(PerformSearchEvent(suggestion));
+          widget.onSearch(suggestion);
           Navigator.pop(context);
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF2F2F7),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.search,
-                  size: 18,
-                  color: Color(0xFF8E8E93),
-                ),
+              const Icon(
+                Icons.search,
+                size: 20,
+                color: Color(0xFF8E8E93),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
-                child: Text(
-                  query,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: _buildHighlightedText(suggestion, query),
               ),
-
               const Icon(
                 Icons.arrow_upward,
                 size: 16,
@@ -350,6 +325,71 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHighlightedText(String text, String query) {
+    if (query.isEmpty) {
+      return Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          color: Colors.black87,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final lowerText = text.toLowerCase();
+    final index = lowerText.indexOf(query);
+
+    if (index == -1) {
+      return Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          color: Colors.black87,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    // Tách text thành 3 phần: trước match, match, sau match
+    final before = text.substring(0, index);
+    final match = text.substring(index, index + query.length);
+    final after = text.substring(index + query.length);
+
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: before,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+          TextSpan(
+            text: match,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF007AFF),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextSpan(
+            text: after,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
@@ -388,7 +428,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         
         const SizedBox(height: 3),
 
-        ...state.searchHistory.take(10).toList().asMap().entries.map((entry) {
+        ...state.searchHistory.take(5).toList().asMap().entries.map((entry) {
           final index = entry.key;
           final query = entry.value;
           return _buildRecentItem(query, index);
@@ -417,7 +457,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           ),
         ),
 
-        const SizedBox(height: 3),
+        const SizedBox(height: 12),
 
         if (state.isLoadingTrending)
           const Padding(
@@ -427,69 +467,72 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
             ),
           )
         else
-          ...state.trendingSearches.take(10).toList().asMap().entries.map((entry) {
-            final index = entry.key;
-            final query = entry.value;
-            return _buildTrendingItem(query, index);
-          }).toList(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: state.trendingSearches.take(10).toList().asMap().entries.map((entry) {
+                final index = entry.key;
+                final query = entry.value;
+                return _buildTrendingChip(query, index);
+              }).toList(),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildTrendingItem(String query, int index) {
+  Widget _buildTrendingChip(String query, int index) {
     return TweenAnimationBuilder(
-      duration: Duration(milliseconds: 250 + (index * 30)),
+      duration: Duration(milliseconds: 350 + (index * 45)),
       tween: Tween<double>(begin: 0, end: 1),
       builder: (context, double value, child) {
+        final curvedValue = Curves.easeOutBack.transform(value);
         return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 10 * (1 - value)),
+          opacity: Curves.easeOutCubic.transform(value),
+          child: Transform.scale(
+            scale: 0.7 + (0.3 * curvedValue),
             child: child,
           ),
         );
       },
       child: InkWell(
         onTap: () {
+          // Lưu vào search history trước khi search
+          _searchBloc.add(PerformSearchEvent(query));
           widget.onSearch(query);
           Navigator.pop(context);
         },
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F2F7),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFE5E5EA),
+              width: 1,
+            ),
+          ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF2F2F7),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.trending_up,
-                  size: 18,
-                  color: Color(0xFF8E8E93),
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  query,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
               const Icon(
-                Icons.arrow_upward,
+                Icons.trending_up,
                 size: 16,
-                color: Color(0xFF34C759),
+                color: Color(0xFF8E8E93),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                query,
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -513,6 +556,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       },
       child: InkWell(
         onTap: () {
+          // Lưu vào search history để đưa lên đầu
+          _searchBloc.add(PerformSearchEvent(query));
           widget.onSearch(query);
           Navigator.pop(context);
         },

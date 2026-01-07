@@ -530,19 +530,36 @@ class _HomeViewState extends State<HomeView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      enableDrag: true,
+      isDismissible: true,
+      routeSettings: const RouteSettings(name: '/search_page'),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+        minWidth: double.infinity,
+      ),
       builder: (sheetContext) => BlocProvider.value(
         value: searchBloc,
-        child: SearchPage(
-          initialUrl: currentTab.url.isNotEmpty ? currentTab.url : null,
-          onSearch: (query) {
-            // Dùng formatUrl để tự động detect URL hoặc search query
-            final url = SearchService.formatUrl(query);
-            bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
-            final controller = _getController(currentTab.id);
-            if (controller != null) {
-              controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+        child: GestureDetector(
+          onVerticalDragEnd: (details) {
+            if (details.primaryVelocity != null && details.primaryVelocity! > 300) {
+              Navigator.pop(sheetContext);
             }
           },
+          child: SearchPage(
+            initialUrl: currentTab.url.isNotEmpty ? currentTab.url : null,
+            onSearch: (query) {
+              // Dùng formatUrl để tự động detect URL hoặc search query
+              final url = SearchService.formatUrl(query);
+              bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
+              final controller = _getController(currentTab.id);
+              if (controller != null) {
+                controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+              }
+            },
+          ),
         ),
       ),
     );
