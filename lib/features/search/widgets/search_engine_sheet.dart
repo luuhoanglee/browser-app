@@ -161,14 +161,6 @@ class SearchEngineSheet extends StatelessWidget {
         icon = Icons.play_circle_filled;
         color = Colors.red;
         break;
-      case SearchEngine.wikipedia:
-        icon = Icons.menu_book;
-        color = Colors.grey;
-        break;
-      case SearchEngine.github:
-        icon = Icons.code;
-        color = Colors.black;
-        break;
     }
 
     return Container(

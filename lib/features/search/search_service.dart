@@ -9,8 +9,6 @@ enum SearchEngine {
   bing,
   duckduckgo,
   youtube,
-  wikipedia,
-  github,
 }
 
 extension SearchEngineExtension on SearchEngine {
@@ -25,10 +23,6 @@ extension SearchEngineExtension on SearchEngine {
         return 'https://suggestqueries.google.com/complete/search?hl=en&ds=yt&client=youtube&hjson=t&cp=1&q=';
       case SearchEngine.duckduckgo:
         return 'https://duckduckgo.com/ac/?type=list&q=';
-      case SearchEngine.wikipedia:
-        return 'https://en.wikipedia.org/w/api.php?action=opensearch&search=';
-      case SearchEngine.github:
-        return 'https://api.github.com/search/repositories?q=';
     }
   }
 
@@ -96,30 +90,6 @@ extension SearchEngineExtension on SearchEngine {
             list.add(data[i].toString());
           }
           return list;
-
-        case SearchEngine.wikipedia:
-          final decoded = jsonDecode(response.body) as List;
-          if (decoded.length > 1) {
-            final data = decoded[1] as List;
-            final List<String> list = [];
-            for (int i = 0; i < data.length; i++) {
-              list.add(data[i].toString());
-            }
-            return list;
-          }
-          return [];
-
-        case SearchEngine.github:
-          final decoded = jsonDecode(response.body) as Map;
-          if (decoded.containsKey('items')) {
-            final items = decoded['items'] as List;
-            final List<String> list = [];
-            for (int i = 0; i < items.length && i < 10; i++) {
-              list.add(items[i]['full_name'].toString());
-            }
-            return list;
-          }
-          return [];
       }
     } catch (e) {
       print('getSearchSuggest error: $e');
@@ -149,10 +119,6 @@ class SearchService {
         return 'https://duckduckgo.com/?q=${Uri.encodeComponent(query)}';
       case SearchEngine.youtube:
         return 'https://www.youtube.com/results?search_query=${Uri.encodeComponent(query)}';
-      case SearchEngine.wikipedia:
-        return 'https://en.wikipedia.org/wiki/Special:Search?search=${Uri.encodeComponent(query)}';
-      case SearchEngine.github:
-        return 'https://github.com/search?q=${Uri.encodeComponent(query)}';
     }
   }
 

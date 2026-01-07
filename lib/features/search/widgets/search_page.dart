@@ -583,7 +583,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
-                  'Chọn công cụ tìm kiếm',
+                  'Select Search Engine',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
@@ -631,10 +631,6 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         return 'DuckDuckGo';
       case SearchEngine.youtube:
         return 'YouTube';
-      case SearchEngine.wikipedia:
-        return 'Wikipedia';
-      case SearchEngine.github:
-        return 'GitHub';
     }
   }
 
@@ -648,10 +644,6 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         return Icons.shield;
       case SearchEngine.youtube:
         return Icons.play_circle_filled;
-      case SearchEngine.wikipedia:
-        return Icons.menu_book;
-      case SearchEngine.github:
-        return Icons.code;
     }
   }
 
@@ -665,10 +657,6 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         return const Color(0xFFDE5833);
       case SearchEngine.youtube:
         return const Color(0xFFFF0000);
-      case SearchEngine.wikipedia:
-        return const Color(0xFF000000);
-      case SearchEngine.github:
-        return const Color(0xFF181717);
     }
   }
 }
