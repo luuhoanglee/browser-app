@@ -23,7 +23,8 @@ import '../../../features/search/bloc/search_event.dart';
 import '../../../features/search/search_service.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  final String? initialUrl;
+  const HomePage({super.key, this.initialUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -32,13 +33,40 @@ class HomePage extends StatelessWidget {
         BlocProvider(create: (context) => TabBloc(TabRepositoryImpl())),
         BlocProvider(create: (context) => SearchBloc()),
       ],
-      child: const HomeView(),
+      child: HomeViewWrapper(initialUrl: initialUrl),
     );
   }
 }
 
+// Wrapper để tạo GlobalKey cho HomeView
+class HomeViewWrapper extends StatefulWidget {
+  final String? initialUrl;
+  const HomeViewWrapper({super.key, this.initialUrl});
+
+  @override
+  State<HomeViewWrapper> createState() => HomeViewWrapperState();
+}
+
+class HomeViewWrapperState extends State<HomeViewWrapper> {
+  final GlobalKey<_HomeViewState> _homeViewKey = GlobalKey<_HomeViewState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeView(
+      key: _homeViewKey,
+      initialUrl: widget.initialUrl,
+    );
+  }
+
+  // Method để load deep link từ bên ngoài
+  void loadDeepLinkUrl(String url) {
+    _homeViewKey.currentState?.loadDeepLinkUrl(url);
+  }
+}
+
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  final String? initialUrl;
+  const HomeView({super.key, this.initialUrl});
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -129,6 +157,26 @@ class _HomeViewState extends State<HomeView> {
   void initState() {
     super.initState();
     _loadHistory();
+    // Xử lý deep link nếu có
+    if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
+      // Delay một chút để TabBloc khởi tạo xong
+      Future.delayed(const Duration(milliseconds: 500), () {
+        loadDeepLinkUrl(widget.initialUrl!);
+      });
+    }
+  }
+
+  void loadDeepLinkUrl(String url) {
+    final bloc = context.read<TabBloc>();
+    final activeTab = bloc.state.activeTab;
+    if (activeTab != null) {
+      print('🔗 Loading deep link URL: $url');
+      bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
+      final controller = _getController(activeTab.id);
+      if (controller != null) {
+        controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+      }
+    }
   }
 
   @override
