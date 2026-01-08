@@ -381,25 +381,45 @@ class _HomeViewState extends State<HomeView> {
         activeTab: activeTab,
         controller: _getController(activeTab.id),
         onWebViewCreated: (controller) => _setController(activeTab.id, controller),
+        onUrlUpdated: (newUrl) {
+          // Cập nhật tab URL khi intent URL được parse thành https
+          final bloc = context.read<TabBloc>();
+          final tab = bloc.state.activeTab;
+          if (tab != null && newUrl.isNotEmpty) {
+            print('🔄 Updating tab URL from ${tab.url} to $newUrl');
+            bloc.add(UpdateTabEvent(tab.copyWith(url: newUrl), skipCache: false));
+          }
+        },
         onLoadStart: (controller, url) {
           _resetScrollState();
           final bloc = context.read<TabBloc>();
           final tab = bloc.state.activeTab;
           if (tab != null) {
-            bloc.add(UpdateTabEvent(tab.copyWith(isLoading: true, url: url?.toString() ?? '')));
+            final urlStr = url?.toString() ?? '';
+            // Không update tab URL nếu là intent:// URL (sẽ bị shouldOverrideUrlLoading hủy)
+            if (!urlStr.startsWith('intent://') && !WebViewPage.isExternalUrl(urlStr)) {
+              bloc.add(UpdateTabEvent(tab.copyWith(isLoading: true, url: urlStr)));
+            }
           }
         },
         onLoadStop: (controller, url) async {
           final bloc = context.read<TabBloc>();
           final tab = bloc.state.activeTab;
           if (tab != null) {
-            bloc.add(UpdateTabEvent(tab.copyWith(isLoading: false, url: url?.toString() ?? '')));
+            final urlStr = url?.toString() ?? '';
+            // Chỉ cập nhật URL tab nếu không phải intent/external URL
+            if (!urlStr.startsWith('intent://') && !WebViewPage.isExternalUrl(urlStr)) {
+              bloc.add(UpdateTabEvent(tab.copyWith(isLoading: false, url: urlStr)));
+            } else {
+              // Vẫn cập nhật isLoading nhưng không cập nhật URL
+              bloc.add(UpdateTabEvent(tab.copyWith(isLoading: false), skipCache: true));
+            }
             // Capture thumbnail after page loads
-            if (url != null && url.toString().isNotEmpty) {
+            // Chỉ xử lý nếu URL không phải intent:// hoặc external URL
+            if (url != null && urlStr.isNotEmpty && !urlStr.startsWith('intent://') && !WebViewPage.isExternalUrl(urlStr)) {
               await Future.delayed(const Duration(milliseconds: 500));
               _captureThumbnail(activeTab.id);
               // Thêm vào history
-              final urlStr = url.toString();
               _addToHistory(urlStr);
             }
           }

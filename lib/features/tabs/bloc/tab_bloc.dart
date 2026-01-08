@@ -23,13 +23,47 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     final activeTabId = await StorageService.loadActiveTabId();
 
     if (cachedTabs.isNotEmpty) {
-      // Load cached tabs into repository
+      bool hasInvalidTabs = false;
+
+      // Load cached tabs into repository, filter out intent URLs
       for (var tab in cachedTabs) {
+        // Skip tabs với intent:// hoặc external URLs
+        if (tab.url.startsWith('intent://') ||
+            tab.url.startsWith('googlechrome://') ||
+            tab.url.startsWith('firefox://') ||
+            tab.url.startsWith('chrome://') ||
+            tab.url.startsWith('edge://') ||
+            tab.url.startsWith('opera://')) {
+          print('🚫 Skipping invalid tab with URL: ${tab.url}');
+          hasInvalidTabs = true;
+          continue;
+        }
         repository.addTab(tab);
       }
 
-      if (activeTabId != null) {
-        repository.setActiveTab(activeTabId);
+      // Nếu tất cả tabs đều invalid hoặc chỉ còn empty tabs, tạo tab mới
+      if (repository.getTabs().isEmpty || repository.getTabs().every((t) => t.url.isEmpty)) {
+        print('🧹 Clearing invalid tabs, creating new tab');
+        // Xóa tabs trong repository bằng cách remove từng tab
+        for (var tab in repository.getTabs()) {
+          repository.removeTab(tab.id);
+        }
+        final initialTab = TabModel.create(index: 0);
+        repository.addTab(initialTab);
+        repository.setActiveTab(initialTab.id);
+        // Save cleaned state
+        StorageService.saveTabs(repository.getTabs(), initialTab.id);
+      } else if (activeTabId != null) {
+        // Kiểm tra nếu activeTabId vẫn còn valid
+        final activeTabStillExists = repository.getTab(activeTabId) != null;
+        if (activeTabStillExists) {
+          repository.setActiveTab(activeTabId);
+        } else {
+          // Active tab bị xóa, set tab đầu tiên
+          repository.setActiveTab(repository.getTabs().first.id);
+        }
+      } else {
+        repository.setActiveTab(repository.getTabs().first.id);
       }
 
       final activeTab = repository.getActiveTab();
