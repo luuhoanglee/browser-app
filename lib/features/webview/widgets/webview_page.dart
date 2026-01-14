@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' show InAppWebViewController, WebUri;
 
-class WebViewPage extends StatelessWidget {
+import '../services/content_blocker_service.dart';
+import '../services/webview_interceptor.dart';
+
+class WebViewPage extends StatefulWidget {
   final dynamic activeTab;
   final InAppWebViewController? controller;
+  final PullToRefreshController? pullToRefreshController;
   final Function(InAppWebViewController) onWebViewCreated;
   final Function(InAppWebViewController, WebUri?) onLoadStart;
   final Function(InAppWebViewController, WebUri?) onLoadStop;
@@ -17,6 +20,7 @@ class WebViewPage extends StatelessWidget {
     super.key,
     required this.activeTab,
     required this.controller,
+    this.pullToRefreshController,
     required this.onWebViewCreated,
     required this.onLoadStart,
     required this.onLoadStop,
@@ -26,219 +30,208 @@ class WebViewPage extends StatelessWidget {
     this.onUrlUpdated,
   });
 
-  /// Parse intent:// URL thành https:// URL
-  /// Ví dụ: intent://example.com#Intent;scheme=https;package=com.android.chrome;end
-  ///       => https://example.com
-  static String? parseIntentUrl(String url) {
-    if (!url.startsWith('intent://')) return null;
+  @override
+  State<WebViewPage> createState() => _WebViewPageState();
+}
 
+class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClientMixin {
+
+  @override
+  bool get wantKeepAlive => true;
+
+  // Cache settings to avoid recreating on every build
+  static InAppWebViewSettings? _cachedSettings;
+  static bool _isInitialized = false;
+  static Future<void>? _initFuture; // Cache the init future
+
+  static Future<void> _initializeCache() async {
+    if (_isInitialized) return;
+
+    // 🔥 Initialize AdBlocker patterns from file - async to avoid blocking
     try {
-      // Lấy phần trước #Intent
-      final uriParts = url.split('#Intent');
-      if (uriParts.isEmpty) return null;
-
-      String targetUrl = uriParts[0].replaceFirst('intent://', 'https://');
-
-      // Parse tham số scheme
-      final intentParams = uriParts.length > 1 ? uriParts[1] : '';
-      final schemeMatch = RegExp(r'scheme=([^;]+)').firstMatch(intentParams);
-
-      if (schemeMatch != null) {
-        final scheme = schemeMatch.group(1);
-        if (scheme != null && scheme != 'http' && scheme != 'https') {
-          // Scheme không phải http/https, không xử lý
-          return null;
-        }
-      }
-
-      return targetUrl;
+      await ContentBlockerService.initialize();
     } catch (e) {
-      print('❌ Error parsing intent URL: $e');
-      return null;
+      debugPrint('Failed to initialize ContentBlocker: $e');
+    }
+
+    _cachedSettings = InAppWebViewSettings(
+      disallowOverScroll: false,
+      useShouldOverrideUrlLoading: true,
+      useOnLoadResource: true,
+      useOnDownloadStart: true,
+      useShouldInterceptRequest: true,
+      useShouldInterceptAjaxRequest: true, 
+      useShouldInterceptFetchRequest: true,
+      javaScriptEnabled: true,
+      javaScriptCanOpenWindowsAutomatically: false,
+      supportMultipleWindows: false,
+      contentBlockers: ContentBlockerService.createAdBlockers(),
+      hardwareAcceleration: true,
+      allowsInlineMediaPlayback: true,
+      mediaPlaybackRequiresUserGesture: false,
+      userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
+          '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+      // Performance optimizations
+      cacheEnabled: true,
+      clearCache: false,
+      databaseEnabled: true,
+      domStorageEnabled: true,
+    );
+
+    _isInitialized = true;
+  }
+
+  Future<void> _onWebViewCreated(InAppWebViewController controller) async {
+    widget.onWebViewCreated(controller);
+
+    final initialUrl = _getInitialUrl();
+    if (initialUrl.isNotEmpty) {
+      await controller.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl)));
     }
   }
 
-  /// Kiểm tra URL có phải là external URL cần redirect không
-  static bool isExternalUrl(String url) {
-    return url.startsWith('intent://') ||
-           url.startsWith('googlechrome://') ||
-           url.startsWith('firefox://') ||
-           url.startsWith('chrome://') ||
-           url.startsWith('edge://') ||
-           url.startsWith('opera://');
+  String _getInitialUrl() {
+    String url = widget.activeTab.url ?? '';
+
+    if (url.isEmpty) return '';
+
+    if (url.startsWith('intent://')) {
+      final parsed = _parseIntentUrl(url);
+      if (parsed != null) {
+        widget.onUrlUpdated?.call(parsed);
+        return parsed;
+      }
+      widget.onUrlUpdated?.call('');
+      return '';
+    }
+
+    // Block external URLs
+    if (_isExternalUrl(url)) {
+      widget.onUrlUpdated?.call('');
+      return '';
+    }
+
+    return url;
+  }
+
+  void _onLoadStart(InAppWebViewController controller, WebUri? url) {
+    if (url != null && url.toString().isNotEmpty) {
+      WebViewInterceptor.setCurrentDomain(url.toString());
+    }
+
+    WebViewInterceptor.handleLoadStart(controller, url);
+    widget.onLoadStart(controller, url);
+  }
+
+  void _onLoadStop(InAppWebViewController controller, WebUri? url) {
+    final urlStr = url?.toString() ?? 'unknown';
+    print('🔄 [WebViewPage] onLoadStop: $urlStr');
+
+    if (url != null && urlStr.isNotEmpty) {
+      WebViewInterceptor.setCurrentDomain(urlStr);
+    }
+
+    WebViewInterceptor.injectAntiPopupJS(controller);
+
+    widget.onLoadStop(controller, url);
+  }
+
+  NavigationActionPolicy _shouldOverrideUrlLoading(
+    InAppWebViewController controller,
+    NavigationAction navigationAction,
+  ) {
+    return WebViewInterceptor.shouldOverrideUrlLoading(controller, navigationAction);
+  }
+
+  Future<bool> _onCreateWindow(
+    InAppWebViewController controller,
+    CreateWindowAction createWindowAction,
+  ) async {
+    return await WebViewInterceptor.handleCreateWindow(controller, createWindowAction);
+  }
+
+  static String? _scheme(String url) {
+    final i = url.indexOf('://');
+    return i == -1 ? null : url.substring(0, i).toLowerCase();
+  }
+
+  static bool _isExternalUrl(String url) {
+    final scheme = _scheme(url.toLowerCase());
+    const externalSchemes = {'googlechrome', 'chrome', 'firefox', 'edge', 'opera'};
+    return scheme != null && externalSchemes.contains(scheme);
+  }
+
+  static String? _parseIntentUrl(String url) {
+    try {
+      final i = url.indexOf('#Intent');
+      if (i == -1) return null;
+
+      final main = url.substring(0, i).replaceFirst('intent://', 'https://');
+      if (main.startsWith('https://') || main.startsWith('http://')) {
+        return main;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  WebResourceResponse? _shouldInterceptRequest(
+    InAppWebViewController controller,
+    WebResourceRequest request,
+  ) {
+    return WebViewInterceptor.interceptRequest(request);
+  }
+
+  Future<AjaxRequest?> _shouldInterceptAjaxRequest(
+    InAppWebViewController controller,
+    AjaxRequest request,
+  ) async {
+    return await WebViewInterceptor.shouldInterceptAjaxRequest(request);
+  }
+
+  Future<FetchRequest?> _shouldInterceptFetchRequest(
+    InAppWebViewController controller,
+    FetchRequest request,
+  ) async {
+    return await WebViewInterceptor.shouldInterceptFetchRequest(request);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initFuture ??= _initializeCache();
   }
 
   @override
   Widget build(BuildContext context) {
-    print('🔨 Building WebViewPage for ${activeTab.url} (id: ${activeTab.id})');
+    super.build(context);
 
-    // Parse intent URL nếu có trước khi load
-    String initialUrl = activeTab.url ?? '';
-    if (initialUrl.isNotEmpty && isExternalUrl(initialUrl)) {
-      final parsed = parseIntentUrl(initialUrl);
-      if (parsed != null) {
-        initialUrl = parsed;
-        print('🔄 Pre-parsed intent URL to: $initialUrl');
-        // Thông báo cho HomePage để cập nhật tab URL
-        onUrlUpdated?.call(initialUrl);
-      } else {
-        initialUrl = '';
-        print('🚫 Blocked external URL: ${activeTab.url}');
-        onUrlUpdated?.call('');
-      }
-    }
+    final initialUrl = _getInitialUrl();
 
     return RepaintBoundary(
-      child: InAppWebView(
-      key: ValueKey(activeTab.id),
-      initialUrlRequest: initialUrl.isEmpty
-          ? null
-          : URLRequest(url: WebUri(initialUrl)),
-      initialSettings: InAppWebViewSettings(
-        disallowOverScroll: false,
-        useShouldOverrideUrlLoading: true,
-        useOnLoadResource: true,
-        useOnDownloadStart: true,
-        // JavaScript enabled để inject code chặn intent
-        javaScriptEnabled: true,
-      ),
-      onWebViewCreated: (controller) async {
-        print('✅ WebView created for ${activeTab.id}');
-        onWebViewCreated(controller);
-
-        // Cập nhật settings sau khi tạo
-        await controller.setSettings(settings: InAppWebViewSettings(
-          disallowOverScroll: false,
-        ));
-        print('✅ Settings updated');
-
-        // Inject JavaScript để chặn intent redirects
-        await controller.setSettings(settings: InAppWebViewSettings(
-          userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
-        ));
-
-        // Add user script để chặn intent redirects trước khi page load
-        final blockIntentScript = """
-          (function() {
-            // Override window.location to block intent:// redirects
-            const originalLocation = window.location;
-            Object.defineProperty(window, 'location', {
-              get: function() { return originalLocation; },
-              set: function(url) {
-                if (typeof url === 'string' && url.startsWith('intent://')) {
-                  console.log('Blocked intent redirect:', url);
-                  // Parse and redirect to https instead
-                  const match = url.match(/intent:\/\/([^#]+)/);
-                  if (match) {
-                    const targetUrl = 'https://' + match[1];
-                    console.log('Redirecting to:', targetUrl);
-                    originalLocation.href = targetUrl;
-                  }
-                  return;
-                }
-                originalLocation.href = url;
-              }
-            });
-
-            // Block intent:// in iframes
-            const originalCreateElement = document.createElement;
-            document.createElement = function(tagName) {
-              const element = originalCreateElement.call(document, tagName);
-              if (tagName.toLowerCase() === 'iframe') {
-                element.addEventListener('load', function() {
-                  const src = element.src;
-                  if (src && src.startsWith('intent://')) {
-                    console.log('Blocked iframe intent:', src);
-                    element.src = '';
-                  }
-                });
-              }
-              return element;
-            };
-          })();
-        """;
-
-        await controller.addUserScript(userScript: UserScript(
-          source: blockIntentScript,
-          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-          contentWorld: ContentWorld.PAGE,
-        ));
-        print('✅ Injected intent blocking script');
-
-        // Load URL nếu có và chưa được load bởi initialUrlRequest
-        if (initialUrl.isNotEmpty) {
-          print('🌐 Loading URL in onWebViewCreated: $initialUrl');
-          await controller.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl)));
-        }
-      },
-      onLoadStart: (controller, url) {
-        print('📄 Page loading: $url');
-
-        // Chặn và redirect intent:// URLs ngay khi bắt đầu load
-        if (url != null) {
-          final urlStr = url.toString();
-          if (urlStr.startsWith('intent://')) {
-            print('🚫 Detected intent URL in onLoadStart, blocking...');
-            final parsedUrl = parseIntentUrl(urlStr);
-            if (parsedUrl != null) {
-              print('✅ Redirecting intent to: $parsedUrl');
-              // Dừng loading hiện tại trước khi redirect
-              controller.stopLoading();
-              // Load URL đã parse sau một delay nhỏ
-              Future.delayed(const Duration(milliseconds: 100), () {
-                controller.loadUrl(urlRequest: URLRequest(url: WebUri(parsedUrl)));
-              });
-            }
-            // Không gọi onLoadStart callback để không update tab với URL intent
-            return;
-          }
-        }
-
-        onLoadStart(controller, url);
-      },
-      onLoadStop: (controller, url) {
-        print('✅ Page loaded: $url');
-        onLoadStop(controller, url);
-      },
-      onTitleChanged: (controller, title) {
-        print('📝 Title changed: $title');
-        onTitleChanged(controller, title);
-      },
-      onProgressChanged: (controller, progress) {
-        onProgressChanged(controller, progress);
-      },
-      onScrollChanged: (controller, x, y) {
-        // print('📜 Scroll: x=$x, y=$y');
-        onScrollChanged(y);
-      },
-      shouldOverrideUrlLoading: (controller, navigationAction) async {
-        final url = navigationAction.request.url.toString();
-
-        print('🔗 shouldOverrideUrlLoading: $url');
-
-        // Xử lý intent:// URLs
-        if (url.startsWith('intent://')) {
-          final parsedUrl = WebViewPage.parseIntentUrl(url);
-          if (parsedUrl != null) {
-            print('✅ Parsed intent URL to: $parsedUrl');
-            // Load URL đã parse và CANCEL navigation hiện tại
-            await controller.loadUrl(urlRequest: URLRequest(url: WebUri(parsedUrl)));
-            return NavigationActionPolicy.CANCEL;
-          }
-          // Không thể parse, CANCEL navigation
-          print('❌ Cannot parse intent URL, cancelling navigation');
-          return NavigationActionPolicy.CANCEL;
-        }
-
-        // Xử lý các external URLs khác
-        if (WebViewPage.isExternalUrl(url)) {
-          print('❌ External URL detected, cancelling navigation: $url');
-          return NavigationActionPolicy.CANCEL;
-        }
-
-        // Cho phép các URL khác
-        return NavigationActionPolicy.ALLOW;
-      },
+      child: FutureBuilder<void>(
+        future: _initFuture,
+        builder: (context, snapshot) {
+          return InAppWebView(
+            key: ValueKey(widget.activeTab.id),
+            initialUrlRequest: initialUrl.isEmpty
+                ? null
+                : URLRequest(url: WebUri(initialUrl)),
+            initialSettings: _cachedSettings,
+            pullToRefreshController: widget.pullToRefreshController,
+            onWebViewCreated: _onWebViewCreated,
+            onLoadStart: _onLoadStart,
+            onLoadStop: _onLoadStop,
+            onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
+            onProgressChanged: (controller, progress) =>
+                widget.onProgressChanged(controller, progress),
+            onScrollChanged: (controller, x, y) => widget.onScrollChanged(y),
+            shouldInterceptRequest: _shouldInterceptRequest,
+            shouldInterceptAjaxRequest: _shouldInterceptAjaxRequest,
+            shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
+            shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
+            onCreateWindow: _onCreateWindow,
+          );
+        },
       ),
     );
   }

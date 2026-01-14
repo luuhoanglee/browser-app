@@ -1,44 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-class _ProgressBar extends StatelessWidget {
-  final double progress;
-  final bool isLoading;
-
-  const _ProgressBar({
-    required this.progress,
-    required this.isLoading,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Ẩn progress bar khi không còn loading
-    if (!isLoading) {
-      return const SizedBox.shrink();
-    }
-
-    // Use AnimatedBuilder for smooth animation
-    return TweenAnimationBuilder<double>(
-      key: ValueKey(progress),
-      tween: Tween(begin: 0, end: progress / 100),
-      duration: const Duration(milliseconds: 100),
-      builder: (context, value, child) {
-        return SizedBox(
-          height: 2,
-          child: LinearProgressIndicator(
-            value: value,
-            backgroundColor: Colors.transparent,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              Colors.blue.withOpacity(0.8),
-            ),
-            minHeight: 2,
-          ),
-        );
-      },
-    );
-  }
-}
-
 class BottomBar extends StatelessWidget {
   final dynamic activeTab;
   final dynamic tabState;
@@ -90,21 +52,10 @@ class BottomBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Address bar with progress
+            // Address bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Column(
-                children: [
-                  _buildAddressBar(context),
-                  // Progress indicator under address bar - isolated to prevent full rebuild
-                  RepaintBoundary(
-                    child: _ProgressBar(
-                      progress: activeTab.loadProgress.toDouble(),
-                      isLoading: activeTab.isLoading,
-                    ),
-                  ),
-                ],
-              ),
+              child: _buildAddressBar(context),
             ),
             // Navigation buttons
             SizedBox(

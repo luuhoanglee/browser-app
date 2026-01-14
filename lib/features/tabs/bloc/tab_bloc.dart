@@ -153,15 +153,20 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       orElse: () => event.tab,
     );
 
-    // Chỉ emit khi URL, title, thumbnail, isLoading, hoặc loadProgress thay đổi
+    // Chỉ emit khi URL, title, thumbnail, isLoading thay đổi
+    // Hoặc loadProgress thay đổi đáng kể (> 10%)
+    final progressDelta = (event.tab.loadProgress - existingTab.loadProgress).abs();
+    final hasSignificantProgressChange = progressDelta >= 10 || event.tab.loadProgress == 100 || event.tab.loadProgress == 0;
+
     final hasMeaningfulChange = existingTab.url != event.tab.url ||
         existingTab.title != event.tab.title ||
         existingTab.thumbnail != event.tab.thumbnail ||
         existingTab.isLoading != event.tab.isLoading ||
-        existingTab.loadProgress != event.tab.loadProgress;
+        hasSignificantProgressChange;
 
+    // Nếu chỉ có loadProgress thay đổi nhỏ, không emit state
+    // Chỉ update trong repository để các widget con có thể truy cập
     if (!hasMeaningfulChange && !event.forceUpdate) {
-      // Chỉ update trong repository, không emit state
       repository.updateTab(event.tab);
       return;
     }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../domain/entities/tab_entity.dart';
@@ -9,31 +10,66 @@ class StorageService {
   static const String _searchHistoryKey = 'search_history';
   static const int _maxHistorySize = 100; // Giới hạn 100 mục lịch sử
 
-  // Save tabs to cache
+  // Debounce timers to avoid excessive disk writes
+  static Timer? _tabsSaveDebounce;
+  static Timer? _historySaveDebounce;
+  static List<TabEntity>? _pendingTabs;
+  static String? _pendingActiveTabId;
+  static List<String>? _pendingHistory;
+
+  // Rate limiting: track last save time to avoid too frequent writes
+  static DateTime? _lastTabsSaveTime;
+  static DateTime? _lastHistorySaveTime;
+  static const Duration _minSaveInterval = Duration(seconds: 2); // Minimum 2s between saves
+
+  // Save tabs to cache (debounced to avoid blocking UI)
   static Future<void> saveTabs(List<TabEntity> tabs, String? activeTabId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Convert tabs to JSON
-      final List<Map<String, dynamic>> tabsJson = tabs.map((tab) => {
-        'id': tab.id,
-        'url': tab.url,
-        'title': tab.title,
-        'index': tab.index,
-        'isLoading': tab.isLoading,
-        'thumbnail': tab.thumbnail != null ? base64Encode(tab.thumbnail!) : null,
-      }).toList();
-
-      await prefs.setString(_tabsKey, jsonEncode(tabsJson));
-
-      if (activeTabId != null) {
-        await prefs.setString(_activeTabKey, activeTabId);
-      }
-
-      print('✅ Saved ${tabs.length} tabs to cache');
-    } catch (e) {
-      print('❌ Error saving tabs: $e');
+    // Rate limiting: skip if saved recently (within 2 seconds)
+    final now = DateTime.now();
+    if (_lastTabsSaveTime != null &&
+        now.difference(_lastTabsSaveTime!) < _minSaveInterval) {
+      // Skip this save, a recent one is pending or completed
+      return;
     }
+
+    // Cancel previous pending save
+    _tabsSaveDebounce?.cancel();
+
+    // Store pending data
+    _pendingTabs = tabs;
+    _pendingActiveTabId = activeTabId;
+
+    // Debounce: wait 2 seconds before actually saving to disk (increased from 500ms)
+    _tabsSaveDebounce = Timer(const Duration(seconds: 2), () async {
+      if (_pendingTabs == null) return;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+
+        // Convert tabs to JSON (off-main-thread via Timer)
+        final List<Map<String, dynamic>> tabsJson = _pendingTabs!.map((tab) => {
+          'id': tab.id,
+          'url': tab.url,
+          'title': tab.title,
+          'index': tab.index,
+          'isLoading': tab.isLoading,
+          'thumbnail': tab.thumbnail != null ? base64Encode(tab.thumbnail!) : null,
+        }).toList();
+
+        await prefs.setString(_tabsKey, jsonEncode(tabsJson));
+
+        if (_pendingActiveTabId != null) {
+          await prefs.setString(_activeTabKey, _pendingActiveTabId!);
+        }
+
+        print('✅ Saved ${_pendingTabs!.length} tabs to cache');
+        _pendingTabs = null;
+        _pendingActiveTabId = null;
+        _lastTabsSaveTime = DateTime.now();
+      } catch (e) {
+        print('❌ Error saving tabs: $e');
+      }
+    });
   }
 
   // Load tabs from cache
@@ -88,15 +124,36 @@ class StorageService {
     }
   }
 
-  // Save history to cache
+  // Save history to cache (debounced to avoid blocking UI)
   static Future<void> saveHistory(List<String> history) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_historyKey, jsonEncode(history));
-      print('✅ Saved ${history.length} history items to cache');
-    } catch (e) {
-      print('❌ Error saving history: $e');
+    // Rate limiting: skip if saved recently (within 2 seconds)
+    final now = DateTime.now();
+    if (_lastHistorySaveTime != null &&
+        now.difference(_lastHistorySaveTime!) < _minSaveInterval) {
+      // Skip this save, a recent one is pending or completed
+      return;
     }
+
+    // Cancel previous pending save
+    _historySaveDebounce?.cancel();
+
+    // Store pending data
+    _pendingHistory = history;
+
+    // Debounce: wait 2 seconds before actually saving to disk (increased from 500ms)
+    _historySaveDebounce = Timer(const Duration(seconds: 2), () async {
+      if (_pendingHistory == null) return;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_historyKey, jsonEncode(_pendingHistory!));
+        print('✅ Saved ${_pendingHistory!.length} history items to cache');
+        _pendingHistory = null;
+        _lastHistorySaveTime = DateTime.now();
+      } catch (e) {
+        print('❌ Error saving history: $e');
+      }
+    });
   }
 
   // Load history from cache

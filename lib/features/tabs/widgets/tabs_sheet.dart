@@ -1,10 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/tab_bloc.dart';
 import '../bloc/tab_state.dart';
 import '../bloc/tab_event.dart';
 
-class TabsSheet extends StatelessWidget {
+class TabsSheet extends StatefulWidget {
   final Function(String) onCloseTab;
   final Function(String) onSelectTab;
   final VoidCallback onAddTab;
@@ -15,6 +16,53 @@ class TabsSheet extends StatelessWidget {
     required this.onSelectTab,
     required this.onAddTab,
   });
+
+  @override
+  State<TabsSheet> createState() => _TabsSheetState();
+}
+
+class _TabsSheetState extends State<TabsSheet> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Scroll đến active tab sau khi widget được build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveTab();
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToActiveTab() {
+    final tabState = context.read<TabBloc>().state;
+    final activeTabId = tabState.activeTab?.id;
+    if (activeTabId == null) return;
+
+    // Tìm index của active tab
+    final activeIndex = tabState.tabs.indexWhere((tab) => tab.id == activeTabId);
+    if (activeIndex == -1) return;
+
+    // Tính vị trí scroll (2 cột, mỗi item có spacing)
+    final crossAxisCount = 2;
+    final mainAxisSpacing = 8.0;
+    final itemHeight = (MediaQuery.of(context).size.width - 32 - 8) / 2 / 0.75; // padding + spacing + childAspectRatio
+
+    // Scroll đến vị trí của active tab với một chút offset để nó hiển thị ở giữa
+    final targetPosition = (activeIndex ~/ crossAxisCount) * (itemHeight + mainAxisSpacing);
+    final offset = max(0.0, targetPosition - 100); // Offset để active tab không bị che
+
+    _scrollController.animateTo(
+      offset.toDouble(),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +93,7 @@ class TabsSheet extends StatelessWidget {
                     GestureDetector(
                       onTap: () {
                         context.read<TabBloc>().add(AddTabEvent());
-                        onAddTab(); // Đóng sheet sau khi tạo tab mới
+                        widget.onAddTab(); // Đóng sheet sau khi tạo tab mới
                       },
                       child: Container(
                         width: 32,
@@ -65,6 +113,7 @@ class TabsSheet extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: GridView.builder(
+                    controller: _scrollController,
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 8,
@@ -76,7 +125,17 @@ class TabsSheet extends StatelessWidget {
                       final tab = tabState.tabs[index];
                       final isActive = tab.id == tabState.activeTab?.id;
 
-                      return _buildTabCard(tab, isActive, tabState);
+                      // Wrap with RepaintBoundary to isolate repaints
+                      return RepaintBoundary(
+                        child: _TabCard(
+                          key: ValueKey(tab.id),
+                          tab: tab,
+                          isActive: isActive,
+                          onTap: () => widget.onSelectTab(tab.id),
+                          onClose: () => widget.onCloseTab(tab.id),
+                          canClose: tabState.tabs.length > 0,
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -110,10 +169,29 @@ class TabsSheet extends StatelessWidget {
       },
     );
   }
+}
 
-  Widget _buildTabCard(dynamic tab, bool isActive, TabState tabState) {
+// Separate const widget for tab card to optimize rebuilds
+class _TabCard extends StatelessWidget {
+  final dynamic tab;
+  final bool isActive;
+  final VoidCallback onTap;
+  final VoidCallback onClose;
+  final bool canClose;
+
+  const _TabCard({
+    super.key,
+    required this.tab,
+    required this.isActive,
+    required this.onTap,
+    required this.onClose,
+    required this.canClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => onSelectTab(tab.id),
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -149,8 +227,9 @@ class TabsSheet extends StatelessWidget {
                               ? Image.memory(
                                   tab.thumbnail!,
                                   fit: BoxFit.cover,
+                                  gaplessPlayback: true, // Prevent flicker
                                 )
-                              : _buildEmptyThumbnail(tab),
+                              : _buildEmptyThumbnail(),
                         ),
                       ),
                       if (isActive)
@@ -211,12 +290,12 @@ class TabsSheet extends StatelessWidget {
                 ),
               ],
             ),
-            if (tabState.tabs.length > 0)
+            if (canClose)
               Positioned(
                 top: 6,
                 right: 6,
                 child: GestureDetector(
-                  onTap: () => onCloseTab(tab.id),
+                  onTap: onClose,
                   child: Container(
                     width: 22,
                     height: 22,
@@ -241,7 +320,7 @@ class TabsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyThumbnail(dynamic tab) {
+  Widget _buildEmptyThumbnail() {
     final color = _getColorFromUrl(tab.url);
 
     String firstLetter = 'N';
