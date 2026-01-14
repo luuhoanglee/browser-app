@@ -109,41 +109,53 @@ class EmptyPage extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
-    return GestureDetector(
-      onTap: () => onQuickAccessTap(item),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: item.color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
+  return GestureDetector(
+    onTap: () => onQuickAccessTap(item),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: item.color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  item.icon,
+                  size: 24,
+                  color: item.color,
+                ),
+              ),
             ),
-            child: Icon(
-              item.icon,
-              size: 28,
-              color: item.color,
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                item.title,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item.title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        );
+      },
+    ),
+  );
+}
+
 
   Widget _buildRecentTabItem(BuildContext context, dynamic tab, TabState tabState) {
     return GestureDetector(
