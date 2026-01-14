@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../services/content_blocker_service.dart';
+import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
 
 class WebViewPage extends StatefulWidget {
@@ -49,34 +52,94 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
 
     // 🔥 Initialize AdBlocker patterns from file - async to avoid blocking
     try {
+      // For Android
       await ContentBlockerService.initialize();
+      debugPrint('✅ [ContentBlocker] Initialized successfully');
     } catch (e) {
-      debugPrint('Failed to initialize ContentBlocker: $e');
+      debugPrint('⚠️ Failed to initialize ContentBlocker: $e');
     }
 
-    _cachedSettings = InAppWebViewSettings(
-      disallowOverScroll: false,
-      useShouldOverrideUrlLoading: true,
-      useOnLoadResource: true,
-      useOnDownloadStart: true,
-      useShouldInterceptRequest: true,
-      useShouldInterceptAjaxRequest: true, 
-      useShouldInterceptFetchRequest: true,
-      javaScriptEnabled: true,
-      javaScriptCanOpenWindowsAutomatically: false,
-      supportMultipleWindows: false,
-      contentBlockers: ContentBlockerService.createAdBlockers(),
-      hardwareAcceleration: true,
-      allowsInlineMediaPlayback: true,
-      mediaPlaybackRequiresUserGesture: false,
-      userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
-          '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
-      // Performance optimizations
-      cacheEnabled: true,
-      clearCache: false,
-      databaseEnabled: true,
-      domStorageEnabled: true,
-    );
+    // iOS-specific settings for Content Blocker
+    if (Platform.isIOS) {
+      // 📱 Load rules from assets/blockerList.json for iOS
+      try {
+        await IOSContentBlockerService.initialize();
+        final blockers = await IOSContentBlockerService.getContentBlockers();
+        debugPrint('📱 [iOS] Setting up ${blockers.length} content blockers');
+
+        _cachedSettings = InAppWebViewSettings(
+          disallowOverScroll: false,
+          useShouldOverrideUrlLoading: true,
+          useOnLoadResource: true,
+          useOnDownloadStart: true,
+          useShouldInterceptRequest: true,
+          useShouldInterceptAjaxRequest: true,
+          useShouldInterceptFetchRequest: true,
+          javaScriptEnabled: true,
+          javaScriptCanOpenWindowsAutomatically: false,
+          supportMultipleWindows: false,
+          hardwareAcceleration: true,
+          allowsInlineMediaPlayback: true,
+          mediaPlaybackRequiresUserGesture: false,
+          allowsLinkPreview: false,
+          userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
+              '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+          // Performance optimizations
+          cacheEnabled: true,
+          clearCache: false,
+          databaseEnabled: true,
+          domStorageEnabled: true,
+          // iOS Content Blocker from List<ContentBlocker>
+          contentBlockers: blockers,
+        );
+      } catch (e) {
+        debugPrint('⚠️ [iOS] Failed to load content blockers: $e');
+        _cachedSettings = InAppWebViewSettings(
+          disallowOverScroll: false,
+          useShouldOverrideUrlLoading: true,
+          useOnLoadResource: true,
+          useOnDownloadStart: true,
+          useShouldInterceptRequest: true,
+          useShouldInterceptAjaxRequest: true,
+          useShouldInterceptFetchRequest: true,
+          javaScriptEnabled: true,
+          javaScriptCanOpenWindowsAutomatically: false,
+          supportMultipleWindows: false,
+          hardwareAcceleration: true,
+          allowsInlineMediaPlayback: true,
+          mediaPlaybackRequiresUserGesture: false,
+          allowsLinkPreview: false,
+          userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
+              '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+          cacheEnabled: true,
+          clearCache: false,
+          databaseEnabled: true,
+          domStorageEnabled: true,
+        );
+      }
+    } else {
+      _cachedSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: true,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: false,
+        hardwareAcceleration: true,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+        cacheEnabled: true,
+        clearCache: false,
+        databaseEnabled: true,
+        domStorageEnabled: true,
+      );
+    }
 
     _isInitialized = true;
   }

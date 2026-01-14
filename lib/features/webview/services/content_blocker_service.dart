@@ -173,35 +173,50 @@ class ContentBlockerService {
   }
 
   static bool shouldBlockUrl(String url) {
-    if (url.isEmpty) return false;
-    final lower = url.toLowerCase();
+  if (url.isEmpty) return false;
+  final lower = url.toLowerCase();
+  if (lower.contains("youtube.com") ||
+    lower.contains("youtubei.googleapis.com") ||
+    lower.contains("googlevideo.com") ||
+    lower.contains("ytimg.com")) {
+  return false;
+}
 
-    if (isWhitelisted(lower)) return false;
+  if (isWhitelisted(lower)) return false;
 
-    if (_matchesAny(lower, blockedAdDomains)) {
-      print("🚫 [AdBlock] $url");
-      return true;
-    }
+  if (_matchesAny(lower, blockedAdDomains)) {
+    print("🚫 [AdBlock] $url");
+    return true;
+  }
 
-    if (_matchesAny(lower, safePaths)) return false;
+  if (_matchesAny(lower, safePaths)) return false;
 
-    if (_matchesAny(lower, adPaths)) {
-      print("🚫 [AdBlock Path] $url");
-      return true;
-    }
+  // ❌ Disable adPaths for YouTube
+  if (lower.contains("youtube.com") || lower.contains("googlevideo.com")) {
+    // skip adPaths
+  } else if (_matchesAny(lower, adPaths)) {
+    print("🚫 [AdBlock Path] $url");
+    return true;
+  }
 
-    if (_matchesAdPattern(lower)) {
-      print("🚫 [AdBlock Pattern] $url");
-      return true;
-    }
+  if (_matchesAdPattern(lower)) {
+    print("🚫 [AdBlock Pattern] $url");
+    return true;
+  }
 
-    if (_patternLoader.isLoaded && _patternLoader.matches(lower)) {
+  if (_patternLoader.isLoaded && _patternLoader.matches(lower)) {
+    // skip for youtube
+    if (!lower.contains("youtube.com") &&
+        !lower.contains("youtubei.googleapis.com") &&
+        !lower.contains("googlevideo.com")) {
       print("🚫 [AdBlock FilePattern] $url");
       return true;
     }
-
-    return false;
   }
+
+  return false;
+}
+
 
   static bool isWhitelisted(String url) {
     final lower = url.toLowerCase();
