@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'content_blocker_service.dart';
+import 'ios_content_blocker_service.dart';
 
 class WebViewInterceptor {
   WebViewInterceptor._();
@@ -183,6 +186,17 @@ class WebViewInterceptor {
   static bool _isWhitelisted(String url) {
     final lower = url.toLowerCase();
 
+    // iOS: Use IOSContentBlockerService whitelist
+    if (Platform.isIOS) {
+      if (IOSContentBlockerService.isInWhitelist(lower)) {
+        return true;
+      }
+      if (IOSContentBlockerService.isInCustomWhitelist(lower)) {
+        return true;
+      }
+    }
+
+    // Android: Use existing whitelist
     if (_whitelistDomains.any((domain) => lower.contains(domain))) {
       return true;
     }
@@ -205,6 +219,12 @@ class WebViewInterceptor {
   static bool _shouldBlock(String url) {
     final lower = url.toLowerCase();
 
+    // iOS: Use IOSContentBlockerService
+    if (Platform.isIOS) {
+      return IOSContentBlockerService.shouldBlockUrl(lower);
+    }
+
+    // Android: Use existing logic
     if (_hardBlockedDomains.any((d) => lower.contains(d))) {
       return true;
     }

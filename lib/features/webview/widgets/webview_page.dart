@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -38,86 +37,57 @@ class WebViewPage extends StatefulWidget {
 }
 
 class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClientMixin {
-
   @override
   bool get wantKeepAlive => true;
 
-  // Cache settings to avoid recreating on every build
   static InAppWebViewSettings? _cachedSettings;
   static bool _isInitialized = false;
-  static Future<void>? _initFuture; // Cache the init future
+  static Future<void>? _initFuture;
+
+  static const String _iosUserAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
+      '(KHTML, like Gecko) Version/17.2 Safari/605.1.15';
+
+  static const String _androidUserAgent =
+      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
 
   static Future<void> _initializeCache() async {
     if (_isInitialized) return;
 
-    // 🔥 Initialize AdBlocker patterns from file - async to avoid blocking
-    try {
-      // For Android
-      await ContentBlockerService.initialize();
-      debugPrint('✅ [ContentBlocker] Initialized successfully');
-    } catch (e) {
-      debugPrint('⚠️ Failed to initialize ContentBlocker: $e');
-    }
-
-    // iOS-specific settings for Content Blocker
     if (Platform.isIOS) {
-      // 📱 Load rules from assets/blockerList.json for iOS
-      try {
-        await IOSContentBlockerService.initialize();
-        final blockers = await IOSContentBlockerService.getContentBlockers();
-        debugPrint('📱 [iOS] Setting up ${blockers.length} content blockers');
-
-        _cachedSettings = InAppWebViewSettings(
-          disallowOverScroll: false,
-          useShouldOverrideUrlLoading: true,
-          useOnLoadResource: true,
-          useOnDownloadStart: true,
-          useShouldInterceptRequest: true,
-          useShouldInterceptAjaxRequest: true,
-          useShouldInterceptFetchRequest: true,
-          javaScriptEnabled: true,
-          javaScriptCanOpenWindowsAutomatically: false,
-          supportMultipleWindows: false,
-          hardwareAcceleration: true,
-          allowsInlineMediaPlayback: true,
-          mediaPlaybackRequiresUserGesture: false,
-          allowsLinkPreview: false,
-          userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
-          // Performance optimizations
-          cacheEnabled: true,
-          clearCache: false,
-          databaseEnabled: true,
-          domStorageEnabled: true,
-          // iOS Content Blocker from List<ContentBlocker>
-          contentBlockers: blockers,
-        );
-      } catch (e) {
-        debugPrint('⚠️ [iOS] Failed to load content blockers: $e');
-        _cachedSettings = InAppWebViewSettings(
-          disallowOverScroll: false,
-          useShouldOverrideUrlLoading: true,
-          useOnLoadResource: true,
-          useOnDownloadStart: true,
-          useShouldInterceptRequest: true,
-          useShouldInterceptAjaxRequest: true,
-          useShouldInterceptFetchRequest: true,
-          javaScriptEnabled: true,
-          javaScriptCanOpenWindowsAutomatically: false,
-          supportMultipleWindows: false,
-          hardwareAcceleration: true,
-          allowsInlineMediaPlayback: true,
-          mediaPlaybackRequiresUserGesture: false,
-          allowsLinkPreview: false,
-          userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
-          cacheEnabled: true,
-          clearCache: false,
-          databaseEnabled: true,
-          domStorageEnabled: true,
-        );
-      }
+      final blockers = IOSContentBlockerService.getContentBlockers();
+      _cachedSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: false,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: true,
+        hardwareAcceleration: true,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        allowsLinkPreview: false,
+        cacheEnabled: true,
+        databaseEnabled: true,
+        domStorageEnabled: true,
+        userAgent: _iosUserAgent,
+        applicationNameForUserAgent: '',
+        contentBlockers: blockers,
+      );
+      print('[iOS] Settings initialized with WebViewInterceptor support');
     } else {
+      try {
+        await ContentBlockerService.initialize();
+        debugPrint('[Android] ContentBlocker initialized');
+      } catch (e) {
+        debugPrint('[Android] Failed to initialize ContentBlocker: $e');
+      }
+
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -132,32 +102,64 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         hardwareAcceleration: true,
         allowsInlineMediaPlayback: true,
         mediaPlaybackRequiresUserGesture: false,
-        userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+        userAgent: _androidUserAgent,
+        applicationNameForUserAgent: '',
         cacheEnabled: true,
         clearCache: false,
         databaseEnabled: true,
         domStorageEnabled: true,
+        contentBlockers: ContentBlockerService.createAdBlockers(),
       );
+      debugPrint('[Android] Settings initialized');
     }
 
     _isInitialized = true;
   }
 
-  Future<void> _onWebViewCreated(InAppWebViewController controller) async {
-    widget.onWebViewCreated(controller);
+  /// Parse intent:// URL thành https:// URL
+  static String? _parseIntentUrl(String url) {
+    if (!url.startsWith('intent://')) return null;
 
-    final initialUrl = _getInitialUrl();
-    if (initialUrl.isNotEmpty) {
-      await controller.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl)));
+    try {
+      final uriParts = url.split('#Intent');
+      if (uriParts.isEmpty) return null;
+
+      String targetUrl = uriParts[0].replaceFirst('intent://', 'https://');
+
+      // Parse scheme parameter
+      final intentParams = uriParts.length > 1 ? uriParts[1] : '';
+      final schemeMatch = RegExp(r'scheme=([^;]+)').firstMatch(intentParams);
+
+      if (schemeMatch != null) {
+        final scheme = schemeMatch.group(1);
+        if (scheme != null && scheme != 'http' && scheme != 'https') {
+          return null; // Non-web scheme, skip
+        }
+      }
+
+      return targetUrl;
+    } catch (e) {
+      debugPrint('Error parsing intent URL: $e');
+      return null;
     }
+  }
+
+  /// Kiểm tra URL có phải external scheme không
+  static bool _isExternalUrl(String url) {
+    final urlLower = url.toLowerCase();
+    return urlLower.startsWith('intent://') ||
+        urlLower.startsWith('googlechrome://') ||
+        urlLower.startsWith('firefox://') ||
+        urlLower.startsWith('chrome://') ||
+        urlLower.startsWith('edge://') ||
+        urlLower.startsWith('opera://');
   }
 
   String _getInitialUrl() {
     String url = widget.activeTab.url ?? '';
-
     if (url.isEmpty) return '';
 
+    // Handle intent URLs
     if (url.startsWith('intent://')) {
       final parsed = _parseIntentUrl(url);
       if (parsed != null) {
@@ -177,32 +179,144 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     return url;
   }
 
+  Map<String, String> _getHeaders(String url) {
+    final uri = Uri.parse(url);
+
+    return {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,'
+          'image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'DNT': '1',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Cache-Control': 'max-age=0',
+      if (uri.host.contains('google')) 'Referer': 'https://www.google.com/',
+    };
+  }
+
+  Future<void> _injectBlockIntentScript(InAppWebViewController controller) async {
+    const blockIntentScript = '''
+      (function() {
+        const originalLocation = window.location;
+        Object.defineProperty(window, 'location', {
+          get: function() { return originalLocation; },
+          set: function(url) {
+            if (typeof url === 'string' && url.startsWith('intent://')) {
+              console.log('Blocked intent redirect:', url);
+              const match = url.match(/intent:\\/\\/([^#]+)/);
+              if (match) {
+                const targetUrl = 'https://' + match[1];
+                console.log('Redirecting to:', targetUrl);
+                originalLocation.href = targetUrl;
+              }
+              return;
+            }
+            originalLocation.href = url;
+          }
+        });
+      })();
+    ''';
+
+    await controller.addUserScript(
+      userScript: UserScript(
+        source: blockIntentScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        contentWorld: ContentWorld.PAGE,
+      ),
+    );
+  }
+
+  Future<void> _onWebViewCreated(InAppWebViewController controller) async {
+    widget.onWebViewCreated(controller);
+
+    // Inject intent blocking script
+    await _injectBlockIntentScript(controller);
+
+    final initialUrl = _getInitialUrl();
+    if (initialUrl.isNotEmpty) {
+      await controller.loadUrl(
+        urlRequest: URLRequest(
+          url: WebUri(initialUrl),
+          headers: _getHeaders(initialUrl),
+        ),
+      );
+    }
+  }
+
   void _onLoadStart(InAppWebViewController controller, WebUri? url) {
-    if (url != null && url.toString().isNotEmpty) {
-      WebViewInterceptor.setCurrentDomain(url.toString());
+    if (url != null) {
+      final urlStr = url.toString();
+
+      // Handle intent URLs
+      if (urlStr.startsWith('intent://')) {
+        final parsed = _parseIntentUrl(urlStr);
+        if (parsed != null) {
+          controller.stopLoading();
+          Future.delayed(const Duration(milliseconds: 100), () {
+            controller.loadUrl(
+              urlRequest: URLRequest(
+                url: WebUri(parsed),
+                headers: _getHeaders(parsed),
+              ),
+            );
+          });
+          return;
+        }
+      }
+
+      // Use interceptor for ad blocking
+      if (urlStr.isNotEmpty) {
+        WebViewInterceptor.setCurrentDomain(urlStr);
+        WebViewInterceptor.handleLoadStart(controller, url);
+      }
     }
 
-    WebViewInterceptor.handleLoadStart(controller, url);
     widget.onLoadStart(controller, url);
   }
 
   void _onLoadStop(InAppWebViewController controller, WebUri? url) {
-    final urlStr = url?.toString() ?? 'unknown';
-    print('🔄 [WebViewPage] onLoadStop: $urlStr');
+    final urlStr = url?.toString() ?? '';
 
-    if (url != null && urlStr.isNotEmpty) {
+    if (urlStr.isNotEmpty) {
       WebViewInterceptor.setCurrentDomain(urlStr);
+      WebViewInterceptor.injectAntiPopupJS(controller);
     }
-
-    WebViewInterceptor.injectAntiPopupJS(controller);
 
     widget.onLoadStop(controller, url);
   }
 
-  NavigationActionPolicy _shouldOverrideUrlLoading(
+  Future<NavigationActionPolicy> _shouldOverrideUrlLoading(
     InAppWebViewController controller,
     NavigationAction navigationAction,
-  ) {
+  ) async {
+    final url = navigationAction.request.url.toString();
+
+    // Handle intent URLs
+    if (url.startsWith('intent://')) {
+      final parsed = _parseIntentUrl(url);
+      if (parsed != null) {
+        await controller.loadUrl(
+          urlRequest: URLRequest(
+            url: WebUri(parsed),
+            headers: _getHeaders(parsed),
+          ),
+        );
+        return NavigationActionPolicy.CANCEL;
+      }
+      return NavigationActionPolicy.CANCEL;
+    }
+
+    // Block external URLs
+    if (_isExternalUrl(url)) {
+      return NavigationActionPolicy.CANCEL;
+    }
+
+    // iOS: Use WebViewInterceptor
+    // Android: Use WebViewInterceptor
     return WebViewInterceptor.shouldOverrideUrlLoading(controller, navigationAction);
   }
 
@@ -213,34 +327,11 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     return await WebViewInterceptor.handleCreateWindow(controller, createWindowAction);
   }
 
-  static String? _scheme(String url) {
-    final i = url.indexOf('://');
-    return i == -1 ? null : url.substring(0, i).toLowerCase();
-  }
-
-  static bool _isExternalUrl(String url) {
-    final scheme = _scheme(url.toLowerCase());
-    const externalSchemes = {'googlechrome', 'chrome', 'firefox', 'edge', 'opera'};
-    return scheme != null && externalSchemes.contains(scheme);
-  }
-
-  static String? _parseIntentUrl(String url) {
-    try {
-      final i = url.indexOf('#Intent');
-      if (i == -1) return null;
-
-      final main = url.substring(0, i).replaceFirst('intent://', 'https://');
-      if (main.startsWith('https://') || main.startsWith('http://')) {
-        return main;
-      }
-    } catch (_) {}
-    return null;
-  }
-
   WebResourceResponse? _shouldInterceptRequest(
     InAppWebViewController controller,
     WebResourceRequest request,
   ) {
+    if (Platform.isIOS) return null;
     return WebViewInterceptor.interceptRequest(request);
   }
 
@@ -256,6 +347,34 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     FetchRequest request,
   ) async {
     return await WebViewInterceptor.shouldInterceptFetchRequest(request);
+  }
+
+  void _onReceivedHttpError(
+    InAppWebViewController controller,
+    WebResourceRequest request,
+    WebResourceResponse response,
+  ) {
+
+    final url = request.url.toString();
+
+    // Skip ads/tracking errors
+    const ignoredPatterns = [
+      'doubleclick.net',
+      'google-analytics.com',
+      'googletagmanager.com',
+      'facebook.com/tr',
+      'ads',
+      'tracker',
+      'pixel',
+      'analytics',
+    ];
+
+    if (ignoredPatterns.any((pattern) => url.contains(pattern))) {
+      return;
+    }
+
+    print('🔴 [${Platform.isIOS ? "iOS" : "Android"}] HTTP ${response.statusCode}');
+    print('   URL: $url');
   }
 
   @override
@@ -278,7 +397,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
             key: ValueKey(widget.activeTab.id),
             initialUrlRequest: initialUrl.isEmpty
                 ? null
-                : URLRequest(url: WebUri(initialUrl)),
+                : URLRequest(
+                    url: WebUri(initialUrl),
+                    headers: _getHeaders(initialUrl),
+                  ),
             initialSettings: _cachedSettings,
             pullToRefreshController: widget.pullToRefreshController,
             onWebViewCreated: _onWebViewCreated,
@@ -293,6 +415,13 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
             shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
             shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
             onCreateWindow: _onCreateWindow,
+            onReceivedError: (controller, request, error) {
+              if (request.isForMainFrame == true) {
+                print('❌ [${Platform.isIOS ? "iOS" : "Android"}] ${error.description}');
+                print('   URL: ${request.url}');
+              }
+            },
+            onReceivedHttpError: _onReceivedHttpError,
           );
         },
       ),
