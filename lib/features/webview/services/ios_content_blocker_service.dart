@@ -1,57 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart'
-    show
-        ContentBlocker,
-        ContentBlockerAction,
-        ContentBlockerActionType,
-        ContentBlockerTrigger,
-        ContentBlockerTriggerLoadType,
-        ContentBlockerTriggerResourceType;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class IOSContentBlockerService {
   IOSContentBlockerService._();
-
-  static const List<String> adPaths = [
-    '/ads',
-    '/ad/',
-    '/advert',
-    '/popup',
-    '/popunder',
-    '/banner',
-    '/tracking',
-    '/analytics',
-    '/pixel',
-    '/beacon',
-    '/telemetry',
-    '/click',
-    '/promo',
-    '/sponsored',
-  ];
-
-  static const List<String> safePaths = [
-    '/api',
-    '/cdn-cgi',
-    '/rum',
-    '/images',
-    '/video',
-    '/stream',
-    '/hls',
-    '/dash',
-    '/manifest',
-  ];
-
-  static final List<RegExp> adPatterns = [
-    RegExp(r'/ad[sx]?/', caseSensitive: false),
-    RegExp(r'/banner', caseSensitive: false),
-    RegExp(r'/popup', caseSensitive: false),
-    RegExp(r'/sponsored', caseSensitive: false),
-    RegExp(r'\.ad\.', caseSensitive: false),
-    RegExp(r'advert', caseSensitive: false),
-    RegExp(r'clicktrack', caseSensitive: false),
-    RegExp(r'/track/', caseSensitive: false),
-    RegExp(r'affiliate', caseSensitive: false),
-    RegExp(r'/promo/', caseSensitive: false),
-  ];
 
   static const List<String> criticalBlockedDomains = [
     // ACS Ad Network - Main culprit
@@ -229,11 +180,11 @@ class IOSContentBlockerService {
         ContentBlocker(
           trigger: ContentBlockerTrigger(
             urlFilter: '.*($pattern).*',
-
+            
             loadType: [
               ContentBlockerTriggerLoadType.THIRD_PARTY,
             ],
-
+            
             resourceType: [
               ContentBlockerTriggerResourceType.SCRIPT,
               ContentBlockerTriggerResourceType.IMAGE,
@@ -251,101 +202,5 @@ class IOSContentBlockerService {
       final numBatches = (domains.length / batchSize).ceil();
       print('   - $category: ${domains.length} domains in $numBatches batches');
     }
-  }
-
-  /// Check if URL should be blocked
-  static bool shouldBlockUrl(String url) {
-    if (url.isEmpty) return false;
-    final lower = url.toLowerCase();
-
-    // Skip YouTube
-    if (_isYouTubeUrl(lower)) return false;
-
-    // Check whitelist first
-    if (_isWhitelisted(lower)) return false;
-
-    // Check blocked domains
-    final allBlockedDomains = [
-      ...criticalBlockedDomains,
-      ...secondaryBlockedDomains,
-    ];
-
-    for (final domain in allBlockedDomains) {
-      if (lower.contains(domain)) {
-        debugPrint('🚫 [iOSContentBlocker] Blocked domain: $url');
-        return true;
-      }
-    }
-
-    // Check safe paths first (skip blocking)
-    if (_matchesAny(lower, safePaths)) return false;
-
-    // Check ad paths
-    if (_matchesAny(lower, adPaths)) {
-      debugPrint('🚫 [iOSContentBlocker] Blocked path: $url');
-      return true;
-    }
-
-    // Check ad patterns
-    if (_matchesAdPattern(lower)) {
-      debugPrint('🚫 [iOSContentBlocker] Blocked pattern: $url');
-      return true;
-    }
-
-    return false;
-  }
-
-  /// Check if URL is in whitelist
-  static bool isInWhitelist(String url) {
-    return _isWhitelisted(url.toLowerCase());
-  }
-
-  /// Check if URL is a YouTube URL
-  static bool _isYouTubeUrl(String url) {
-    return url.contains('youtube.com') ||
-        url.contains('youtu.be') ||
-        url.contains('googlevideo.com') ||
-        url.contains('ytimg.com') ||
-        url.contains('youtubei.googleapis.com');
-  }
-
-  /// Check if URL is whitelisted
-  static bool _isWhitelisted(String url) {
-    return whitelistDomains.any((domain) => url.contains(domain));
-  }
-
-  /// Check if URL matches any string in list
-  static bool _matchesAny(String url, List<String> list) {
-    for (final s in list) {
-      if (url.contains(s)) return true;
-    }
-    return false;
-  }
-
-  /// Check if URL matches any ad pattern
-  static bool _matchesAdPattern(String url) {
-    return adPatterns.any((pattern) => pattern.hasMatch(url));
-  }
-
-  static final Set<String> customWhitelist = {};
-
-  static void addToWhitelist(String domain) {
-    customWhitelist.add(domain.toLowerCase());
-    debugPrint('✅ [iOSContentBlocker] Added to whitelist: $domain');
-  }
-
-  static void removeFromWhitelist(String domain) {
-    customWhitelist.remove(domain.toLowerCase());
-    debugPrint('❌ [iOSContentBlocker] Removed from whitelist: $domain');
-  }
-
-  static void clearCustomWhitelist() {
-    customWhitelist.clear();
-    debugPrint('🗑️ [iOSContentBlocker] Custom whitelist cleared');
-  }
-
-  static bool isInCustomWhitelist(String url) {
-    final lower = url.toLowerCase();
-    return customWhitelist.any((domain) => lower.contains(domain));
   }
 }
