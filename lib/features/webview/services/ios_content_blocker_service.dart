@@ -53,67 +53,6 @@ class IOSContentBlockerService {
     'revcontent.com',
   ];
 
-  static const List<String> whitelistDomains = [
-    // Google / YouTube
-    'youtube.com',
-    'youtu.be',
-    'googlevideo.com',
-    'gstatic.com',
-    'googleapis.com',
-    'googleusercontent.com',
-    'ytimg.com',
-    'yt3.ggpht.com',
-
-    // Video CDNs
-    'cloudflare.com',
-    'cloudflare.net',
-    'cloudflareinsights.com',
-    'cloudfront.net',
-    'fastly.com',
-    'fastly.net',
-    'akamai.com',
-    'akamaihd.net',
-    'akamaized.net',
-    'jwplayer.com',
-    'jwpcdn.com',
-    'vimeocdn.com',
-    'vimeo.com',
-    'dailymotioncdn.net',
-    'dailymotion.com',
-    'dmcdn.net',
-    'twitch.tv',
-    'ttvnw.net',
-
-    // JS / Fonts / Images
-    'cdnjs.com',
-    'cdnjs.cloudflare.com',
-    'jsdelivr.net',
-    'unpkg.com',
-    'fonts.googleapis.com',
-    'fontawesome.com',
-    'bootstrapcdn.com',
-    'jquery.com',
-
-    // Social media
-    'facebook.com',
-    'fbcdn.net',
-    'twitter.com',
-    'twimg.com',
-    'instagram.com',
-
-    // Vietnam
-    'fshare.vn',
-    'cdn.fshare.vn',
-    'drive.google.com',
-
-    // Payment
-    'stripe.com',
-    'paypal.com',
-    'vnpay.vn',
-    'momo.vn',
-    'zalopay.vn',
-  ];
-
   static const String cssSelectors = '''
     .ad, .ads, .advert, .banner, .popup, .popunder,
     .qc, .quangcao, .sponsor, .promo,

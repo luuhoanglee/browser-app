@@ -460,8 +460,14 @@ class WebViewInterceptor {
     final url = request.url.toString();
     final lower = url.toLowerCase();
 
-    if (_isWhitelisted(lower)) {
-      return null;
+    // Skip blocking cho YouTube domain
+    if (
+        lower.contains('youtube.com') ||
+        lower.contains('googlevideo.com') ||
+        lower.contains('youtubei.googleapis.com') ||
+        lower.contains('ggpht.com') ||
+        lower.contains('ytimg.com')) {
+      return request;
     }
 
     if (_shouldBlock(lower)) {
@@ -486,7 +492,7 @@ class WebViewInterceptor {
     final analyticsKeywords = [
       '/analytics', '/track', '/tracking', '/telemetry',
       '/collect', '/beacon', '/pixel', '/metrics',
-      '/events', '/log', '/stats', '/monitor',
+      '/stats', '/monitor',
       'google-analytics.com', 'googletagmanager.com',
       'googlesyndication.com', 'doubleclick.net',
       'facebook.com/tr/', 'fbq', 'fbc',

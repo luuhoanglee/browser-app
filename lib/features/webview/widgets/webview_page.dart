@@ -44,9 +44,11 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   static bool _isInitialized = false;
   static Future<void>? _initFuture;
 
+  // User-Agent chuẩn để tránh bị rate limit
   static const String _iosUserAgent =
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
-      '(KHTML, like Gecko) Version/17.2 Safari/605.1.15';
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) '
+      'AppleWebKit/605.1.15 (KHTML, like Gecko) '
+      'Version/17.2 Mobile/15E148 Safari/604.1';
 
   static const String _androidUserAgent =
       'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
@@ -56,7 +58,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     if (_isInitialized) return;
 
     if (Platform.isIOS) {
-      final blockers = IOSContentBlockerService.getContentBlockers();
+      final blockers = IOSContentBlockerService.getContentBlockers();   
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -67,7 +69,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         useShouldInterceptFetchRequest: true,
         javaScriptEnabled: true,
         javaScriptCanOpenWindowsAutomatically: false,
-        supportMultipleWindows: true,
+        supportMultipleWindows: false,
         hardwareAcceleration: true,
         allowsInlineMediaPlayback: true,
         mediaPlaybackRequiresUserGesture: false,
@@ -79,7 +81,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         applicationNameForUserAgent: '',
         contentBlockers: blockers,
       );
-      print('[iOS] Settings initialized with WebViewInterceptor support');
+      print('[iOS] Settings initialized with ${blockers.length} content blockers');
     } else {
       try {
         await ContentBlockerService.initialize();
@@ -268,8 +270,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         }
       }
 
-      // Use interceptor for ad blocking
-      if (urlStr.isNotEmpty) {
+      if (Platform.isAndroid && urlStr.isNotEmpty) {
         WebViewInterceptor.setCurrentDomain(urlStr);
         WebViewInterceptor.handleLoadStart(controller, url);
       }
@@ -281,7 +282,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   void _onLoadStop(InAppWebViewController controller, WebUri? url) {
     final urlStr = url?.toString() ?? '';
 
-    if (urlStr.isNotEmpty) {
+    if (Platform.isAndroid && urlStr.isNotEmpty) {
       WebViewInterceptor.setCurrentDomain(urlStr);
       WebViewInterceptor.injectAntiPopupJS(controller);
     }
@@ -294,7 +295,6 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     NavigationAction navigationAction,
   ) async {
     final url = navigationAction.request.url.toString();
-
     // Handle intent URLs
     if (url.startsWith('intent://')) {
       final parsed = _parseIntentUrl(url);
@@ -315,8 +315,12 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       return NavigationActionPolicy.CANCEL;
     }
 
-    // iOS: Use WebViewInterceptor
-    // Android: Use WebViewInterceptor
+    // iOS: Allow all navigation
+    if (Platform.isIOS) {
+      return NavigationActionPolicy.ALLOW;
+    }
+
+    // Android: Use interceptor
     return WebViewInterceptor.shouldOverrideUrlLoading(controller, navigationAction);
   }
 
@@ -324,6 +328,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     InAppWebViewController controller,
     CreateWindowAction createWindowAction,
   ) async {
+    if (Platform.isIOS) {
+      return true;
+    }
     return await WebViewInterceptor.handleCreateWindow(controller, createWindowAction);
   }
 
@@ -331,7 +338,6 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     InAppWebViewController controller,
     WebResourceRequest request,
   ) {
-    if (Platform.isIOS) return null;
     return WebViewInterceptor.interceptRequest(request);
   }
 
@@ -377,6 +383,23 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     print('   URL: $url');
   }
 
+  void _onReceivedError(
+    InAppWebViewController controller,
+    WebResourceRequest request,
+    WebResourceError error,
+  ) {
+
+    if (request.isForMainFrame != true) return;
+
+    if (error.type == WebResourceErrorType.CANCELLED) {
+      return;
+    }
+
+    final url = request.url.toString();
+    print('❌ [${Platform.isIOS ? "iOS" : "Android"}] ${error.description}');
+    print('   URL: $url');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -415,12 +438,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
             shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
             shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
             onCreateWindow: _onCreateWindow,
-            onReceivedError: (controller, request, error) {
-              if (request.isForMainFrame == true) {
-                print('❌ [${Platform.isIOS ? "iOS" : "Android"}] ${error.description}');
-                print('   URL: ${request.url}');
-              }
-            },
+            onReceivedError: _onReceivedError,
             onReceivedHttpError: _onReceivedHttpError,
           );
         },
