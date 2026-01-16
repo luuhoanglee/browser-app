@@ -1,10 +1,22 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
+
+enum WebViewErrorType {
+  none,
+  noInternet,
+  hostNotFound,
+  connectionRefused,
+  timeout,
+  sslError,
+  genericError,
+}
 
 class WebViewPage extends StatefulWidget {
   final dynamic activeTab;
@@ -43,6 +55,13 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   static InAppWebViewSettings? _cachedSettings;
   static bool _isInitialized = false;
   static Future<void>? _initFuture;
+
+  // Error state tracking
+  WebViewErrorType _errorType = WebViewErrorType.none;
+  String? _errorMessage;
+  bool _isOffline = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _hadError = false; // Track if error occurred during current load
 
   // User-Agent chuẩn để tránh bị rate limit
   static const String _iosUserAgent =
@@ -253,6 +272,17 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     if (url != null) {
       final urlStr = url.toString();
 
+      print('[onLoadStart] URL: $urlStr');
+      print('[onLoadStart] Resetting _hadError to false');
+
+      _hadError = false;
+
+      // Clear previous error when starting new load
+      if (_errorType != WebViewErrorType.none) {
+        print('[onLoadStart] Clearing previous error state');
+        _clearError();
+      }
+
       // Handle intent URLs
       if (urlStr.startsWith('intent://')) {
         final parsed = _parseIntentUrl(urlStr);
@@ -282,10 +312,22 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   void _onLoadStop(InAppWebViewController controller, WebUri? url) {
     final urlStr = url?.toString() ?? '';
 
+    print('[onLoadStop] URL: $urlStr');
+    print('[onLoadStop] Current error type: $_errorType');
+    print('[onLoadStop] _hadError: $_hadError');
+
+    if (_hadError) {
+      print('[onLoadStop] Error occurred during load, keeping error state');
+      return;
+    }
+
     if (Platform.isAndroid && urlStr.isNotEmpty) {
       WebViewInterceptor.setCurrentDomain(urlStr);
       WebViewInterceptor.injectAntiPopupJS(controller);
     }
+
+    // Clear error when page loads successfully
+    _clearError();
 
     widget.onLoadStop(controller, url);
   }
@@ -360,6 +402,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     WebResourceRequest request,
     WebResourceResponse response,
   ) {
+    if (request.isForMainFrame != true) return;
+
+    _hadError = true;
 
     final url = request.url.toString();
 
@@ -379,8 +424,18 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       return;
     }
 
-    print('🔴 [${Platform.isIOS ? "iOS" : "Android"}] HTTP ${response.statusCode}');
-    print('   URL: $url');
+    print('[onReceivedHttpError] Status: ${response.statusCode}');
+    print('[onReceivedHttpError] URL: $url');
+
+    if (_isOffline) {
+      _setError(WebViewErrorType.noInternet, 'No internet connection');
+    } else if (response.statusCode == 404) {
+      _setError(WebViewErrorType.hostNotFound, 'Page not found');
+    } else if (response.statusCode != null && response.statusCode! >= 500) {
+      _setError(WebViewErrorType.connectionRefused, 'Server error');
+    } else {
+      _setError(WebViewErrorType.genericError, 'Failed to load page (code ${response.statusCode})');
+    }
   }
 
   void _onReceivedError(
@@ -388,7 +443,6 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     WebResourceRequest request,
     WebResourceError error,
   ) {
-
     if (request.isForMainFrame != true) return;
 
     if (error.type == WebResourceErrorType.CANCELLED) {
@@ -396,14 +450,195 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     }
 
     final url = request.url.toString();
-    print('❌ [${Platform.isIOS ? "iOS" : "Android"}] ${error.description}');
-    print('   URL: $url');
+
+    _hadError = true;
+
+    controller.stopLoading();
+
+    WebViewErrorType errorType;
+    String message;
+
+    if (error.type == WebResourceErrorType.HOST_LOOKUP) {
+      errorType = WebViewErrorType.hostNotFound;
+      message = 'Address not found';
+    } else if (error.type == WebResourceErrorType.TIMEOUT) {
+      errorType = WebViewErrorType.timeout;
+      message = 'Connection timeout';
+    } else if (error.type == WebResourceErrorType.NETWORK_CONNECTION_LOST || error.description.toString().contains('connection was lost')) {
+      errorType = WebViewErrorType.noInternet;
+      message = 'Network connection lost';
+    } else if (_isOffline && (error.description.toString().contains('INTERNET') || error.description.toString().contains('network'))) {
+      errorType = WebViewErrorType.noInternet;
+      message = 'No internet connection';
+    } else {
+      errorType = WebViewErrorType.genericError;
+      message = error.description ?? 'An error occurred';
+    }
+
+    _setError(errorType, message);
+  }
+
+  Future<void> _checkConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    final isOffline = results.every((result) => result == ConnectivityResult.none);
+    if (_isOffline != isOffline) {
+      setState(() {
+        _isOffline = isOffline;
+        if (isOffline) {
+          _errorType = WebViewErrorType.noInternet;
+          _errorMessage = 'No internet connection';
+        } else {
+          _clearError();
+        }
+      });
+    }
+  }
+
+  void _clearError() {
+    if (_errorType != WebViewErrorType.none) {
+      print('[WebViewError] Clearing error state');
+    }
+    setState(() {
+      _errorType = WebViewErrorType.none;
+      _errorMessage = null;
+    });
+  }
+
+  void _setError(WebViewErrorType type, String message) {
+    print('[WebViewError] Setting error: $type - $message');
+    print('[WebViewError] Stack trace: ${StackTrace.current}');
+    setState(() {
+      _errorType = type;
+      _errorMessage = message;
+    });
   }
 
   @override
   void initState() {
     super.initState();
     _initFuture ??= _initializeCache();
+    _checkConnectivity();
+    _connectivitySubscription = Connectivity()
+        .onConnectivityChanged
+        .listen((List<ConnectivityResult> results) {
+      final isOffline = results.every((result) => result == ConnectivityResult.none);
+      setState(() {
+        _isOffline = isOffline;
+        if (isOffline) {
+          _errorType = WebViewErrorType.noInternet;
+          _errorMessage = 'No internet connection';
+        } else if (_errorType == WebViewErrorType.noInternet) {
+          _clearError();
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
+
+  Widget _buildErrorWidget() {
+    IconData icon;
+    Color iconColor;
+    String title;
+    String subtitle;
+
+    switch (_errorType) {
+      case WebViewErrorType.noInternet:
+        icon = Icons.wifi_off;
+        iconColor = Colors.orange;
+        title = 'No Internet Connection';
+        subtitle = 'Please check your internet connection';
+        break;
+      case WebViewErrorType.hostNotFound:
+        icon = Icons.search_off;
+        iconColor = Colors.red;
+        title = 'Page Not Found';
+        subtitle = 'The webpage address does not exist';
+        break;
+      case WebViewErrorType.connectionRefused:
+        icon = Icons.cloud_off;
+        iconColor = Colors.red;
+        title = 'Connection Refused';
+        subtitle = 'The server refused the connection';
+        break;
+      case WebViewErrorType.timeout:
+        icon = Icons.access_time;
+        iconColor = Colors.orange;
+        title = 'Connection Timeout';
+        subtitle = 'The server is taking too long to respond. Please try again';
+        break;
+      case WebViewErrorType.sslError:
+        icon = Icons.lock_open;
+        iconColor = Colors.red;
+        title = 'Security Error';
+        subtitle = 'The connection is not secure';
+        break;
+      case WebViewErrorType.genericError:
+      default:
+        icon = Icons.error_outline;
+        iconColor = Colors.grey;
+        title = 'An Error Occurred';
+        subtitle = _errorMessage ?? 'Unable to load page';
+        break;
+    }
+
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 80, color: iconColor),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  // Reset error flag before retry
+                  _hadError = false;
+                  _clearError();
+
+                  // Trigger reload via callback if controller exists
+                  if (widget.controller != null) {
+                    widget.controller!.reload();
+                  }
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -416,30 +651,44 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       child: FutureBuilder<void>(
         future: _initFuture,
         builder: (context, snapshot) {
-          return InAppWebView(
-            key: ValueKey(widget.activeTab.id),
-            initialUrlRequest: initialUrl.isEmpty
-                ? null
-                : URLRequest(
-                    url: WebUri(initialUrl),
-                    headers: _getHeaders(initialUrl),
+          return Stack(
+            children: [
+              Opacity(
+                opacity: _errorType == WebViewErrorType.none ? 1.0 : 0.0,
+                child: IgnorePointer(
+                  ignoring: _errorType != WebViewErrorType.none,
+                  child: InAppWebView(
+                    key: ValueKey(widget.activeTab.id),
+                    initialUrlRequest: initialUrl.isEmpty
+                        ? null
+                        : URLRequest(
+                            url: WebUri(initialUrl),
+                            headers: _getHeaders(initialUrl),
+                          ),
+                    initialSettings: _cachedSettings,
+                    pullToRefreshController: widget.pullToRefreshController,
+                    onWebViewCreated: _onWebViewCreated,
+                    onLoadStart: _onLoadStart,
+                    onLoadStop: _onLoadStop,
+                    onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
+                    onProgressChanged: (controller, progress) =>
+                        widget.onProgressChanged(controller, progress),
+                    onScrollChanged: (controller, x, y) => widget.onScrollChanged(y),
+                    shouldInterceptRequest: _shouldInterceptRequest,
+                    shouldInterceptAjaxRequest: _shouldInterceptAjaxRequest,
+                    shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
+                    shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
+                    onCreateWindow: _onCreateWindow,
+                    onReceivedError: _onReceivedError,
+                    onReceivedHttpError: _onReceivedHttpError,
                   ),
-            initialSettings: _cachedSettings,
-            pullToRefreshController: widget.pullToRefreshController,
-            onWebViewCreated: _onWebViewCreated,
-            onLoadStart: _onLoadStart,
-            onLoadStop: _onLoadStop,
-            onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
-            onProgressChanged: (controller, progress) =>
-                widget.onProgressChanged(controller, progress),
-            onScrollChanged: (controller, x, y) => widget.onScrollChanged(y),
-            shouldInterceptRequest: _shouldInterceptRequest,
-            shouldInterceptAjaxRequest: _shouldInterceptAjaxRequest,
-            shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
-            shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
-            onCreateWindow: _onCreateWindow,
-            onReceivedError: _onReceivedError,
-            onReceivedHttpError: _onReceivedHttpError,
+                ),
+              ),
+              if (_errorType != WebViewErrorType.none)
+                Positioned.fill(
+                  child: _buildErrorWidget(),
+                ),
+            ],
           );
         },
       ),
