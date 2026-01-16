@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:satreps_client_app/core/config/constants.dart';
+import 'package:browser_app/core/config/constants.dart';
 
 import '../api_client.dart';
 import '../decodable.dart';

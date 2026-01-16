@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:satreps_client_app/core/enum/flavor/flavor.dart' show Flavor;
+import 'package:browser_app/core/enum/flavor/flavor.dart' show Flavor;
 
 class FlavorValues {
   final String? baseUrl;

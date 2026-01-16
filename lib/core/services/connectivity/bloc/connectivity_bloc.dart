@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
-import 'package:satreps_client_app/core/services/connectivity/bloc/connectivity_event.dart';
-import 'package:satreps_client_app/core/services/connectivity/bloc/connectivity_state.dart';
+import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/services/connectivity/bloc/connectivity_event.dart';
+import 'package:browser_app/core/services/connectivity/bloc/connectivity_state.dart';
 
 export 'connectivity_event.dart';
 export 'connectivity_state.dart';

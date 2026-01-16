@@ -5,10 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
-import 'package:satreps_client_app/core/services/fcm/notification_remote_service.dart';
-import 'package:satreps_client_app/core/shared/cache/cache_key.dart';
-import 'package:satreps_client_app/core/shared/cache/cache_manager.dart';
+import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/services/fcm/notification_remote_service.dart';
+import 'package:browser_app/core/shared/cache/cache_key.dart';
+import 'package:browser_app/core/shared/cache/cache_manager.dart';
 import 'dart:html' as html;
 
 class FirebaseService {

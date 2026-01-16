@@ -2,15 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:satreps_client_app/core/api/api_client.dart';
-import 'package:satreps_client_app/core/api/api_response.dart';
-import 'package:satreps_client_app/core/api/api_route.dart';
-import 'package:satreps_client_app/core/api/cubit/api_cubit.dart';
+import 'package:browser_app/core/api/api_client.dart';
+import 'package:browser_app/core/api/api_response.dart';
+import 'package:browser_app/core/api/api_route.dart';
+import 'package:browser_app/core/api/cubit/api_cubit.dart';
 
-import 'package:satreps_client_app/core/enum/api/api.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
-import 'package:satreps_client_app/core/resources/app_info.dart';
-import 'package:satreps_client_app/features/notification/data/model/notification/notification_model.dart';
+import 'package:browser_app/core/enum/api/api.dart';
+import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/resources/app_info.dart';
+import 'package:browser_app/features/notification/data/model/notification/notification_model.dart';
 
 class NotificationRemoteService {
   late APIClient apiClient;

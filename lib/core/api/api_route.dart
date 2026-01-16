@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:satreps_client_app/core/config/constants.dart' show RequestExtraKeys;
-import 'package:satreps_client_app/core/enum/api/api.dart' show APIType;
+import 'package:browser_app/core/config/constants.dart' show RequestExtraKeys;
+import 'package:browser_app/core/enum/api/api.dart' show APIType;
 
 class APIRoute implements APIRouteConfigurable {
   final APIType type;

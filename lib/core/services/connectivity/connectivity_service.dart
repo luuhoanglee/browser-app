@@ -2,8 +2,8 @@ import 'dart:async' show StreamSubscription;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:satreps_client_app/core/resources/app_info.dart';
-import 'package:satreps_client_app/core/services/connectivity/bloc/connectivity_bloc.dart';
+import 'package:browser_app/core/resources/app_info.dart';
+import 'package:browser_app/core/services/connectivity/bloc/connectivity_bloc.dart';
 
 class ConnectivityService {
   static ConnectivityService? _instance;

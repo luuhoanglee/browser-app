@@ -1,6 +1,6 @@
-import 'package:satreps_client_app/generated/l10n.dart';
-import 'package:satreps_client_app/generated/reverse_map_es.dart';
-import 'package:satreps_client_app/generated/translations_lookup.dart';
+import 'package:browser_app/generated/l10n.dart';
+import 'package:browser_app/generated/reverse_map_es.dart';
+import 'package:browser_app/generated/translations_lookup.dart';
 
 import 'package:flutter/foundation.dart';
 

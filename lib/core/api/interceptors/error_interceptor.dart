@@ -4,11 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:satreps_client_app/core/config/constants.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
-import 'package:satreps_client_app/core/resources/app_colors.dart';
-import 'package:satreps_client_app/core/resources/app_info.dart';
-import 'package:satreps_client_app/core/routes/route_cubit.dart';
+import 'package:browser_app/core/config/constants.dart';
+import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/resources/app_colors.dart';
+import 'package:browser_app/core/resources/app_info.dart';
+import 'package:browser_app/core/routes/route_cubit.dart';
 import 'package:sizer/sizer.dart';
 
 import '../api_client.dart';

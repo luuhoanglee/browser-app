@@ -3,10 +3,10 @@ import 'dart:developer';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:satreps_client_app/core/api/cubit/api_cubit.dart';
-import 'package:satreps_client_app/core/extentions/datetime.dart';
-import 'package:satreps_client_app/core/logger/level.dart';
-import 'package:satreps_client_app/core/resources/app_info.dart';
+import 'package:browser_app/core/api/cubit/api_cubit.dart';
+import 'package:browser_app/core/extentions/datetime.dart';
+import 'package:browser_app/core/logger/level.dart';
+import 'package:browser_app/core/resources/app_info.dart';
 
 class Logger {
   static void show(Object? message) {

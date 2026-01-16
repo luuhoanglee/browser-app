@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:satreps_client_app/core/routes/route_cubit.dart';
+import 'package:browser_app/core/routes/route_cubit.dart';
 
 mixin PopScopeMixin<T extends StatefulWidget> on State<T> {
   Future<bool> onWillPop() async => true;

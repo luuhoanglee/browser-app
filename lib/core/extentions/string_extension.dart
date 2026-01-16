@@ -1,5 +1,5 @@
 import 'package:intl/intl.dart' show DateFormat;
-import 'package:satreps_client_app/core/extentions/datetime.dart';
+import 'package:browser_app/core/extentions/datetime.dart';
 
 extension EXString on String {
   String get convertToAmPm => DateFormat("hh:mm a", "en")

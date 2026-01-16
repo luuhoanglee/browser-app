@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:satreps_client_app/core/enum/api/api.dart' show SatrepsErrorType;
+import 'package:browser_app/core/enum/api/api.dart' show SatrepsErrorType;
 
 import 'api_data_transformer.dart';
 import 'decodable.dart';

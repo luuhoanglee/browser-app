@@ -1,4 +1,4 @@
-import 'package:satreps_client_app/core/interface/has_value.dart';
+import 'package:browser_app/core/interface/has_value.dart';
 
 extension EnumLabel on Enum {
   String get label {

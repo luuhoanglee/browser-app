@@ -1,4 +1,4 @@
-import 'package:satreps_client_app/core/extentions/translate_string.dart';
+import 'package:browser_app/core/extentions/translate_string.dart';
 
 class RequestExtraKeys {
   static const String authorize = 'Authorize';

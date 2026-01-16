@@ -1,7 +1,7 @@
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/material.dart';
-import 'package:satreps_client_app/core/resources/app_info.dart';
-import 'package:satreps_client_app/core/extentions/translate_string.dart';
+import 'package:browser_app/core/resources/app_info.dart';
+import 'package:browser_app/core/extentions/translate_string.dart';
 
 class AppTrackingTransparencyUtils {
   static void initPlugin() {

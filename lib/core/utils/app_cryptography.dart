@@ -3,8 +3,8 @@ import 'dart:math' show Random;
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
-import 'package:satreps_client_app/core/services/encrypt_key/model/encrypt_key_model.dart';
+import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/services/encrypt_key/model/encrypt_key_model.dart';
 
 class AppCryptography {
 
