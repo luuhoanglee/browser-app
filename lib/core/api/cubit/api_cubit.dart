@@ -69,12 +69,12 @@ class ApiCubit extends Cubit<ApiState> {
     ]);
   }
 
-  void onNetworkErrorCallback(DioError error) {
+  void onNetworkErrorCallback(DioException error) {
     emit(NoFoundNetwork(error: error));
   }
 
-  void onErrorCallback(DioErrorType type) {
-    if (type == DioErrorType.connectTimeout || type == DioErrorType.receiveTimeout || type == DioErrorType.sendTimeout) {
+  void onErrorCallback(DioExceptionType type) {
+    if (type == DioExceptionType.connectionTimeout || type == DioExceptionType.receiveTimeout || type == DioExceptionType.sendTimeout) {
       emit(TimeOutRequest());
     }
   }

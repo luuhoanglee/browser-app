@@ -2,7 +2,6 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:browser_app/core/logger/logger.dart';
-import 'package:browser_app/core/routes/route_cubit.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 class DeepLink {
@@ -24,7 +23,6 @@ class DeepLink {
         }
       }
 
-      RouteCubit.of().goTo(uri.toString().replaceFirst(link, ''));
     });
   }
 }

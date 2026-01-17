@@ -13,10 +13,10 @@ class ResponseInterceptor extends InterceptorsWrapper {
       final error = ErrorResponse.fromSatreps(response);
       if (error.error == SatrepsErrorType.unauthorized) {
         handler.reject(
-            DioError(
+            DioException(
                 requestOptions: response.requestOptions,
                 response: response..statusCode = HttpStatus.unauthorized,
-                type: DioErrorType.response),
+                type: DioExceptionType.badResponse),
             true);
         return;
       }
