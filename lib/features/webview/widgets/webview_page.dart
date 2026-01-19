@@ -29,6 +29,8 @@ class WebViewPage extends StatefulWidget {
   final Function(InAppWebViewController, int) onProgressChanged;
   final Function(int) onScrollChanged;
   final Function(String)? onUrlUpdated;
+  final Function()? onSwipeBack;
+  final Function()? onSwipeForward;
 
   const WebViewPage({
     super.key,
@@ -42,6 +44,8 @@ class WebViewPage extends StatefulWidget {
     required this.onProgressChanged,
     required this.onScrollChanged,
     this.onUrlUpdated,
+    this.onSwipeBack,
+    this.onSwipeForward,
   });
 
   @override
@@ -657,33 +661,59 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 opacity: _errorType == WebViewErrorType.none ? 1.0 : 0.0,
                 child: IgnorePointer(
                   ignoring: _errorType != WebViewErrorType.none,
-                  child: InAppWebView(
-                    key: ValueKey(widget.activeTab.id),
-                    initialUrlRequest: initialUrl.isEmpty
-                        ? null
-                        : URLRequest(
-                            url: WebUri(initialUrl),
-                            headers: _getHeaders(initialUrl),
-                          ),
-                    initialSettings: _cachedSettings,
-                    pullToRefreshController: widget.pullToRefreshController,
-                    onWebViewCreated: _onWebViewCreated,
-                    onLoadStart: _onLoadStart,
-                    onLoadStop: _onLoadStop,
-                    onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
-                    onProgressChanged: (controller, progress) =>
-                        widget.onProgressChanged(controller, progress),
-                    onScrollChanged: (controller, x, y) => widget.onScrollChanged(y),
-                    shouldInterceptRequest: _shouldInterceptRequest,
-                    shouldInterceptAjaxRequest: _shouldInterceptAjaxRequest,
-                    shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
-                    shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
-                    onCreateWindow: _onCreateWindow,
-                    onReceivedError: _onReceivedError,
-                    onReceivedHttpError: _onReceivedHttpError,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: InAppWebView(
+                      key: ValueKey(widget.activeTab.id),
+                      initialUrlRequest: initialUrl.isEmpty
+                          ? null
+                          : URLRequest(
+                              url: WebUri(initialUrl),
+                              headers: _getHeaders(initialUrl),
+                            ),
+                      initialSettings: _cachedSettings,
+                      pullToRefreshController: widget.pullToRefreshController,
+                      onWebViewCreated: _onWebViewCreated,
+                      onLoadStart: _onLoadStart,
+                      onLoadStop: _onLoadStop,
+                      onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
+                      onProgressChanged: (controller, progress) =>
+                          widget.onProgressChanged(controller, progress),
+                      onScrollChanged: (controller, x, y) => widget.onScrollChanged(y),
+                      shouldInterceptRequest: _shouldInterceptRequest,
+                      shouldInterceptAjaxRequest: _shouldInterceptAjaxRequest,
+                      shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
+                      shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
+                      onCreateWindow: _onCreateWindow,
+                      onReceivedError: _onReceivedError,
+                      onReceivedHttpError: _onReceivedHttpError,
+                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+              if (_errorType == WebViewErrorType.none)
+                Positioned.fill(
+                  child: Row(
+                    children: [
+                      // Left edge - swipe forward
+                      _EdgeSwipeZone(
+                        edgeWidth: 50,
+                        onSwipe: () => widget.onSwipeForward?.call(),
+                        direction: _SwipeDirection.forward,
+                      ),
+                      const Expanded(child: SizedBox()),
+                      // Right edge - swipe back
+                      _EdgeSwipeZone(
+                        edgeWidth: 50,
+                        onSwipe: () => widget.onSwipeBack?.call(),
+                        direction: _SwipeDirection.back,
+                      ),
+                    ],
+                  ),
+                ),
               if (_errorType != WebViewErrorType.none)
                 Positioned.fill(
                   child: _buildErrorWidget(),
@@ -691,6 +721,88 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+enum _SwipeDirection { back, forward }
+
+class _EdgeSwipeZone extends StatefulWidget {
+  final double edgeWidth;
+  final VoidCallback onSwipe;
+  final _SwipeDirection direction;
+
+  const _EdgeSwipeZone({
+    required this.edgeWidth,
+    required this.onSwipe,
+    required this.direction,
+  });
+
+  @override
+  State<_EdgeSwipeZone> createState() => _EdgeSwipeZoneState();
+}
+
+class _EdgeSwipeZoneState extends State<_EdgeSwipeZone> {
+  double? _startX;
+  DateTime? _startTime;
+
+  static const double _minVelocity = 100;
+  static const double _minDistance = 50;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (details) {
+        _startX = details.globalPosition.dx;
+        _startTime = DateTime.now();
+        print('🔵 EdgeSwipe START - Direction: ${widget.direction}, X: $_startX');
+      },
+      onHorizontalDragEnd: (details) {
+        if (_startX == null || _startTime == null) return;
+
+        final endX = details.globalPosition.dx;
+        final velocity = details.primaryVelocity ?? 0;
+        final distance = (endX - _startX!).abs();
+        final duration = DateTime.now().difference(_startTime!).inMilliseconds;
+        final calculatedVelocity = duration > 0 ? distance / duration * 1000 : 0.0;
+
+        print('🟡 EdgeSwipe END - Direction: ${widget.direction}');
+        print('   Velocity: $velocity (min: $_minVelocity)');
+        print('   Distance: $distance (min: $_minDistance)');
+        print('   CalcVelocity: $calculatedVelocity');
+        print('   Duration: ${duration}ms');
+
+        final isFastEnough = velocity.abs() > _minVelocity;
+        final isFarEnough = distance > _minDistance && calculatedVelocity > 200;
+
+        print('   isFastEnough: $isFastEnough, isFarEnough: $isFarEnough');
+
+        if (isFastEnough || isFarEnough) {
+          final diff = endX - _startX!;
+
+          print('   Diff: $diff');
+
+          if (widget.direction == _SwipeDirection.forward && diff > 0) {
+            print('✅ FORWARD SWIPE TRIGGERED!');
+            widget.onSwipe();
+          } else if (widget.direction == _SwipeDirection.back && diff < 0) {
+            print('✅ BACK SWIPE TRIGGERED!');
+            widget.onSwipe();
+          } else {
+            print('❌ Wrong direction');
+          }
+        } else {
+          print('❌ Swipe not valid');
+        }
+
+        _startX = null;
+        _startTime = null;
+      },
+      child: Container(
+        width: widget.edgeWidth,
+        color: Colors.transparent,
       ),
     );
   }

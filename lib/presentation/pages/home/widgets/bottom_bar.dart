@@ -8,6 +8,9 @@ class BottomBar extends StatelessWidget {
   final VoidCallback onShowTabs;
   final VoidCallback onAddressBarTap;
   final VoidCallback onShowHistory;
+  final VoidCallback onShowDownload;
+  final VoidCallback onShowMedia;
+
   final bool isSearching;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
@@ -21,6 +24,8 @@ class BottomBar extends StatelessWidget {
     required this.onShowTabs,
     required this.onAddressBarTap,
     required this.onShowHistory,
+    required this.onShowDownload,
+    required this.onShowMedia,
     required this.isSearching,
     required this.searchController,
     required this.searchFocusNode,
@@ -69,8 +74,10 @@ class BottomBar extends StatelessWidget {
                   _buildNavBarItem(Icons.chevron_right, () {
                     controller?.goForward();
                   }),
-                  _buildNavBarItem(Icons.share, () {}),
-                  _buildNavBarItem(Icons.bookmark_border, onShowHistory),
+                  _buildNavBarItem(Icons.history, onShowHistory),
+                  _buildNavBarItem(Icons.play_arrow, onShowMedia),
+                  _buildNavBarItem(Icons.download, onShowDownload),
+
                   _buildNavBarItemWithBadge(
                     Icons.copy,
                     onShowTabs,

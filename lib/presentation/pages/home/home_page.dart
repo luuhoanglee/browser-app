@@ -362,7 +362,12 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           body: SafeArea(
             child: Stack(
               children: [
-                _buildPageContent(context, activeTab, tabState),
+                _PageContentWrapper(
+                  activeTab: activeTab,
+                  tabState: tabState,
+                  isToolbarVisible: _isToolbarVisible,
+                  buildPageContent: _buildPageContent,
+                ),
                 // Bottom bar - Address bar and navigation
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 200),
@@ -385,6 +390,8 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                           onShowTabs: () => _showTabsSheet(context),
                           onAddressBarTap: () => _showSearchPage(context),
                           onShowHistory: () => _showHistorySheet(context),
+                          onShowDownload: () => _showDownloadSheet(context),
+                          onShowMedia: () => _showMediaSheet(context),
                           isSearching: _isSearching,
                           searchController: _searchController,
                           searchFocusNode: _searchFocusNode,
@@ -425,7 +432,6 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
   }
 
   Widget _buildPageContent(BuildContext context, dynamic activeTab, TabState tabState) {
-
     if (activeTab.url.isEmpty) {
       return RepaintBoundary(
         key: _getEmptyPageKey(activeTab.id),
@@ -482,6 +488,23 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           if (tab != null) {
             final urlStr = url?.toString() ?? '';
             if (url != null && urlStr.isNotEmpty && !urlStr.startsWith('intent://') && !_isExternalUrl(urlStr)) {
+              final title = await controller.getTitle();
+              if (title != null && title.isNotEmpty && tab.title == 'New Tab') {
+                bloc.add(UpdateTabEvent(
+                  tab.copyWith(title: title),
+                  skipCache: true,
+                ));
+              } else if (tab.title == 'New Tab' || tab.title.isEmpty) {
+                final uri = Uri.tryParse(urlStr);
+                final fallbackTitle = uri?.host ?? _formatUrlTitle(urlStr);
+                if (fallbackTitle.isNotEmpty) {
+                  bloc.add(UpdateTabEvent(
+                    tab.copyWith(title: fallbackTitle),
+                    skipCache: true,
+                  ));
+                }
+              }
+
               Future.delayed(const Duration(milliseconds: 500), () {
                 _captureThumbnail(activeTab.id);
                 _addToHistory(urlStr);
@@ -490,6 +513,14 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           }
         },
         onTitleChanged: (controller, title) {
+          final bloc = context.read<TabBloc>();
+          final tab = bloc.state.activeTab;
+          if (tab != null && title != null && title.isNotEmpty && tab.title != title) {
+            bloc.add(UpdateTabEvent(
+              tab.copyWith(title: title),
+              skipCache: true,
+            ));
+          }
         },
         onProgressChanged: (controller, progress) {
           // Tăng threshold để giảm số lần update - chỉ update khi thay đổi 20%+
@@ -518,6 +549,14 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         onScrollChanged: (y) {
           _handleScrollChange(y);
         },
+        onSwipeBack: () {
+          final controller = _getController(activeTab.id);
+          controller?.goBack();
+        },
+        onSwipeForward: () {
+          final controller = _getController(activeTab.id);
+          controller?.goForward();
+        },
       ),
     );
   }
@@ -529,6 +568,12 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
       });
     }
     _searchFocusNode.unfocus();
+
+    final bloc = context.read<TabBloc>();
+    final activeTabId = bloc.state.activeTab?.id;
+    if (activeTabId != null) {
+      _captureThumbnail(activeTabId);
+    }
 
     showModalBottomSheet(
       context: context,
@@ -551,7 +596,22 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
             }
           },
           onSelectTab: (tabId) {
-            context.read<TabBloc>().add(SelectTabEvent(tabId));
+            final bloc = context.read<TabBloc>();
+            final currentTabId = bloc.state.activeTab?.id;
+
+            if (currentTabId != null && currentTabId != tabId) {
+              _captureThumbnail(currentTabId);
+            }
+
+            bloc.add(SelectTabEvent(tabId));
+
+            final selectedTab = bloc.state.tabs.firstWhere((t) => t.id == tabId);
+            if (selectedTab.thumbnail == null) {
+              Future.delayed(const Duration(milliseconds: 100), () {
+                _captureThumbnail(tabId);
+              });
+            }
+
             Navigator.pop(sheetContext);
           },
           onAddTab: () {
@@ -599,6 +659,369 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           });
           StorageService.saveHistory(_history);
         },
+      ),
+    );
+  }
+
+    void _showDownloadSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _buildDownloadSheet(sheetContext, context, 0.6),
+    );
+  }
+
+  void _showDownloadSheetExpanded(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _buildDownloadSheet(sheetContext, context, 0.9),
+    );
+  }
+
+  Widget _buildDownloadSheet(BuildContext sheetContext, BuildContext parentContext, double heightFactor) {
+    final isExpanded = heightFactor > 0.7;
+    return Container(
+      height: MediaQuery.of(parentContext).size.height * heightFactor,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          GestureDetector(
+            onVerticalDragEnd: (details) {
+              if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 500) {
+                Navigator.pop(sheetContext);
+                if (details.primaryVelocity! < 0 && !isExpanded) {
+                  _showDownloadSheetExpanded(parentContext);
+                } else if (details.primaryVelocity! > 0 && isExpanded) {
+                  _showDownloadSheet(parentContext);
+                }
+              }
+            },
+            child: Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 4),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Downloads',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(sheetContext),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Content
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.download_outlined,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No downloads yet',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Done button
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: GestureDetector(
+              onTap: () => Navigator.pop(sheetContext),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+    void _showMediaSheet(BuildContext context) {
+      showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => GestureDetector(
+        onVerticalDragUpdate: (details) {
+          if (details.primaryDelta != null && details.primaryDelta! < 0) {
+            // Drag lên (scroll up)
+          }
+        },
+        child: Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        child: Column(
+          children: [
+            // Drag handle
+            GestureDetector(
+              onVerticalDragUpdate: (details) {
+                if (details.primaryDelta != null && details.primaryDelta! < 0) {
+                  // Drag lên - expand sheet
+                  Navigator.pop(sheetContext);
+                  _showMediaSheetExpanded(context);
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 4),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Media',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(sheetContext),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.perm_media_outlined,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No Media',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Done button
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: GestureDetector(
+                onTap: () => Navigator.pop(sheetContext),
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+
+  void _showMediaSheetExpanded(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        child: Column(
+          children: [
+            // Drag handle
+            GestureDetector(
+              onVerticalDragUpdate: (details) {
+                if (details.primaryDelta != null && details.primaryDelta! > 0) {
+                  // Drag xuống - collapse sheet
+                  Navigator.pop(sheetContext);
+                  _showMediaSheet(context);
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 4),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Media',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(sheetContext),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.perm_media_outlined,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No Media',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Done button
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: GestureDetector(
+                onTap: () => Navigator.pop(sheetContext),
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -665,6 +1088,19 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     return 'https://www.google.com/search?q=${Uri.encodeComponent(input)}';
   }
 
+  String _formatUrlTitle(String url) {
+    if (url.startsWith('https://')) {
+      url = url.substring(8);
+    } else if (url.startsWith('http://')) {
+      url = url.substring(7);
+    }
+    final parts = url.split('/');
+    if (parts.isNotEmpty) {
+      return parts[0];
+    }
+    return url;
+  }
+
   /* ================= HELPER METHODS ================= */
 
   static String? _scheme(String url) {
@@ -685,6 +1121,9 @@ class _BottomBarWrapper extends StatelessWidget {
   final VoidCallback onShowTabs;
   final VoidCallback onAddressBarTap;
   final VoidCallback onShowHistory;
+  final VoidCallback onShowDownload;
+  final VoidCallback onShowMedia;
+
   final bool isSearching;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
@@ -696,6 +1135,9 @@ class _BottomBarWrapper extends StatelessWidget {
     required this.onShowTabs,
     required this.onAddressBarTap,
     required this.onShowHistory,
+    required this.onShowDownload,
+    required this.onShowMedia,
+
     required this.isSearching,
     required this.searchController,
     required this.searchFocusNode,
@@ -733,6 +1175,9 @@ class _BottomBarWrapper extends StatelessWidget {
           onShowTabs: onShowTabs,
           onAddressBarTap: onAddressBarTap,
           onShowHistory: onShowHistory,
+          onShowDownload: onShowDownload,
+          onShowMedia: onShowMedia,
+
           isSearching: isSearching,
           searchController: searchController,
           searchFocusNode: searchFocusNode,
@@ -823,5 +1268,41 @@ class _ProgressBarWrapper extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _PageContentWrapper extends StatelessWidget {
+  final dynamic activeTab;
+  final TabState tabState;
+  final bool isToolbarVisible;
+  final Widget Function(BuildContext, dynamic, TabState) buildPageContent;
+
+  const _PageContentWrapper({
+    required this.activeTab,
+    required this.tabState,
+    required this.isToolbarVisible,
+    required this.buildPageContent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      padding: _buildBottomPadding(context),
+      child: buildPageContent(context, activeTab, tabState),
+    );
+  }
+
+  EdgeInsets _buildBottomPadding(BuildContext context) {
+    const bottomBarHeight = 98.0;
+    const miniUrlBarHeight = 52.0;
+    final safeAreaBottom = MediaQuery.of(context).padding.bottom;
+
+    final bottomPadding = isToolbarVisible
+        ? bottomBarHeight + safeAreaBottom
+        : miniUrlBarHeight + safeAreaBottom;
+
+    return EdgeInsets.only(bottom: bottomPadding);
   }
 }
