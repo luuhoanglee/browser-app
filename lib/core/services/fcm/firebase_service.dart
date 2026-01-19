@@ -33,12 +33,6 @@ class FirebaseService {
     FirebaseService.onMessage();
   }
 
-  static Future<bool> disableDevice({required String? tokenFCM}) async {
-    if (tokenFCM == null || tokenFCM.isEmpty) return false;
-
-    return await NotificationRemoteService().disableDevice(tokenFCM: tokenFCM);
-  }
-
   static Future<void> createDeviceToken() async {
     try {
       CacheManager<String> cacheManager =
@@ -51,14 +45,6 @@ class FirebaseService {
         // save into server
         NotificationRemoteService notificationRemoteService =
             NotificationRemoteService();
-        final resultCreateDevice =
-            await notificationRemoteService.createDevice(tokenFCM: fcmToken);
-        if (resultCreateDevice) {
-          Logger.show("FirebaseMessagingService create device success");
-        } else {
-          Logger.error("FirebaseMessagingService create device fail",
-              StackTrace.current);
-        }
       }
       Logger.show("FirebaseMessagingService token: $fcmToken");
     } catch (e, s) {

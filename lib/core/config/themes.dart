@@ -42,7 +42,7 @@ class AppTheme {
           color: Color(0xFF1E293B),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -240,7 +240,7 @@ class AppTheme {
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),

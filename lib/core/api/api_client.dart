@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:browser_app/core/api/api_response.dart' show GenericObject, BaseAPIResponseWrapper, ErrorResponse, SatrepsErrorType;
+import 'package:browser_app/core/api/api_response.dart' show GenericObject, BaseAPIResponseWrapper, ErrorResponse;
 import 'package:browser_app/core/api/api_route.dart' show APIRouteConfigurable;
 import 'package:browser_app/core/config/constants.dart' show AppConstants;
 import 'package:browser_app/core/config/flavor_config.dart' show FlavorConfig;
@@ -37,7 +37,7 @@ class APIClient implements BaseAPIClient {
     options = BaseOptions(
       baseUrl: "${FlavorConfig.instance?.values.baseUrl}/api",
       headers: {"Content-Type": "application/json"},
-      receiveTimeout: 9000,
+      receiveTimeout: Duration(milliseconds: 9000),
       responseType: ResponseType.json,
       validateStatus: (code) {
         if (code! <= 201) return true;
@@ -127,7 +127,7 @@ class APIClient implements BaseAPIClient {
           }
         }
         throw ErrorResponse.fromDefault(response);
-      } on DioError catch (e) {
+      } on DioException catch (e) {
         throw ErrorResponse.fromDefault(e.response, dioError: e);
       } catch (e, st) {
         Logger.show('$e, $st');
