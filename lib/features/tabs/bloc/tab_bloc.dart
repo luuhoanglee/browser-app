@@ -134,16 +134,24 @@ class TabBloc extends Bloc<TabEvent, TabState> {
 
   Future<void> _onSelectTab(SelectTabEvent event, Emitter<TabState> emit) async {
     repository.setActiveTab(event.tabId);
-    final index = repository.getTabIndex(event.tabId);
+
+    // Cập nhật lastAccessedAt cho tab được chọn
     final activeTab = repository.getActiveTab();
+    if (activeTab != null) {
+      final updatedTab = activeTab.copyWith(lastAccessedAt: DateTime.now());
+      repository.updateTab(updatedTab);
+    }
+
+    final index = repository.getTabIndex(event.tabId);
+    final updatedActiveTab = repository.getActiveTab();
 
     emit(state.copyWith(
       tabs: repository.getTabs(),
-      activeTab: activeTab,
+      activeTab: updatedActiveTab,
       activeTabIndex: index == -1 ? state.activeTabIndex : index,
     ));
 
-    await StorageService.saveTabs(repository.getTabs(), activeTab?.id);
+    await StorageService.saveTabs(repository.getTabs(), updatedActiveTab?.id);
   }
 
   Future<void> _onUpdateTab(UpdateTabEvent event, Emitter<TabState> emit) async {

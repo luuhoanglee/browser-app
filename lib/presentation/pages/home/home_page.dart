@@ -247,7 +247,11 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
       // Nếu không có controller (empty page), chụp từ RepaintBoundary
       final key = _getEmptyPageKey(tabId);
-      if (key.currentContext == null) {
+
+      // Đợi frame render xong rồi mới chụp để đảm bảo context có sẵn
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted || key.currentContext == null) {
         return;
       }
 
@@ -260,7 +264,8 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
       Future.microtask(() async {
         try {
-          ui.Image image = await boundary.toImage(pixelRatio: 0.3);
+          // Tăng pixelRatio để ảnh sắc nét hơn
+          ui.Image image = await boundary.toImage(pixelRatio: 1.0);
           ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
           if (byteData == null) return;
 
@@ -693,8 +698,9 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         children: [
           // Drag handle
           GestureDetector(
+            behavior: HitTestBehavior.translucent,
             onVerticalDragEnd: (details) {
-              if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 500) {
+              if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
                 Navigator.pop(sheetContext);
                 if (details.primaryVelocity! < 0 && !isExpanded) {
                   _showDownloadSheetExpanded(parentContext);
@@ -704,12 +710,15 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
               }
             },
             child: Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 4),
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(2),
+              height: 30,
+              alignment: Alignment.center,
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
           ),
@@ -1296,7 +1305,7 @@ class _PageContentWrapper extends StatelessWidget {
 
   EdgeInsets _buildBottomPadding(BuildContext context) {
     const bottomBarHeight = 98.0;
-    const miniUrlBarHeight = 52.0;
+    const miniUrlBarHeight = 38.0;
     final safeAreaBottom = MediaQuery.of(context).padding.bottom;
 
     final bottomPadding = isToolbarVisible

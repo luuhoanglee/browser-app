@@ -79,9 +79,20 @@ class EmptyPage extends StatelessWidget {
               // Recent Tabs Section
               BlocBuilder<TabBloc, TabState>(
                 builder: (context, tabState) {
-                  final recentTabs = tabState.tabs.where((t) => t.id != activeTab.id && t.url.isNotEmpty).take(4).toList();
+                  // Lấy các tab không phải active tab và có URL, sắp xếp theo lastAccessedAt
+                  final recentTabs = tabState.tabs
+                      .where((t) => t.id != activeTab.id && t.url.isNotEmpty)
+                      .toList()
+                    ..sort((a, b) {
+                      final aTime = a.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                      final bTime = b.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                      return bTime.compareTo(aTime); // Mới nhất lên đầu
+                    });
 
-                  if (recentTabs.isEmpty) {
+                  // Chỉ lấy 4 tab gần nhất
+                  final topRecentTabs = recentTabs.take(4).toList();
+
+                  if (topRecentTabs.isEmpty) {
                     return const SizedBox.shrink();
                   }
 
@@ -97,7 +108,7 @@ class EmptyPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ...recentTabs.map((tab) => _buildRecentTabItem(context, tab, tabState)),
+                      ...topRecentTabs.map((tab) => _buildRecentTabItem(context, tab, tabState)),
                     ],
                   );
                 },

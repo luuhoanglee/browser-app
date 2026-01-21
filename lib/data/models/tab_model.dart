@@ -10,6 +10,7 @@ class TabModel extends TabEntity {
     super.isLoading = false,
     super.thumbnail,
     super.loadProgress = 0,
+    super.lastAccessedAt,
   });
 
   factory TabModel.fromEntity(TabEntity entity) {
@@ -21,6 +22,7 @@ class TabModel extends TabEntity {
       isLoading: entity.isLoading,
       thumbnail: entity.thumbnail,
       loadProgress: entity.loadProgress,
+      lastAccessedAt: entity.lastAccessedAt,
     );
   }
 
@@ -35,6 +37,7 @@ class TabModel extends TabEntity {
       title: 'New Tab',
       index: index,
       loadProgress: 0,
+      lastAccessedAt: DateTime.now(),
     );
   }
 }

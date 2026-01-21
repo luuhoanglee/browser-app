@@ -696,22 +696,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
               ),
               if (_errorType == WebViewErrorType.none)
                 Positioned.fill(
-                  child: Row(
-                    children: [
-                      // Left edge - swipe forward
-                      _EdgeSwipeZone(
-                        edgeWidth: 50,
-                        onSwipe: () => widget.onSwipeForward?.call(),
-                        direction: _SwipeDirection.forward,
-                      ),
-                      const Expanded(child: SizedBox()),
-                      // Right edge - swipe back
-                      _EdgeSwipeZone(
-                        edgeWidth: 50,
-                        onSwipe: () => widget.onSwipeBack?.call(),
-                        direction: _SwipeDirection.back,
-                      ),
-                    ],
+                  child: _FullScreenSwipeZone(
+                    onSwipeBack: widget.onSwipeBack,
+                    onSwipeForward: widget.onSwipeForward,
                   ),
                 ),
               if (_errorType != WebViewErrorType.none)
@@ -726,84 +713,79 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   }
 }
 
-enum _SwipeDirection { back, forward }
+class _FullScreenSwipeZone extends StatefulWidget {
+  final VoidCallback? onSwipeBack;
+  final VoidCallback? onSwipeForward;
 
-class _EdgeSwipeZone extends StatefulWidget {
-  final double edgeWidth;
-  final VoidCallback onSwipe;
-  final _SwipeDirection direction;
-
-  const _EdgeSwipeZone({
-    required this.edgeWidth,
-    required this.onSwipe,
-    required this.direction,
+  const _FullScreenSwipeZone({
+    this.onSwipeBack,
+    this.onSwipeForward,
   });
 
   @override
-  State<_EdgeSwipeZone> createState() => _EdgeSwipeZoneState();
+  State<_FullScreenSwipeZone> createState() => _FullScreenSwipeZoneState();
 }
 
-class _EdgeSwipeZoneState extends State<_EdgeSwipeZone> {
+class _FullScreenSwipeZoneState extends State<_FullScreenSwipeZone> {
   double? _startX;
-  DateTime? _startTime;
+  double? _startY;
 
-  static const double _minVelocity = 100;
   static const double _minDistance = 50;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Listener(
       behavior: HitTestBehavior.translucent,
-      onHorizontalDragStart: (details) {
-        _startX = details.globalPosition.dx;
-        _startTime = DateTime.now();
-        print('🔵 EdgeSwipe START - Direction: ${widget.direction}, X: $_startX');
+      onPointerDown: (event) {
+        _startX = event.position.dx;
+        _startY = event.position.dy;
+        print('👆 [SWIPE] PointerDown at (${event.position.dx.toStringAsFixed(1)}, ${event.position.dy.toStringAsFixed(1)})');
       },
-      onHorizontalDragEnd: (details) {
-        if (_startX == null || _startTime == null) return;
+      onPointerUp: (event) {
+        if (_startX == null || _startY == null) return;
 
-        final endX = details.globalPosition.dx;
-        final velocity = details.primaryVelocity ?? 0;
-        final distance = (endX - _startX!).abs();
-        final duration = DateTime.now().difference(_startTime!).inMilliseconds;
-        final calculatedVelocity = duration > 0 ? distance / duration * 1000 : 0.0;
+        final endX = event.position.dx;
+        final endY = event.position.dy;
+        final diffX = endX - _startX!;
+        final diffY = endY - _startY!;
+        final horizontalDistance = diffX.abs();
+        final verticalDistance = diffY.abs();
 
-        print('🟡 EdgeSwipe END - Direction: ${widget.direction}');
-        print('   Velocity: $velocity (min: $_minVelocity)');
-        print('   Distance: $distance (min: $_minDistance)');
-        print('   CalcVelocity: $calculatedVelocity');
-        print('   Duration: ${duration}ms');
+        print('👆 [SWIPE] PointerUp at (${endX.toStringAsFixed(1)}, ${endY.toStringAsFixed(1)})');
+        print('📏 [SWIPE] diffX=${diffX.toStringAsFixed(1)}, diffY=${diffY.toStringAsFixed(1)}');
 
-        final isFastEnough = velocity.abs() > _minVelocity;
-        final isFarEnough = distance > _minDistance && calculatedVelocity > 200;
+        // Kiểm tra xem có phải vuốt ngang không (khoảng cách ngang > dọc)
+        final isHorizontalSwipe = horizontalDistance > verticalDistance;
 
-        print('   isFastEnough: $isFastEnough, isFarEnough: $isFarEnough');
+        if (!isHorizontalSwipe) {
+          print('❌ [SWIPE] Not horizontal (vertical=$verticalDistance >= horizontal=$horizontalDistance)');
+          _startX = null;
+          _startY = null;
+          return;
+        }
 
-        if (isFastEnough || isFarEnough) {
-          final diff = endX - _startX!;
+        if (horizontalDistance < _minDistance) {
+          print('❌ [SWIPE] Distance too short: $horizontalDistance < $_minDistance');
+          _startX = null;
+          _startY = null;
+          return;
+        }
 
-          print('   Diff: $diff');
-
-          if (widget.direction == _SwipeDirection.forward && diff > 0) {
-            print('✅ FORWARD SWIPE TRIGGERED!');
-            widget.onSwipe();
-          } else if (widget.direction == _SwipeDirection.back && diff < 0) {
-            print('✅ BACK SWIPE TRIGGERED!');
-            widget.onSwipe();
-          } else {
-            print('❌ Wrong direction');
-          }
+        // Xác định hướng và trigger callback
+        if (diffX < 0) {
+          // Vuốt sang trái -> Back
+          print('✅ [SWIPE] BACK triggered! distance=$horizontalDistance');
+          widget.onSwipeBack?.call();
         } else {
-          print('❌ Swipe not valid');
+          // Vuốt sang phải -> Forward
+          print('✅ [SWIPE] FORWARD triggered! distance=$horizontalDistance');
+          widget.onSwipeForward?.call();
         }
 
         _startX = null;
-        _startTime = null;
+        _startY = null;
       },
-      child: Container(
-        width: widget.edgeWidth,
-        color: Colors.transparent,
-      ),
+      child: const SizedBox.shrink(),
     );
   }
 }

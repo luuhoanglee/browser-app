@@ -9,6 +9,7 @@ class TabEntity extends Equatable {
   final bool isLoading;
   final Uint8List? thumbnail;
   final int loadProgress;
+  final DateTime? lastAccessedAt;
 
   const TabEntity({
     required this.id,
@@ -18,6 +19,7 @@ class TabEntity extends Equatable {
     this.isLoading = false,
     this.thumbnail,
     this.loadProgress = 0,
+    this.lastAccessedAt,
   });
 
   TabEntity copyWith({
@@ -28,6 +30,7 @@ class TabEntity extends Equatable {
     bool? isLoading,
     Uint8List? thumbnail,
     int? loadProgress,
+    DateTime? lastAccessedAt,
   }) {
     return TabEntity(
       id: id ?? this.id,
@@ -37,9 +40,10 @@ class TabEntity extends Equatable {
       isLoading: isLoading ?? this.isLoading,
       thumbnail: thumbnail ?? this.thumbnail,
       loadProgress: loadProgress ?? this.loadProgress,
+      lastAccessedAt: lastAccessedAt ?? this.lastAccessedAt,
     );
   }
 
   @override
-  List<Object?> get props => [id, url, title, index, isLoading, thumbnail, loadProgress];
+  List<Object?> get props => [id, url, title, index, isLoading, thumbnail, loadProgress, lastAccessedAt];
 }
