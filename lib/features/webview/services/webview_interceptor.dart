@@ -370,10 +370,289 @@ class WebViewInterceptor {
       })();
     ''';
 
+// YouTube Ad Blocker Script - Enhanced Version
+    const youtubeAdScript = r'''
+      (function() {
+        if (!window.location.hostname.includes('youtube.com')) {
+          return;
+        }
+
+        console.log('[YouTube-AdBlocker] Initializing Enhanced v2.0...');
+
+        // Statistics tracking
+        var stats = {
+          total: 0,
+          fetch: 0,
+          xhr: 0,
+          cosmetic: 0,
+          player: 0
+        };
+
+        // Comprehensive ad domains and patterns (like uBlock filter lists)
+        const adPatterns = [
+          // Ad servers
+          'doubleclick.net',
+          'googlesyndication.com',
+          'googleadservices.com',
+          'google-analytics.com',
+          'googletagmanager.com',
+          'googletagservices.com',
+          
+          // YouTube specific
+          '/pagead/',
+          '/api/stats/ads',
+          '/api/stats/atr',
+          '/api/stats/qoe',
+          '/ptracking',
+          '/get_video_info',
+          '/youtubei/v1/player/ad',
+          '/youtubei/v1/next',
+          'ad_break',
+          'adformat',
+          'ad_flags',
+          'ad_video_id',
+          
+          // Tracking
+          '/log_event',
+          '/log_interaction',
+          'doubleclick',
+          'ad_pod',
+          'adunit'
+        ];
+
+        // Check if URL contains ad patterns
+        function isAdRequest(url) {
+          if (typeof url !== 'string') return false;
+          const lowerUrl = url.toLowerCase();
+          return adPatterns.some(pattern => lowerUrl.includes(pattern.toLowerCase()));
+        }
+
+        // ===== NETWORK BLOCKING (like uBlock) =====
+        
+        // Block Fetch API
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = args[0];
+          if (isAdRequest(url)) {
+            return Promise.reject(new Error('Blocked by AdBlocker'));
+          }
+          return originalFetch.apply(this, args);
+        };
+
+        // Block XMLHttpRequest
+        const originalXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (isAdRequest(url)) {
+            this.abort();
+            return;
+          }
+          return originalXHROpen.apply(this, [method, url, ...rest]);
+        };
+
+        // Block XMLHttpRequest send as backup
+        const originalXHRSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function(...args) {
+          if (this._blocked) return;
+          return originalXHRSend.apply(this, args);
+        };
+
+        // ===== PLAYER MODIFICATION (like uBlock) =====
+        
+        // Hijack player response to remove ads
+        function removeAdsFromPlayerResponse(playerResponse) {
+          if (!playerResponse) return playerResponse;
+          
+          try {
+            // Remove ad placements
+            if (playerResponse.adPlacements) {
+              delete playerResponse.adPlacements;
+              stats.player++;
+            }
+            if (playerResponse.ads) {
+              delete playerResponse.ads;
+              stats.player++;
+            }
+            if (playerResponse.adSlots) {
+              delete playerResponse.adSlots;
+              stats.player++;
+            }
+            
+            // Remove playerAds
+            if (playerResponse.playerAds) {
+              delete playerResponse.playerAds;
+              stats.player++;
+            }
+            
+            // Clean playbackTracking
+            if (playerResponse.playbackTracking) {
+              const tracking = playerResponse.playbackTracking;
+              delete tracking.videostatsPlaybackUrl;
+              delete tracking.videostatsDelayplayUrl;
+              delete tracking.videostatsWatchtimeUrl;
+              delete tracking.ptrackingUrl;
+              delete tracking.qoeUrl;
+              delete tracking.atrUrl;
+            }
+          } catch(e) {
+            console.log('[YouTube-AdBlocker] Player response clean error:', e.message);
+          }
+          
+          return playerResponse;
+        }
+
+        // Intercept JSON parse for player responses
+        const originalParse = JSON.parse;
+        JSON.parse = function(text, ...args) {
+          const result = originalParse.apply(this, [text, ...args]);
+          
+          if (result && typeof result === 'object') {
+            // Check if this is a player response
+            if (result.adPlacements || result.playerAds || result.ads) {
+              removeAdsFromPlayerResponse(result);
+            }
+            
+            // Check nested responses
+            if (result.playerResponse) {
+              removeAdsFromPlayerResponse(result.playerResponse);
+            }
+          }
+          
+          return result;
+        };
+
+        // ===== COSMETIC FILTERING (like uBlock) =====
+        
+        // CSS to hide ad elements
+        const adBlockCSS = `
+          /* Video ads */
+          .video-ads,
+          .ytp-ad-module,
+          .ytp-ad-overlay-container,
+          .ytp-ad-image-overlay,
+          .ytp-ad-text-overlay,
+          
+          /* Display ads */
+          #masthead-ad,
+          #player-ads,
+          #watch-branded-actions,
+          .ytd-merch-shelf-renderer,
+          .ytd-ad-slot-renderer,
+          ytd-display-ad-renderer,
+          ytd-video-masthead-ad-v3-renderer,
+          ytd-statement-banner-renderer,
+          ytd-ad-slot-renderer,
+          yt-mealbar-promo-renderer,
+          
+          /* Sidebar ads */
+          #right-tabs > .ytd-item-section-renderer,
+          ytd-compact-promoted-video-renderer,
+          
+          /* Banner ads */
+          ytd-banner-promo-renderer,
+          ytd-promoted-sparkles-web-renderer,
+          
+          /* In-feed ads */
+          ytd-ad-slot-renderer,
+          ytd-in-feed-ad-layout-renderer,
+          
+          /* Overlay ads */
+          .ytp-ce-element,
+          .ytp-cards-teaser,
+          
+          /* Popup ads */
+          tp-yt-paper-dialog.ytd-popup-container,
+          ytd-popup-container
+          {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            width: 0 !important;
+            pointer-events: none !important;
+          }
+        `;
+
+        // Inject CSS
+        function injectCSS() {
+          const style = document.createElement('style');
+          style.id = 'youtube-adblocker-style';
+          style.textContent = adBlockCSS;
+          document.head.appendChild(style);
+          console.log('[YouTube-AdBlocker] CSS injected');
+        }
+
+        // Remove ad elements from DOM
+        function removeAdElements() {
+          const selectors = [
+            '.video-ads',
+            '.ytp-ad-module',
+            '.ytp-ad-overlay-container',
+            'ytd-display-ad-renderer',
+            'ytd-ad-slot-renderer',
+            'ytd-promoted-sparkles-web-renderer',
+            'ytd-compact-promoted-video-renderer',
+            'ytd-banner-promo-renderer',
+            'ytd-in-feed-ad-layout-renderer'
+          ];
+
+          let removed = 0;
+          selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              if (el && el.parentNode) {
+                el.parentNode.removeChild(el);
+                removed++;
+              }
+            });
+          });
+
+          if (removed > 0) {
+            stats.cosmetic += removed;
+          }
+        }
+
+        // ===== MUTATION OBSERVER (like uBlock) =====
+        
+        // Watch for dynamically added ad elements
+        const observer = new MutationObserver(function(mutations) {
+          removeAdElements();
+        });
+
+        // Start observing when DOM is ready
+        function startObserver() {
+          if (document.body) {
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
+            console.log('[YouTube-AdBlocker] DOM observer started');
+          } else {
+            setTimeout(startObserver, 100);
+          }
+        }
+
+        // ===== INITIALIZATION =====
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            injectCSS();
+            removeAdElements();
+            startObserver();
+          });
+        } else {
+          injectCSS();
+          removeAdElements();
+          startObserver();
+        }
+        console.log('[YouTube-AdBlocker] Enhanced v2.0 Active!');
+      })();
+    ''';
+
     try {
+      await controller.evaluateJavascript(source: youtubeAdScript);
       await controller.evaluateJavascript(source: baseScript);
       await controller.evaluateJavascript(source: extraScript);
-      print("✅ Anti-popup JS injected");
     } catch (e) {
       print("⚠️ Failed to inject anti-popup JS: $e");
     }
