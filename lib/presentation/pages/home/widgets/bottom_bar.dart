@@ -50,7 +50,7 @@ class BottomBar extends StatelessWidget {
     return RepaintBoundary(
       child: Container(
       decoration: BoxDecoration(
-        color: Colors.grey[100]?.withOpacity(0.95),
+        color: Colors.white,
       ),
       child: SafeArea(
         top: false,

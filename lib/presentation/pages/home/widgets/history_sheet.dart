@@ -175,29 +175,6 @@ class _HistorySheetState extends State<HistorySheet> {
                     },
                   ),
           ),
-          // Done button
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'Done',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue,
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

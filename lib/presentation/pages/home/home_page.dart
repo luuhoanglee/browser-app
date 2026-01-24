@@ -22,6 +22,7 @@ import '../../../features/search/widgets/search_page.dart';
 import '../../../features/search/bloc/search_bloc.dart';
 import '../../../features/search/bloc/search_event.dart';
 import '../../../features/search/search_service.dart';
+import '../../../features/media/widgets/media_gallery_sheet.dart';
 
 class HomePage extends StatelessWidget {
   final String? initialUrl;
@@ -467,6 +468,19 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         controller: _getController(activeTab.id),
         pullToRefreshController: _pullToRefreshController,
         onWebViewCreated: (controller) => _setController(activeTab.id, controller),
+        onUpdateVisitedHistory: (controller, url, isReload) {
+          final bloc = context.read<TabBloc>();
+          final tab = bloc.state.activeTab;
+          if (tab != null) {
+            final urlStr = url?.toString() ?? '';
+            if (urlStr.isNotEmpty && !urlStr.startsWith('intent://') && !_isExternalUrl(urlStr)) {
+              if (tab.url != urlStr) {
+                print('[onUpdateVisitedHistory] URL changed: $urlStr');
+                bloc.add(UpdateTabEvent(tab.copyWith(url: urlStr), skipCache: true));
+              }
+            }
+          }
+        },
         onUrlUpdated: (newUrl) {
           final bloc = context.read<TabBloc>();
           final tab = bloc.state.activeTab;
@@ -774,161 +788,47 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
               ),
             ),
           ),
-          // Done button
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: GestureDetector(
-              onTap: () => Navigator.pop(sheetContext),
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'Done',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue,
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
     void _showMediaSheet(BuildContext context) {
-      showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => GestureDetector(
-        onVerticalDragUpdate: (details) {
-          if (details.primaryDelta != null && details.primaryDelta! < 0) {
-            // Drag lên (scroll up)
-          }
-        },
-        child: Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        ),
-        child: Column(
-          children: [
-            // Drag handle
-            GestureDetector(
-              onVerticalDragUpdate: (details) {
-                if (details.primaryDelta != null && details.primaryDelta! < 0) {
-                  // Drag lên - expand sheet
-                  Navigator.pop(sheetContext);
-                  _showMediaSheetExpanded(context);
-                }
-              },
-              child: Container(
-                margin: const EdgeInsets.only(top: 8, bottom: 4),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            // Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Media',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(sheetContext),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Content
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.perm_media_outlined,
-                      size: 48,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No Media',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Done button
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: GestureDetector(
-                onTap: () => Navigator.pop(sheetContext),
-                child: Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'Done',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      ),
-    );
-  }
+      final bloc = context.read<TabBloc>();
+      final activeTab = bloc.state.activeTab;
 
-  void _showMediaSheetExpanded(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => Container(
-        height: MediaQuery.of(context).size.height * 0.9,
+      final controller = _getController(activeTab?.id);
+
+      if (controller == null) {
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text('No active tab')),
+        // );
+        return;
+      }
+
+      // Get loaded resources from active tab
+      final loadedResources = activeTab?.loadedResources ?? [];
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) => _buildMediaSheet(sheetContext, context, controller, loadedResources, 0.6),
+      );
+    }
+
+    void _showMediaSheetExpanded(BuildContext context, InAppWebViewController controller, List<LoadedResource> loadedResources) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) => _buildMediaSheet(sheetContext, context, controller, loadedResources, 0.9),
+      );
+    }
+
+    Widget _buildMediaSheet(BuildContext sheetContext, BuildContext parentContext, InAppWebViewController controller, List<LoadedResource> loadedResources, double heightFactor) {
+      final isExpanded = heightFactor > 0.7;
+      return Container(
+        height: MediaQuery.of(parentContext).size.height * heightFactor,
         decoration: BoxDecoration(
           color: Colors.grey[100],
           borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
@@ -937,103 +837,46 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           children: [
             // Drag handle
             GestureDetector(
-              onVerticalDragUpdate: (details) {
-                if (details.primaryDelta != null && details.primaryDelta! > 0) {
-                  // Drag xuống - collapse sheet
+              behavior: HitTestBehavior.translucent,
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
                   Navigator.pop(sheetContext);
-                  _showMediaSheet(context);
+                  if (details.primaryVelocity! < 0 && !isExpanded) {
+                    _showMediaSheetExpanded(parentContext, controller, loadedResources);
+                  } else if (details.primaryVelocity! > 0 && isExpanded) {
+                    showModalBottomSheet(
+                      context: parentContext,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (sheetContext) => _buildMediaSheet(sheetContext, parentContext, controller, loadedResources, 0.6),
+                    );
+                  }
                 }
               },
               child: Container(
-                margin: const EdgeInsets.only(top: 8, bottom: 4),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            // Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Media',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(sheetContext),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Content
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.perm_media_outlined,
-                      size: 48,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No Media',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Done button
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: GestureDetector(
-                onTap: () => Navigator.pop(sheetContext),
+                height: 30,
+                alignment: Alignment.center,
                 child: Container(
-                  height: 44,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'Done',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.blue,
-                    ),
+                    color: Colors.grey[400],
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
+              ),
+            ),
+            // Media gallery content
+            Expanded(
+              child: MediaGallerySheet(
+                controller: controller,
+                loadedResources: loadedResources,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
   void _showSearchPage(BuildContext context) {
     final bloc = context.read<TabBloc>();

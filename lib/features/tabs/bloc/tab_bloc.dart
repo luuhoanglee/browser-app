@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../../../data/models/tab_model.dart';
 import '../../../../data/repositories/tab_repository_impl.dart';
 import '../../../../data/services/storage_service.dart';
@@ -13,6 +14,8 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     on<RemoveTabEvent>(_onRemoveTab);
     on<SelectTabEvent>(_onSelectTab);
     on<UpdateTabEvent>(_onUpdateTab);
+    on<AddLoadedResourceEvent>(_onAddLoadedResource);
+    on<ClearLoadedResourcesEvent>(_onClearLoadedResources);
 
     _init();
   }
@@ -195,6 +198,38 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     // Chỉ lưu cache cho các thay đổi quan trọng (URL, title)
     if (event.tab.url.isNotEmpty || event.tab.title.isNotEmpty) {
       await StorageService.saveTabs(updatedTabs, updatedActiveTab?.id);
+    }
+  }
+
+  void _onAddLoadedResource(AddLoadedResourceEvent event, Emitter<TabState> emit) {
+    final tab = repository.getTab(event.tabId);
+    if (tab == null) return;
+
+    // Check if resource already exists
+    final exists = tab.loadedResources.any((r) => r.url == event.resource.url);
+    if (exists) return;
+
+    // Add new resource
+    final updatedResources = List<LoadedResource>.from(tab.loadedResources);
+    updatedResources.add(event.resource);
+
+    final updatedTab = tab.copyWith(loadedResources: updatedResources);
+    repository.updateTab(updatedTab);
+
+    if (state.activeTab?.id == event.tabId) {
+      emit(state.copyWith(activeTab: updatedTab));
+    }
+  }
+
+  void _onClearLoadedResources(ClearLoadedResourcesEvent event, Emitter<TabState> emit) {
+    final tab = repository.getTab(event.tabId);
+    if (tab == null) return;
+
+    final updatedTab = tab.copyWith(loadedResources: []);
+    repository.updateTab(updatedTab);
+
+    if (state.activeTab?.id == event.tabId) {
+      emit(state.copyWith(activeTab: updatedTab));
     }
   }
 }

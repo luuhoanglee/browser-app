@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class TabEntity extends Equatable {
   final String id;
@@ -10,6 +11,7 @@ class TabEntity extends Equatable {
   final Uint8List? thumbnail;
   final int loadProgress;
   final DateTime? lastAccessedAt;
+  final List<LoadedResource> loadedResources;
 
   const TabEntity({
     required this.id,
@@ -20,6 +22,7 @@ class TabEntity extends Equatable {
     this.thumbnail,
     this.loadProgress = 0,
     this.lastAccessedAt,
+    this.loadedResources = const [],
   });
 
   TabEntity copyWith({
@@ -31,6 +34,7 @@ class TabEntity extends Equatable {
     Uint8List? thumbnail,
     int? loadProgress,
     DateTime? lastAccessedAt,
+    List<LoadedResource>? loadedResources,
   }) {
     return TabEntity(
       id: id ?? this.id,
@@ -41,9 +45,10 @@ class TabEntity extends Equatable {
       thumbnail: thumbnail ?? this.thumbnail,
       loadProgress: loadProgress ?? this.loadProgress,
       lastAccessedAt: lastAccessedAt ?? this.lastAccessedAt,
+      loadedResources: loadedResources ?? this.loadedResources,
     );
   }
 
   @override
-  List<Object?> get props => [id, url, title, index, isLoading, thumbnail, loadProgress, lastAccessedAt];
+  List<Object?> get props => [id, url, title, index, isLoading, thumbnail, loadProgress, lastAccessedAt, loadedResources];
 }

@@ -1,4 +1,5 @@
 import '../../../domain/entities/tab_entity.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 abstract class TabEvent {}
 
@@ -22,4 +23,17 @@ class UpdateTabEvent extends TabEvent {
   final bool forceUpdate;
 
   UpdateTabEvent(this.tab, {this.skipCache = false, this.forceUpdate = false});
+}
+
+class AddLoadedResourceEvent extends TabEvent {
+  final String tabId;
+  final LoadedResource resource;
+
+  AddLoadedResourceEvent(this.tabId, this.resource);
+}
+
+class ClearLoadedResourcesEvent extends TabEvent {
+  final String tabId;
+
+  ClearLoadedResourcesEvent(this.tabId);
 }

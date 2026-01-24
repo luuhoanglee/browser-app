@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
+import '../../tabs/bloc/tab_bloc.dart';
+import '../../tabs/bloc/tab_event.dart';
+import '../../../../core/utils/media_utils.dart';
 
 enum WebViewErrorType {
   none,
@@ -29,6 +33,7 @@ class WebViewPage extends StatefulWidget {
   final Function(InAppWebViewController, int) onProgressChanged;
   final Function(int) onScrollChanged;
   final Function(String)? onUrlUpdated;
+  final Function(InAppWebViewController, WebUri?, bool?)? onUpdateVisitedHistory;
   final Function()? onSwipeBack;
   final Function()? onSwipeForward;
 
@@ -46,6 +51,7 @@ class WebViewPage extends StatefulWidget {
     this.onUrlUpdated,
     this.onSwipeBack,
     this.onSwipeForward,
+    this.onUpdateVisitedHistory,
   });
 
   @override
@@ -272,6 +278,28 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     }
   }
 
+  void _onLoadResourceWithResponse(
+    InAppWebViewController controller,
+    LoadedResource resource,
+  ) {
+    final url = resource.url?.toString();
+    if (url == null || url.isEmpty) return;
+
+    // Filter media resources only
+    if (!MediaUtils.isMedia(url)) return;
+
+    print('[Resource] Media detected: $url');
+
+    // Get the tab ID from activeTab
+    final tabId = widget.activeTab?.id;
+    if (tabId == null) return;
+
+    // Add to tab's loaded resources via TabBloc
+    if (mounted) {
+      context.read<TabBloc>().add(AddLoadedResourceEvent(tabId, resource));
+    }
+  }
+
   void _onLoadStart(InAppWebViewController controller, WebUri? url) {
     if (url != null) {
       final urlStr = url.toString();
@@ -280,6 +308,12 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       print('[onLoadStart] Resetting _hadError to false');
 
       _hadError = false;
+
+      // Clear previous loaded resources when starting new main frame load
+      final tabId = widget.activeTab?.id;
+      if (tabId != null && mounted) {
+        context.read<TabBloc>().add(ClearLoadedResourcesEvent(tabId));
+      }
 
       // Clear previous error when starting new load
       if (_errorType != WebViewErrorType.none) {
@@ -677,6 +711,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                       onWebViewCreated: _onWebViewCreated,
                       onLoadStart: _onLoadStart,
                       onLoadStop: _onLoadStop,
+                      onLoadResource: _onLoadResourceWithResponse,
                       onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
                       onProgressChanged: (controller, progress) =>
                           widget.onProgressChanged(controller, progress),
@@ -688,6 +723,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                       onCreateWindow: _onCreateWindow,
                       onReceivedError: _onReceivedError,
                       onReceivedHttpError: _onReceivedHttpError,
+                      onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
                     ),
                       ),
                     ],
