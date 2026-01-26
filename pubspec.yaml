@@ -184,7 +184,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logo/hima.png"
+  image_path: "assets/logo/logo-blackdog.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/logo/hima.png"
+  adaptive_icon_foreground: "assets/logo/logo-blackdog.png"
   remove_alpha_channel_ios: true
