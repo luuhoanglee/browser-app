@@ -20,64 +20,15 @@ class MediaUtils {
     '.mp3', '.wav', '.aac', '.flac', '.m4a', '.wma', '.opus', '.ogg',
   ];
 
-  // Domains to skip (login pages, ads, tracking, etc.)
-  static const skippedDomains = [
-    'accounts.google.com',
-    'www.facebook.com',
-    'adexchangeclear.com',
-    'google.com',
-    'facebook.com',
-    // 'youtube.com',
-    'doubleclick.net',
-    'googlesyndication.com',
-  ];
 
-  // Skip URLs with these patterns
-  static const skippedPatterns = [
-    'servicelogin',
-    'login.php',
-    'adexchange',
-    'script/suurl',
-    '/suurl',
-    'favicon.ico',
-  ];
-
-  /// Check if URL should be skipped
-  static bool shouldSkip(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return true;
-
-    final host = uri.host.toLowerCase();
-    final path = uri.path.toLowerCase();
-    final urlLower = url.toLowerCase();
-
-    // Skip by domain
-    for (final domain in skippedDomains) {
-      if (host == domain || host.endsWith('.$domain')) {
-        return true;
-      }
-    }
-
-    // Skip by pattern
-    for (final pattern in skippedPatterns) {
-      if (urlLower.contains(pattern)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
 
   /// Check if URL is an image resource
   static bool isImage(String url) {
-    if (shouldSkip(url)) return false;
     return _checkMediaType(url, imageExts);
   }
 
   /// Check if URL is a video resource
   static bool isVideo(String url) {
-    if (shouldSkip(url)) return false;
-
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
 
@@ -107,8 +58,6 @@ class MediaUtils {
 
   /// Check if URL is an audio resource
   static bool isAudio(String url) {
-    if (shouldSkip(url)) return false;
-
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
 

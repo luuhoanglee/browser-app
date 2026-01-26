@@ -343,6 +343,16 @@ class _MediaItem extends StatelessWidget {
     return mediaType;
   }
 
+  /// Extract host from URL
+  String _extractHost(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.host;
+    } catch (_) {
+      return 'Unknown';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fileName = url.split('/').last;
@@ -350,6 +360,7 @@ class _MediaItem extends StatelessWidget {
     final isImage = _imageRegex.hasMatch(lowerUrl);
     final isFromAudioList = state.result.audios.contains(url);
     final mediaType = _getMediaTypeFromResult();
+    final host = _extractHost(url);
 
     return RepaintBoundary(
       child: Container(
@@ -374,7 +385,7 @@ class _MediaItem extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            _getMediaTypeLabel(mediaType),
+            mediaType == 'Video' ? host : _getMediaTypeLabel(mediaType),
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
           trailing: IconButton(
