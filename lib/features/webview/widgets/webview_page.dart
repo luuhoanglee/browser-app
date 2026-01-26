@@ -186,6 +186,39 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         urlLower.startsWith('opera://');
   }
 
+  /// Kiểm tra URL có phải custom scheme không (không phải http/https)
+  static bool _isCustomScheme(String url) {
+    final urlLower = url.toLowerCase();
+    return !urlLower.startsWith('http://') &&
+        !urlLower.startsWith('https://') &&
+        !urlLower.startsWith('intent://') &&
+        !urlLower.startsWith('data:') &&
+        !urlLower.startsWith('about:') &&
+        urlLower.contains('://');
+  }
+
+  /// Chuyển custom scheme sang https
+  static String? _convertCustomSchemeToHttps(String url) {
+    try {
+      final uri = Uri.parse(url);
+
+      // Lấy domain từ scheme (ví dụ: febbox:// → febbox.com)
+      final scheme = uri.scheme;
+      final domain = '$scheme.com';
+
+      // Ghép path và query params với domain mới
+      final path = uri.path;
+      final query = uri.hasQuery ? '?${uri.query}' : '';
+
+      final httpsUrl = 'https://$domain$path$query';
+      print('[CustomScheme] Converting $url to $httpsUrl');
+      return httpsUrl;
+    } catch (e) {
+      print('[CustomScheme] Failed to convert $url: $e');
+      return null;
+    }
+  }
+
   String _getInitialUrl() {
     String url = widget.activeTab.url ?? '';
     if (url.isEmpty) return '';
@@ -375,6 +408,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     NavigationAction navigationAction,
   ) async {
     final url = navigationAction.request.url.toString();
+
     // Handle intent URLs
     if (url.startsWith('intent://')) {
       final parsed = _parseIntentUrl(url);
@@ -387,6 +421,22 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         );
         return NavigationActionPolicy.CANCEL;
       }
+      return NavigationActionPolicy.CANCEL;
+    }
+
+    // Handle custom schemes - convert to https
+    if (_isCustomScheme(url)) {
+      final httpsUrl = _convertCustomSchemeToHttps(url);
+      if (httpsUrl != null) {
+        await controller.loadUrl(
+          urlRequest: URLRequest(
+            url: WebUri(httpsUrl),
+            headers: _getHeaders(httpsUrl),
+          ),
+        );
+        return NavigationActionPolicy.CANCEL;
+      }
+      // If conversion fails, block the URL
       return NavigationActionPolicy.CANCEL;
     }
 
@@ -737,10 +787,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                     onSwipeForward: widget.onSwipeForward,
                   ),
                 ),
-              if (_errorType != WebViewErrorType.none)
-                Positioned.fill(
-                  child: _buildErrorWidget(),
-                ),
+              // if (_errorType != WebViewErrorType.none)
+              //   Positioned.fill(
+              //     child: _buildErrorWidget(),
+              //   ),
             ],
           );
         },

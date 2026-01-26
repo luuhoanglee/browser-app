@@ -385,7 +385,7 @@ class _MediaItem extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            mediaType == 'Video' ? host : _getMediaTypeLabel(mediaType),
+            host,
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
           trailing: IconButton(
