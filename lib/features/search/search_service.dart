@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart' as xml;
 
 enum SearchEngine {
   google,

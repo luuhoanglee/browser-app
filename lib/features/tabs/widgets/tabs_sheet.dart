@@ -133,7 +133,7 @@ class _TabsSheetState extends State<TabsSheet> {
                           isActive: isActive,
                           onTap: () => widget.onSelectTab(tab.id),
                           onClose: () => widget.onCloseTab(tab.id),
-                          canClose: tabState.tabs.length > 0,
+                          canClose: tabState.tabs.isNotEmpty,
                         ),
                       );
                     },
