@@ -2,11 +2,17 @@ import 'constants.dart';
 import 'supported_platforms.dart';
 
 abstract class EnumPlatform implements Platform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
   final dynamic value;
 
@@ -22,12 +28,19 @@ abstract class EnumPlatform implements Platform {
 }
 
 class EnumAndroidPlatform implements EnumPlatform, AndroidPlatform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
+  @override
   final dynamic value;
 
   const EnumAndroidPlatform({
@@ -42,12 +55,19 @@ class EnumAndroidPlatform implements EnumPlatform, AndroidPlatform {
 }
 
 class EnumIOSPlatform implements EnumPlatform, IOSPlatform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
+  @override
   final dynamic value;
 
   const EnumIOSPlatform({
@@ -62,12 +82,19 @@ class EnumIOSPlatform implements EnumPlatform, IOSPlatform {
 }
 
 class EnumMacOSPlatform implements EnumPlatform, MacOSPlatform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
+  @override
   final dynamic value;
 
   const EnumMacOSPlatform({
@@ -82,12 +109,19 @@ class EnumMacOSPlatform implements EnumPlatform, MacOSPlatform {
 }
 
 class EnumWindowsPlatform implements EnumPlatform, WindowsPlatform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
+  @override
   final dynamic value;
 
   const EnumWindowsPlatform({
@@ -102,12 +136,19 @@ class EnumWindowsPlatform implements EnumPlatform, WindowsPlatform {
 }
 
 class EnumLinuxPlatform implements EnumPlatform, LinuxPlatform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
+  @override
   final dynamic value;
 
   const EnumLinuxPlatform({
@@ -122,13 +163,21 @@ class EnumLinuxPlatform implements EnumPlatform, LinuxPlatform {
 }
 
 class EnumWebPlatform implements EnumPlatform, WebPlatform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
+  @override
   final dynamic value;
+  @override
   final bool requiresSameOrigin;
 
   const EnumWebPlatform(
