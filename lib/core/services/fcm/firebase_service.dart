@@ -5,10 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
-import 'package:satreps_client_app/core/services/fcm/notification_remote_service.dart';
-import 'package:satreps_client_app/core/shared/cache/cache_key.dart';
-import 'package:satreps_client_app/core/shared/cache/cache_manager.dart';
+import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/services/fcm/notification_remote_service.dart';
+import 'package:browser_app/core/shared/cache/cache_key.dart';
+import 'package:browser_app/core/shared/cache/cache_manager.dart';
 import 'dart:html' as html;
 
 class FirebaseService {
@@ -33,12 +33,6 @@ class FirebaseService {
     FirebaseService.onMessage();
   }
 
-  static Future<bool> disableDevice({required String? tokenFCM}) async {
-    if (tokenFCM == null || tokenFCM.isEmpty) return false;
-
-    return await NotificationRemoteService().disableDevice(tokenFCM: tokenFCM);
-  }
-
   static Future<void> createDeviceToken() async {
     try {
       CacheManager<String> cacheManager =
@@ -51,14 +45,6 @@ class FirebaseService {
         // save into server
         NotificationRemoteService notificationRemoteService =
             NotificationRemoteService();
-        final resultCreateDevice =
-            await notificationRemoteService.createDevice(tokenFCM: fcmToken);
-        if (resultCreateDevice) {
-          Logger.show("FirebaseMessagingService create device success");
-        } else {
-          Logger.error("FirebaseMessagingService create device fail",
-              StackTrace.current);
-        }
       }
       Logger.show("FirebaseMessagingService token: $fcmToken");
     } catch (e, s) {

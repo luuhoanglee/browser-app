@@ -1,42 +1,17 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:satreps_client_app/core/resources/app_info.dart';
-import 'package:satreps_client_app/core/services/encrypt_key/model/encrypt_key_model.dart';
-import 'package:satreps_client_app/core/shared/cache/base_model_cache.dart';
+import 'package:browser_app/core/resources/app_info.dart';
+import 'package:browser_app/core/shared/cache/base_model_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
+import 'package:browser_app/core/logger/logger.dart';
 
 class CacheManager<T> {
   static SharedPreferences? prefs;
   late String _keyData;
   String? _keyExpiration;
-  static late FlutterSecureStorage _storeSecureStorage;
 
   static Future<void> init() async {
-    final String nameCache = 'flutter_secure_storage_service_${AppInfo.package?.appName ?? ''}';
-    _storeSecureStorage = FlutterSecureStorage(
-      iOptions: IOSOptions(
-        accountName: nameCache,
-      ),
-      aOptions: AndroidOptions(
-        sharedPreferencesName: nameCache,
-      ),
-    );
     prefs ??= await SharedPreferences.getInstance();
-  }
-
-  Future<void> storageKeypair({required EncryptKeyModel keypair}) async {
-    await _storeSecureStorage.write(key: _keyData, value: jsonEncode(keypair.toJson()));
-  }
-  Future<EncryptKeyModel?> getKeypair() async {
-    final String? keypairString = await _storeSecureStorage.read(key: _keyData);
-    if (keypairString == null) { return null; }
-
-    return EncryptKeyModel.fromJson(jsonDecode(keypairString));
-  }
-  Future<void> deleteKeypair() async {
-    await _storeSecureStorage.deleteAll();
   }
 
   static T? getValue<T>(String key, {T Function(Map<String, dynamic>)? fromJson, List<T>? enumValues,}) {

@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:satreps_client_app/core/resources/app_info.dart';
-import 'package:satreps_client_app/core/services/locale/locale_cubit.dart';
+import 'package:browser_app/core/resources/app_info.dart';
+import 'package:browser_app/core/services/locale/locale_cubit.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 extension EXDatetime on DateTime {

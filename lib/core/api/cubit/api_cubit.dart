@@ -2,14 +2,14 @@ import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:satreps_client_app/core/api/api_client.dart';
-import 'package:satreps_client_app/core/api/cubit/api_state.dart';
-import 'package:satreps_client_app/core/api/interceptors/auth_interceptor.dart';
-import 'package:satreps_client_app/core/api/interceptors/error_interceptor.dart';
-import 'package:satreps_client_app/core/api/interceptors/log_interceptor.dart';
-import 'package:satreps_client_app/core/api/interceptors/response_interceptor.dart';
-import 'package:satreps_client_app/core/shared/cache/cache_key.dart';
-import 'package:satreps_client_app/core/shared/cache/cache_manager.dart';
+import 'package:browser_app/core/api/api_client.dart';
+import 'package:browser_app/core/api/cubit/api_state.dart';
+import 'package:browser_app/core/api/interceptors/auth_interceptor.dart';
+import 'package:browser_app/core/api/interceptors/error_interceptor.dart';
+import 'package:browser_app/core/api/interceptors/log_interceptor.dart';
+import 'package:browser_app/core/api/interceptors/response_interceptor.dart';
+import 'package:browser_app/core/shared/cache/cache_key.dart';
+import 'package:browser_app/core/shared/cache/cache_manager.dart';
 
 class ApiCubit extends Cubit<ApiState> {
   ApiCubit(super.initialState) {
@@ -69,12 +69,12 @@ class ApiCubit extends Cubit<ApiState> {
     ]);
   }
 
-  void onNetworkErrorCallback(DioError error) {
+  void onNetworkErrorCallback(DioException error) {
     emit(NoFoundNetwork(error: error));
   }
 
-  void onErrorCallback(DioErrorType type) {
-    if (type == DioErrorType.connectTimeout || type == DioErrorType.receiveTimeout || type == DioErrorType.sendTimeout) {
+  void onErrorCallback(DioExceptionType type) {
+    if (type == DioExceptionType.connectionTimeout || type == DioExceptionType.receiveTimeout || type == DioExceptionType.sendTimeout) {
       emit(TimeOutRequest());
     }
   }

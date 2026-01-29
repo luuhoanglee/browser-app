@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
-import 'package:satreps_client_app/core/services/locale/locale_service.dart';
+import 'package:browser_app/core/services/locale/locale_service.dart';
 
 class LocaleCubit extends Cubit<Locale> {
   late LocaleService localeService;

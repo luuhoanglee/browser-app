@@ -2,8 +2,8 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:satreps_client_app/core/api/api_response.dart';
-import 'package:satreps_client_app/core/enum/api/api.dart' show SatrepsErrorType;
+import 'package:browser_app/core/api/api_response.dart';
+import 'package:browser_app/core/enum/api/api.dart' show SatrepsErrorType;
 
 class ResponseInterceptor extends InterceptorsWrapper {
   @override
@@ -13,10 +13,10 @@ class ResponseInterceptor extends InterceptorsWrapper {
       final error = ErrorResponse.fromSatreps(response);
       if (error.error == SatrepsErrorType.unauthorized) {
         handler.reject(
-            DioError(
+            DioException(
                 requestOptions: response.requestOptions,
                 response: response..statusCode = HttpStatus.unauthorized,
-                type: DioErrorType.response),
+                type: DioExceptionType.badResponse),
             true);
         return;
       }

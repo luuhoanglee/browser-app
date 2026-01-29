@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:satreps_client_app/core/config/constants.dart';
+import 'package:browser_app/core/config/constants.dart';
 
 import '../api_client.dart';
 import '../decodable.dart';
@@ -110,10 +110,10 @@ class AuthInterceptor extends InterceptorsWrapper {
       return super.onRequest(options, handler);
     }
     if (token.isExpired()) {
-      client.instance.lock();
+      // client.instance.lock();
       debugPrint('Lock request for refreshing token...');
       await token.startRefreshToken();
-      client.instance.unlock();
+      // client.instance.unlock();
       debugPrint('Refresh token completed!');
     }
     if (token.accessToken != null) {

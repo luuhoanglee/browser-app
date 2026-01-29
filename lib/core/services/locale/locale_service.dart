@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:satreps_client_app/core/logger/logger.dart';
+import 'package:browser_app/core/logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocaleService {

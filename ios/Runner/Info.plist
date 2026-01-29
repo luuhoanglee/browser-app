@@ -45,5 +45,20 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Cần quyền truy cập để lưu file đã tải về</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Cần quyền để lưu ảnh vào thư viện ảnh</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cần quyền để truy cập thư viện ảnh</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

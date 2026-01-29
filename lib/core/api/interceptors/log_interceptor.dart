@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:developer';
 
-import 'package:satreps_client_app/core/api/interceptors/auth_interceptor.dart';
+import 'package:browser_app/core/api/interceptors/auth_interceptor.dart';
 
 class APILogInterceptor extends InterceptorsWrapper {
   @override

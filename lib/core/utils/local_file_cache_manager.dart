@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:satreps_client_app/core/shared/cache/cache_manager.dart';
+import 'package:browser_app/core/shared/cache/cache_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A simple file cache manager that saves files locally by ID
