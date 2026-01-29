@@ -16,13 +16,14 @@ import 'widgets/bottom_bar.dart';
 import 'widgets/history_sheet.dart';
 import '../../../features/tabs/widgets/empty_page.dart';
 import '../../../features/webview/widgets/webview_page.dart';
-import '../../../features/webview/services/webview_interceptor.dart';
 import '../../../features/tabs/widgets/tabs_sheet.dart';
 import '../../../features/search/widgets/search_page.dart';
 import '../../../features/search/bloc/search_bloc.dart';
 import '../../../features/search/bloc/search_event.dart';
 import '../../../features/search/search_service.dart';
 import '../../../features/media/widgets/media_gallery_sheet.dart';
+import '../../../features/download/bloc/download_bloc.dart';
+import '../../../features/download/widgets/download_sheet.dart';
 
 class HomePage extends StatelessWidget {
   final String? initialUrl;
@@ -34,6 +35,7 @@ class HomePage extends StatelessWidget {
       providers: [
         BlocProvider(create: (context) => TabBloc(TabRepositoryImpl())),
         BlocProvider(create: (context) => SearchBloc()),
+        BlocProvider(create: (context) => DownloadBloc()),
       ],
       child: HomeViewWrapper(initialUrl: initialUrl),
     );
@@ -702,93 +704,37 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
   Widget _buildDownloadSheet(BuildContext sheetContext, BuildContext parentContext, double heightFactor) {
     final isExpanded = heightFactor > 0.7;
-    return Container(
-      height: MediaQuery.of(parentContext).size.height * heightFactor,
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      child: Column(
-        children: [
-          // Drag handle
-          GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onVerticalDragEnd: (details) {
-              if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
-                Navigator.pop(sheetContext);
-                if (details.primaryVelocity! < 0 && !isExpanded) {
-                  _showDownloadSheetExpanded(parentContext);
-                } else if (details.primaryVelocity! > 0 && isExpanded) {
-                  _showDownloadSheet(parentContext);
-                }
-              }
-            },
-            child: Container(
-              height: 30,
-              alignment: Alignment.center,
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+    return BlocProvider.value(
+      value: parentContext.read<DownloadBloc>(),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
+            Navigator.pop(sheetContext);
+            if (details.primaryVelocity! < 0 && !isExpanded) {
+              _showDownloadSheetExpanded(parentContext);
+            } else if (details.primaryVelocity! > 0 && isExpanded) {
+              showModalBottomSheet(
+                context: parentContext,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (sheetContext) => _buildDownloadSheet(sheetContext, parentContext, 0.6),
+              );
+            }
+          }
+        },
+        child: Container(
+          height: MediaQuery.of(parentContext).size.height * heightFactor,
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Downloads',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(sheetContext),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
-                  ),
-                ),
-              ],
-            ),
+          child: DownloadSheet(
+            heightFactor: 1.0,
+            onClose: () => Navigator.pop(sheetContext),
+            onExpand: null,
           ),
-          // Content
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.download_outlined,
-                    size: 48,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No downloads yet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -827,40 +773,42 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
     Widget _buildMediaSheet(BuildContext sheetContext, BuildContext parentContext, InAppWebViewController controller, List<LoadedResource> loadedResources, double heightFactor) {
       final isExpanded = heightFactor > 0.7;
-      return Container(
-        height: MediaQuery.of(parentContext).size.height * heightFactor,
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        ),
-        child: Column(
-          children: [
-            // Drag handle
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragEnd: (details) {
-                if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
-                  Navigator.pop(sheetContext);
-                  if (details.primaryVelocity! < 0 && !isExpanded) {
-                    _showMediaSheetExpanded(parentContext, controller, loadedResources);
-                  } else if (details.primaryVelocity! > 0 && isExpanded) {
-                    showModalBottomSheet(
-                      context: parentContext,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (sheetContext) => _buildMediaSheet(sheetContext, parentContext, controller, loadedResources, 0.6),
-                    );
+      return BlocProvider.value(
+        value: parentContext.read<DownloadBloc>(),
+        child: Container(
+          height: MediaQuery.of(parentContext).size.height * heightFactor,
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          child: Column(
+            children: [
+              // Drag handle
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragEnd: (details) {
+                  if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
+                    Navigator.pop(sheetContext);
+                    if (details.primaryVelocity! < 0 && !isExpanded) {
+                      _showMediaSheetExpanded(parentContext, controller, loadedResources);
+                    } else if (details.primaryVelocity! > 0 && isExpanded) {
+                      showModalBottomSheet(
+                        context: parentContext,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (sheetContext) => _buildMediaSheet(sheetContext, parentContext, controller, loadedResources, 0.6),
+                      );
+                    }
                   }
-                }
-              },
-              child: Container(
-                height: 30,
-                alignment: Alignment.center,
+                },
                 child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
+                  height: 30,
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -875,8 +823,9 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
   void _showSearchPage(BuildContext context) {
     final bloc = context.read<TabBloc>();

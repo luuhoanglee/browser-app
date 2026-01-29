@@ -21,11 +21,31 @@ class TabBloc extends Bloc<TabEvent, TabState> {
   }
 
   void _init() async {
-    // Try to load from cache first
-    final cachedTabs = await StorageService.loadTabs();
-    final activeTabId = await StorageService.loadActiveTabId();
+    // Emit initial state immediately with empty tab to show UI
+    final initialTab = TabModel.create(index: 0);
+    repository.addTab(initialTab);
+    repository.setActiveTab(initialTab.id);
 
-    if (cachedTabs.isNotEmpty) {
+    emit(state.copyWith(
+      tabs: repository.getTabs(),
+      activeTab: repository.getActiveTab(),
+      activeTabIndex: 0,
+    ));
+
+    // Load cached tabs in background without blocking
+    Future.microtask(() async {
+      final cachedTabs = await StorageService.loadTabs();
+      final activeTabId = await StorageService.loadActiveTabId();
+
+      if (cachedTabs.isEmpty) {
+        // No cache found, keep the initial tab we created
+        return;
+      }
+
+      // Remove the initial placeholder tab
+      final initialTab = repository.getTabs().first;
+      repository.removeTab(initialTab.id);
+
       bool hasInvalidTabs = false;
 
       // Load cached tabs into repository, filter out intent URLs
@@ -77,18 +97,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         activeTab: activeTab,
         activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
       ));
-    } else {
-      // Create initial tab if no cache
-      final initialTab = TabModel.create(index: 0);
-      repository.addTab(initialTab);
-      repository.setActiveTab(initialTab.id);
-
-      emit(state.copyWith(
-        tabs: repository.getTabs(),
-        activeTab: repository.getActiveTab(),
-        activeTabIndex: 0,
-      ));
-    }
+    });
   }
 
   Future<void> _onAddTab(AddTabEvent event, Emitter<TabState> emit) async {

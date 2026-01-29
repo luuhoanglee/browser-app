@@ -81,6 +81,9 @@ dependencies:
   # File & path
   file_picker: ^8.1.2
   path_provider: ^2.1.4
+  permission_handler: ^11.0.0
+  open_filex: ^4.5.0
+  file_type_dart: ^1.0.0
 
   # HTTP requests
   http: ^1.2.0

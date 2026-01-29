@@ -1,11 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:open_filex/open_filex.dart';
 import '../bloc/media_bloc.dart';
 import '../bloc/media_event.dart';
 import '../bloc/media_state.dart';
 import '../../../core/enum/media_type.dart';
+import '../../download/bloc/download_bloc.dart';
+import '../../download/bloc/download_event.dart';
+import '../../download/bloc/download_state.dart';
+import '../../../data/services/download_service.dart';
 import 'image_viewer_page.dart';
 import 'audio_player_page.dart';
 import 'video_player_page.dart';
@@ -53,41 +59,43 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: Column(
-        children: [
-          // Header with filter chips
-          _buildHeader(),
-          // Media list
-          Expanded(
-            child: BlocBuilder<MediaBloc, MediaState>(
-              bloc: _mediaBloc,
-              buildWhen: (previous, current) => previous != current,
-              builder: (context, state) {
-                if (state is MediaLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                } else if (state is MediaError) {
-                  return _buildErrorState(state.message);
-                } else if (state is MediaLoaded) {
-                  if (state.activeFilter == null) {
-                    return _buildEmptyState();
+    return Scaffold(
+      body: RepaintBoundary(
+        child: Column(
+          children: [
+            // Header with filter chips
+            _buildHeader(),
+            // Media list
+            Expanded(
+              child: BlocBuilder<MediaBloc, MediaState>(
+                bloc: _mediaBloc,
+                buildWhen: (previous, current) => previous != current,
+                builder: (context, state) {
+                  if (state is MediaLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  } else if (state is MediaError) {
+                    return _buildErrorState(state.message);
+                  } else if (state is MediaLoaded) {
+                    if (state.activeFilter == null) {
+                      return _buildEmptyState();
+                    }
+
+                    final urls = state.filteredUrls;
+
+                    if (urls.isEmpty) {
+                      return _buildEmptyState();
+                    }
+
+                    return _buildMediaList(urls, state);
                   }
-
-                  final urls = state.filteredUrls;
-
-                  if (urls.isEmpty) {
-                    return _buildEmptyState();
-                  }
-
-                  return _buildMediaList(urls, state);
-                }
-                return const SizedBox.shrink();
-              },
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -377,6 +385,7 @@ class _MediaItem extends StatelessWidget {
           ],
         ),
         child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           leading: _buildLeading(url, isImage, mediaType),
           title: Text(
             fileName,
@@ -388,13 +397,12 @@ class _MediaItem extends StatelessWidget {
             host,
             style: TextStyle(fontSize: 11, color: Colors.grey[500]),
           ),
-          trailing: IconButton(
-            icon: const Icon(Icons.download, size: 18),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Download: $fileName')),
-              );
-            },
+          trailing: SizedBox(
+            width: 40,
+            child: _DownloadButton(
+              url: url,
+              fileName: fileName,
+            ),
           ),
           onTap: onTap,
         ),
@@ -495,6 +503,210 @@ class _MediaItem extends StatelessWidget {
         size: 24,
         color: isAudio ? Colors.blue : Colors.grey[600],
       ),
+    );
+  }
+}
+class _DownloadButton extends StatefulWidget {
+  final String url;
+  final String fileName;
+
+  const _DownloadButton({
+    required this.url,
+    required this.fileName,
+  });
+
+  @override
+  State<_DownloadButton> createState() => _DownloadButtonState();
+}
+
+class _DownloadButtonState extends State<_DownloadButton> {
+  String? _downloadTaskId;
+  bool _isDownloading = false;
+  bool _isCompleted = false;
+  String? _filePath;
+  double _progress = 0.0;
+  StreamSubscription<DownloadState>? _subscription;
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  void _startDownload(BuildContext context) {
+    final url = widget.url;
+    final fileName = widget.fileName;
+
+    try {
+      final bloc = context.read<DownloadBloc>();
+      setState(() {
+        _isDownloading = true;
+        _isCompleted = false;
+      });
+
+      bloc.add(DownloadStartEvent(url, customFileName: fileName));
+
+      _subscription = bloc.stream.listen((state) {
+
+        final ourTask = state.downloads.where((t) => t.url == url).lastOrNull;
+
+        if (ourTask != null) {
+         
+          if (_downloadTaskId == null) {
+            setState(() {
+              _downloadTaskId = ourTask.id;
+            });
+          }
+
+          if (ourTask.status == DownloadStatus.downloading && mounted) {
+            setState(() {
+              _progress = ourTask.progress;
+            });
+          }
+
+          if (ourTask.status == DownloadStatus.completed && mounted) {
+            setState(() {
+              _isDownloading = false;
+              _isCompleted = true;
+              _filePath = ourTask.filePath;
+              _progress = 1.0;
+            });
+
+
+            // Show completion snackbar with View action
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Downloaded: $fileName'),
+                duration: const Duration(seconds: 4),
+                action: SnackBarAction(
+                  label: 'View',
+                  textColor: Colors.white,
+                  onPressed: () => _openFile(context),
+                ),
+              ),
+            );
+
+            _subscription?.cancel();
+          } else if (ourTask.status == DownloadStatus.failed && mounted) {
+            setState(() {
+              _isDownloading = false;
+              _isCompleted = false;
+              _progress = 0.0;
+            });
+
+            print('[MEDIA] Download failed: ${ourTask.errorMessage}');
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Download failed: ${ourTask.errorMessage}'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+
+            _subscription?.cancel();
+          }
+        }
+      });
+
+      // Show downloading snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Starting download...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('[MEDIA] ERROR: DownloadBloc not found - $e');
+      print('[MEDIA] Stack trace: ${StackTrace.current}');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: Download service not available - $e'),
+          duration: const Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _openFile(BuildContext context) async {
+    if (_filePath == null) {
+      print('❌ [VIEW] No file path available');
+      return;
+    }
+
+    print('[VIEW] Attempting to open file: ${widget.fileName}');
+    print('[VIEW] Path: $_filePath');
+
+    final result = await OpenFilex.open(_filePath!);
+
+    print('[VIEW] Open result type: ${result.type}');
+    print('[VIEW] Open result message: ${result.message}');
+
+    if (result.type != ResultType.done) {
+      print('[VIEW] Failed to open file');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot open file: ${result.message}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      print('[VIEW] File opened successfully');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isDownloading) {
+      final progressText = _progress > 0 ? '${(_progress * 100).toInt()}%' : '';
+      return SizedBox(
+        width: 40,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: _progress > 0 ? _progress : null,
+              ),
+            ),
+            if (progressText.isNotEmpty)
+              Text(
+                progressText,
+                style: const TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue,
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (_isCompleted) {
+      return IconButton(
+        icon: const Icon(Icons.check_circle, size: 18, color: Colors.green),
+        onPressed: () => _openFile(context),
+        tooltip: 'Open',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+      );
+    }
+
+    return IconButton(
+      icon: const Icon(Icons.download, size: 18),
+      onPressed: () => _startDownload(context),
+      tooltip: 'Download',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
     );
   }
 }

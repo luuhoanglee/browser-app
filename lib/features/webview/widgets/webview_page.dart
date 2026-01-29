@@ -10,6 +10,8 @@ import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
 import '../../tabs/bloc/tab_bloc.dart';
 import '../../tabs/bloc/tab_event.dart';
+import '../../../features/download/bloc/download_bloc.dart';
+import '../../../features/download/bloc/download_event.dart';
 import '../../../../core/utils/media_utils.dart';
 
 enum WebViewErrorType {
@@ -330,6 +332,43 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     // Add to tab's loaded resources via TabBloc
     if (mounted) {
       context.read<TabBloc>().add(AddLoadedResourceEvent(tabId, resource));
+    }
+  }
+
+  void _onDownloadStart(
+    InAppWebViewController controller,
+    Uri url,
+  ) {
+    final urlStr = url.toString();
+    final fileName = urlStr.split('/').last;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đang tải: ${fileName.isNotEmpty ? fileName : "file"}'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    // Start download using DownloadBloc
+    if (mounted) {
+      try {
+        final downloadBloc = context.read<DownloadBloc>();
+        downloadBloc.add(DownloadStartEvent(urlStr, customFileName: fileName.isNotEmpty ? fileName : null));
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Không thể bắt đầu tải: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -762,6 +801,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                       onLoadStart: _onLoadStart,
                       onLoadStop: _onLoadStop,
                       onLoadResource: _onLoadResourceWithResponse,
+                      onDownloadStart: _onDownloadStart,
+                      onDownloadStartRequest: (controller, request) {
+                        _onDownloadStart(controller, request.url);
+                      },
                       onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
                       onProgressChanged: (controller, progress) =>
                           widget.onProgressChanged(controller, progress),
@@ -825,7 +868,6 @@ class _FullScreenSwipeZoneState extends State<_FullScreenSwipeZone> {
       onPointerDown: (event) {
         _startX = event.position.dx;
         _startY = event.position.dy;
-        print('👆 [SWIPE] PointerDown at (${event.position.dx.toStringAsFixed(1)}, ${event.position.dy.toStringAsFixed(1)})');
       },
       onPointerUp: (event) {
         if (_startX == null || _startY == null) return;
@@ -837,34 +879,23 @@ class _FullScreenSwipeZoneState extends State<_FullScreenSwipeZone> {
         final horizontalDistance = diffX.abs();
         final verticalDistance = diffY.abs();
 
-        print('👆 [SWIPE] PointerUp at (${endX.toStringAsFixed(1)}, ${endY.toStringAsFixed(1)})');
-        print('📏 [SWIPE] diffX=${diffX.toStringAsFixed(1)}, diffY=${diffY.toStringAsFixed(1)}');
-
-        // Kiểm tra xem có phải vuốt ngang không (khoảng cách ngang > dọc)
         final isHorizontalSwipe = horizontalDistance > verticalDistance;
 
         if (!isHorizontalSwipe) {
-          print('❌ [SWIPE] Not horizontal (vertical=$verticalDistance >= horizontal=$horizontalDistance)');
           _startX = null;
           _startY = null;
           return;
         }
 
         if (horizontalDistance < _minDistance) {
-          print('❌ [SWIPE] Distance too short: $horizontalDistance < $_minDistance');
           _startX = null;
           _startY = null;
           return;
         }
 
-        // Xác định hướng và trigger callback
         if (diffX < 0) {
-          // Vuốt sang trái -> Back
-          print('✅ [SWIPE] BACK triggered! distance=$horizontalDistance');
           widget.onSwipeBack?.call();
         } else {
-          // Vuốt sang phải -> Forward
-          print('✅ [SWIPE] FORWARD triggered! distance=$horizontalDistance');
           widget.onSwipeForward?.call();
         }
 
