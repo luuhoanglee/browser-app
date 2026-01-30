@@ -38,6 +38,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
   late MediaBloc _mediaBloc;
   final Set<String> _selectedUrls = {};
   bool _isSelectionMode = false;
+  bool _wasBatchDownloading = false;
 
   @override
   void initState() {
@@ -46,6 +47,9 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _mediaBloc.add(MediaExtractFromResources(widget.loadedResources));
+      // Initialize batch state
+      final downloadBloc = context.read<DownloadBloc>();
+      _wasBatchDownloading = downloadBloc.state.isBatchDownloading;
     });
   }
 
@@ -80,13 +84,15 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
   }
 
   void _selectFirst5(List<String> urls, Set<String> completedUrls) {
-    // Note: completedUrls parameter is kept for compatibility but no longer used
-    // The _DownloadButton widget now handles the completed state internally
     setState(() {
       _selectedUrls.clear();
       _isSelectionMode = true;
       int selected = 0;
       for (final url in urls) {
+        // Skip URLs that are already completed
+        if (completedUrls.contains(url)) {
+          continue;
+        }
         if (selected >= 5) break;
         _selectedUrls.add(url);
         selected++;
@@ -112,6 +118,10 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       );
     }).toList();
 
+    setState(() {
+      _wasBatchDownloading = true;
+    });
+
     context.read<DownloadBloc>().add(DownloadBatchStartEvent(items));
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -132,14 +142,40 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: RepaintBoundary(
-        child: Column(
-          children: [
-            // Header with filter chips
-            _buildHeader(),
-            // Media list
-            Expanded(
+    return BlocListener<DownloadBloc, DownloadState>(
+      listenWhen: (previous, current) {
+        // Only listen when batch downloading transitions from true to false
+        return _wasBatchDownloading && !current.isBatchDownloading;
+      },
+      listener: (context, state) {
+        final completed = state.batchCompletedCount;
+        final failed = state.batchFailedCount;
+        final total = state.batchTotalCount;
+
+        if (total > 0) {
+          final message = failed > 0
+              ? 'Batch complete: $completed/$total succeeded, $failed failed'
+              : 'Batch complete: All $total file(s) downloaded successfully';
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: failed > 0 ? Colors.orange : Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+
+        _wasBatchDownloading = false;
+      },
+      child: Scaffold(
+        body: RepaintBoundary(
+          child: Column(
+            children: [
+              // Header with filter chips
+              _buildHeader(),
+              // Media list
+              Expanded(
               child: BlocBuilder<MediaBloc, MediaState>(
                 bloc: _mediaBloc,
                 buildWhen: (previous, current) => previous != current,
@@ -170,6 +206,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -181,28 +218,33 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
           final activeFilter = mediaState is MediaLoaded ? mediaState.activeFilter : null;
           final urls = mediaState is MediaLoaded ? mediaState.filteredUrls : <String>[];
 
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip('Images', MediaType.image, activeFilter),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Videos', MediaType.video, activeFilter),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Audio', MediaType.audio, activeFilter),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Row(
+          return BlocBuilder<DownloadBloc, DownloadState>(
+            builder: (context, downloadState) {
+              final completedUrls = downloadState.completed
+                  .where((t) => t.status == DownloadStatus.completed)
+                  .map((t) => t.url)
+                  .toSet();
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildFilterChip('Images', MediaType.image, activeFilter),
+                            const SizedBox(width: 8),
+                            _buildFilterChip('Videos', MediaType.video, activeFilter),
+                            const SizedBox(width: 8),
+                            _buildFilterChip('Audio', MediaType.audio, activeFilter),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     if (_isSelectionMode) ...[
                       // Selection mode actions
                       Text(
@@ -244,7 +286,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                       // Normal mode actions
                       if (urls.isNotEmpty)
                         GestureDetector(
-                          onTap: () => _selectFirst5(urls, {}),
+                          onTap: () => _selectFirst5(urls, completedUrls),
                           child: Container(
                             width: 32,
                             height: 32,
@@ -268,24 +310,24 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                           child: Icon(Icons.check_box_outline_blank, size: 18, color: Colors.grey[700]),
                         ),
                       ),
-                    ],
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          shape: BoxShape.circle,
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
                         ),
-                        child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -694,8 +736,10 @@ class _DownloadButtonState extends State<_DownloadButton> {
   @override
   void initState() {
     super.initState();
-    // Check if this URL is already downloaded
+    // Always subscribe to download state updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bloc = context.read<DownloadBloc>();
+      _subscribeToUpdates(bloc);
       _checkExistingDownload();
     });
   }
@@ -719,7 +763,6 @@ class _DownloadButtonState extends State<_DownloadButton> {
           _progress = existingTask.progress;
           _downloadTaskId = existingTask.id;
         });
-        _subscribeToUpdates(bloc);
       }
     }
   }
@@ -756,19 +799,7 @@ class _DownloadButtonState extends State<_DownloadButton> {
             _progress = 1.0;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Downloaded: ${widget.fileName}'),
-              duration: const Duration(seconds: 4),
-              action: SnackBarAction(
-                label: 'View',
-                textColor: Colors.white,
-                onPressed: () => _openFile(context),
-              ),
-            ),
-          );
-
-          _subscription?.cancel();
+          // Don't show individual snackbar - batch completion will show summary
         } else if (ourTask.status == DownloadStatus.failed && mounted) {
           setState(() {
             _isDownloading = false;
@@ -786,7 +817,6 @@ class _DownloadButtonState extends State<_DownloadButton> {
             ),
           );
 
-          _subscription?.cancel();
         }
       }
     });
