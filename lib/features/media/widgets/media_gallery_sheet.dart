@@ -36,6 +36,9 @@ class MediaGallerySheet extends StatefulWidget {
 
 class _MediaGallerySheetState extends State<MediaGallerySheet> {
   late MediaBloc _mediaBloc;
+  final Set<String> _selectedUrls = {};
+  bool _isSelectionMode = false;
+  bool _wasBatchDownloading = false;
 
   @override
   void initState() {
@@ -44,11 +47,91 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _mediaBloc.add(MediaExtractFromResources(widget.loadedResources));
+      // Initialize batch state
+      final downloadBloc = context.read<DownloadBloc>();
+      _wasBatchDownloading = downloadBloc.state.isBatchDownloading;
     });
   }
 
   void _setFilter(MediaType? type) {
     _mediaBloc.add(MediaFilterChanged(type));
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      if (_isSelectionMode) {
+        _isSelectionMode = false;
+        _selectedUrls.clear();
+      } else {
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _toggleUrlSelection(String url) {
+    setState(() {
+      if (_selectedUrls.contains(url)) {
+        _selectedUrls.remove(url);
+        if (_selectedUrls.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        if (_selectedUrls.length < 5) {
+          _selectedUrls.add(url);
+        }
+      }
+    });
+  }
+
+  void _selectFirst5(List<String> urls, Set<String> completedUrls) {
+    setState(() {
+      _selectedUrls.clear();
+      _isSelectionMode = true;
+      int selected = 0;
+      for (final url in urls) {
+        // Skip URLs that are already completed
+        if (completedUrls.contains(url)) {
+          continue;
+        }
+        if (selected >= 5) break;
+        _selectedUrls.add(url);
+        selected++;
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedUrls.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  void _downloadSelected(BuildContext context) {
+    if (_selectedUrls.isEmpty) return;
+
+    final items = _selectedUrls.map((url) {
+      final fileName = url.split('/').last;
+      return BatchDownloadItem(
+        url: url,
+        customFileName: fileName,
+      );
+    }).toList();
+
+    setState(() {
+      _wasBatchDownloading = true;
+    });
+
+    context.read<DownloadBloc>().add(DownloadBatchStartEvent(items));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Downloading ${items.length} file(s)...'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    _clearSelection();
   }
 
   @override
@@ -59,14 +142,40 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: RepaintBoundary(
-        child: Column(
-          children: [
-            // Header with filter chips
-            _buildHeader(),
-            // Media list
-            Expanded(
+    return BlocListener<DownloadBloc, DownloadState>(
+      listenWhen: (previous, current) {
+        // Only listen when batch downloading transitions from true to false
+        return _wasBatchDownloading && !current.isBatchDownloading;
+      },
+      listener: (context, state) {
+        final completed = state.batchCompletedCount;
+        final failed = state.batchFailedCount;
+        final total = state.batchTotalCount;
+
+        if (total > 0) {
+          final message = failed > 0
+              ? 'Batch complete: $completed/$total succeeded, $failed failed'
+              : 'Batch complete: All $total file(s) downloaded successfully';
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: failed > 0 ? Colors.orange : Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+
+        _wasBatchDownloading = false;
+      },
+      child: Scaffold(
+        body: RepaintBoundary(
+          child: Column(
+            children: [
+              // Header with filter chips
+              _buildHeader(),
+              // Media list
+              Expanded(
               child: BlocBuilder<MediaBloc, MediaState>(
                 bloc: _mediaBloc,
                 buildWhen: (previous, current) => previous != current,
@@ -97,51 +206,130 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
           ],
         ),
       ),
+      ),
     );
   }
 
   Widget _buildHeader() {
     return RepaintBoundary(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: BlocBuilder<MediaBloc, MediaState>(
-                bloc: _mediaBloc,
-                builder: (context, state) {
-                  final activeFilter = state is MediaLoaded ? state.activeFilter : null;
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip('Images', MediaType.image, activeFilter),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Videos', MediaType.video, activeFilter),
-                        const SizedBox(width: 8),
-                        _buildFilterChip('Audio', MediaType.audio, activeFilter),
-                      ],
+      child: BlocBuilder<MediaBloc, MediaState>(
+        bloc: _mediaBloc,
+        builder: (context, mediaState) {
+          final activeFilter = mediaState is MediaLoaded ? mediaState.activeFilter : null;
+          final urls = mediaState is MediaLoaded ? mediaState.filteredUrls : <String>[];
+
+          return BlocBuilder<DownloadBloc, DownloadState>(
+            builder: (context, downloadState) {
+              final completedUrls = downloadState.completed
+                  .where((t) => t.status == DownloadStatus.completed)
+                  .map((t) => t.url)
+                  .toSet();
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildFilterChip('Images', MediaType.image, activeFilter),
+                            const SizedBox(width: 8),
+                            _buildFilterChip('Videos', MediaType.video, activeFilter),
+                            const SizedBox(width: 8),
+                            _buildFilterChip('Audio', MediaType.audio, activeFilter),
+                          ],
+                        ),
+                      ),
                     ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  shape: BoxShape.circle,
+                    const SizedBox(width: 12),
+                    if (_isSelectionMode) ...[
+                      // Selection mode actions
+                      Text(
+                        '${_selectedUrls.length}/5',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (_selectedUrls.isNotEmpty)
+                        GestureDetector(
+                          onTap: () => _downloadSelected(context),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.blue[600],
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.download, size: 18, color: Colors.white),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _clearSelection,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.red[100],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close, size: 18, color: Colors.red[700]),
+                        ),
+                      ),
+                    ] else ...[
+                      // Normal mode actions
+                      if (urls.isNotEmpty)
+                        GestureDetector(
+                          onTap: () => _selectFirst5(urls, completedUrls),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.blue[100],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.select_all, size: 18, color: Colors.blue[700]),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _toggleSelectionMode,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.check_box_outline_blank, size: 18, color: Colors.grey[700]),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -203,10 +391,15 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
             cacheExtent: 500,
             itemBuilder: (context, index) {
               final url = urls[index];
+              final isSelected = _selectedUrls.contains(url);
+
               return _MediaItem(
                 url: url,
                 state: state,
                 onTap: () => _openMedia(url, state),
+                isSelectionMode: _isSelectionMode,
+                isSelected: isSelected,
+                onToggleSelect: () => _toggleUrlSelection(url),
               );
             },
           ),
@@ -317,11 +510,17 @@ class _MediaItem extends StatelessWidget {
   final String url;
   final MediaLoaded state;
   final VoidCallback onTap;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback onToggleSelect;
 
   const _MediaItem({
     required this.url,
     required this.state,
     required this.onTap,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    required this.onToggleSelect,
   });
 
   /// Get media type from result lists
@@ -371,40 +570,47 @@ class _MediaItem extends StatelessWidget {
     final host = _extractHost(url);
 
     return RepaintBoundary(
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              offset: const Offset(0, 1),
-              blurRadius: 2,
+      child: GestureDetector(
+        onTap: isSelectionMode ? onToggleSelect : onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue[50] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected ? Border.all(color: Colors.blue, width: 2) : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            leading: _buildLeading(url, isImage, mediaType),
+            title: Text(
+              fileName,
+              style: const TextStyle(fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          leading: _buildLeading(url, isImage, mediaType),
-          title: Text(
-            fileName,
-            style: const TextStyle(fontSize: 13),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            host,
-            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-          ),
-          trailing: SizedBox(
-            width: 40,
-            child: _DownloadButton(
-              url: url,
-              fileName: fileName,
+            subtitle: Text(
+              host,
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+            trailing: SizedBox(
+              width: isSelectionMode ? 40 : null,
+              child: isSelectionMode
+                  ? (isSelected
+                      ? Icon(Icons.check_circle, color: Colors.blue, size: 24)
+                      : Icon(Icons.circle_outlined, color: Colors.grey, size: 24))
+                  : _DownloadButton(
+                      url: url,
+                      fileName: fileName,
+                    ),
             ),
           ),
-          onTap: onTap,
         ),
       ),
     );
@@ -528,9 +734,92 @@ class _DownloadButtonState extends State<_DownloadButton> {
   StreamSubscription<DownloadState>? _subscription;
 
   @override
+  void initState() {
+    super.initState();
+    // Always subscribe to download state updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bloc = context.read<DownloadBloc>();
+      _subscribeToUpdates(bloc);
+      _checkExistingDownload();
+    });
+  }
+
+  void _checkExistingDownload() {
+    final bloc = context.read<DownloadBloc>();
+    final state = bloc.state;
+    final existingTask = state.downloads.where((t) => t.url == widget.url).lastOrNull;
+
+    if (existingTask != null) {
+      if (existingTask.status == DownloadStatus.completed) {
+        setState(() {
+          _isCompleted = true;
+          _filePath = existingTask.filePath;
+          _progress = 1.0;
+          _downloadTaskId = existingTask.id;
+        });
+      } else if (existingTask.status == DownloadStatus.downloading) {
+        setState(() {
+          _isDownloading = true;
+          _progress = existingTask.progress;
+          _downloadTaskId = existingTask.id;
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _subscription?.cancel();
     super.dispose();
+  }
+
+  void _subscribeToUpdates(DownloadBloc bloc) {
+    _subscription?.cancel();
+    _subscription = bloc.stream.listen((state) {
+      final ourTask = state.downloads.where((t) => t.url == widget.url).lastOrNull;
+
+      if (ourTask != null) {
+        if (_downloadTaskId == null) {
+          setState(() {
+            _downloadTaskId = ourTask.id;
+          });
+        }
+
+        if (ourTask.status == DownloadStatus.downloading && mounted) {
+          setState(() {
+            _progress = ourTask.progress;
+          });
+        }
+
+        if (ourTask.status == DownloadStatus.completed && mounted) {
+          setState(() {
+            _isDownloading = false;
+            _isCompleted = true;
+            _filePath = ourTask.filePath;
+            _progress = 1.0;
+          });
+
+          // Don't show individual snackbar - batch completion will show summary
+        } else if (ourTask.status == DownloadStatus.failed && mounted) {
+          setState(() {
+            _isDownloading = false;
+            _isCompleted = false;
+            _progress = 0.0;
+          });
+
+          print('[MEDIA] Download failed: ${ourTask.errorMessage}');
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Download failed: ${ourTask.errorMessage}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+        }
+      }
+    });
   }
 
   void _startDownload(BuildContext context) {
@@ -546,70 +835,8 @@ class _DownloadButtonState extends State<_DownloadButton> {
 
       bloc.add(DownloadStartEvent(url, customFileName: fileName));
 
-      _subscription = bloc.stream.listen((state) {
+      _subscribeToUpdates(bloc);
 
-        final ourTask = state.downloads.where((t) => t.url == url).lastOrNull;
-
-        if (ourTask != null) {
-         
-          if (_downloadTaskId == null) {
-            setState(() {
-              _downloadTaskId = ourTask.id;
-            });
-          }
-
-          if (ourTask.status == DownloadStatus.downloading && mounted) {
-            setState(() {
-              _progress = ourTask.progress;
-            });
-          }
-
-          if (ourTask.status == DownloadStatus.completed && mounted) {
-            setState(() {
-              _isDownloading = false;
-              _isCompleted = true;
-              _filePath = ourTask.filePath;
-              _progress = 1.0;
-            });
-
-
-            // Show completion snackbar with View action
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Downloaded: $fileName'),
-                duration: const Duration(seconds: 4),
-                action: SnackBarAction(
-                  label: 'View',
-                  textColor: Colors.white,
-                  onPressed: () => _openFile(context),
-                ),
-              ),
-            );
-
-            _subscription?.cancel();
-          } else if (ourTask.status == DownloadStatus.failed && mounted) {
-            setState(() {
-              _isDownloading = false;
-              _isCompleted = false;
-              _progress = 0.0;
-            });
-
-            print('[MEDIA] Download failed: ${ourTask.errorMessage}');
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Download failed: ${ourTask.errorMessage}'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-
-            _subscription?.cancel();
-          }
-        }
-      });
-
-      // Show downloading snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Starting download...'),
