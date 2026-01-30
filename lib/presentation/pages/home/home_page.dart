@@ -263,7 +263,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         return;
       }
 
-      RenderRepaintBoundary boundary = renderObject;
+      RenderRepaintBoundary boundary = renderObject as RenderRepaintBoundary;
 
       Future.microtask(() async {
         try {
@@ -778,7 +778,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         child: Container(
           height: MediaQuery.of(parentContext).size.height * heightFactor,
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: const Color(0xFFF8F9FF),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
           child: Column(
