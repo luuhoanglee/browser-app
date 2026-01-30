@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import '../../domain/entities/tab_entity.dart';
 
 class TabModel extends TabEntity {

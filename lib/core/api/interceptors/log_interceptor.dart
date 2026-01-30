@@ -6,7 +6,7 @@ import 'package:browser_app/core/api/interceptors/auth_interceptor.dart';
 
 class APILogInterceptor extends InterceptorsWrapper {
   @override
-  void onError(DioError err, ErrorInterceptorHandler handler) {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
     debugPrint('# ERROR');
     debugPrint('<-- ${err.response?.statusCode} - ${err.requestOptions.uri}');
     debugPrint('Message: ${err.error}');

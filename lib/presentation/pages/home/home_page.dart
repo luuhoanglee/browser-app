@@ -263,7 +263,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         return;
       }
 
-      RenderRepaintBoundary boundary = renderObject as RenderRepaintBoundary;
+      RenderRepaintBoundary boundary = renderObject;
 
       Future.microtask(() async {
         try {

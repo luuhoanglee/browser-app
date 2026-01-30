@@ -7,7 +7,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 class DeepLink {
   static String link = kIsWeb ? "http://localhost:8080" : "satreps://app";
 
-  static initialize() {
+  static void initialize() {
     final appLinks = AppLinks();
 
     if (kIsWeb) {
