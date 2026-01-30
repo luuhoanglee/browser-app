@@ -1,10 +1,10 @@
 import 'package:string_validator/string_validator.dart' show isEmail;
 
 class ValidateData {
-  static validateEmail({ required String email }) {
+  static bool validateEmail({ required String email }) {
     return isEmail(email);
   }
-  static validatePhoneColombia({ required String phoneNumber }) {
+  static bool validatePhoneColombia({ required String phoneNumber }) {
     return RegExp(r'^(?:\+57|57)?\s*3\d{2}\s*\d{3}\s*\d{4}$').hasMatch(phoneNumber);
   }
   static bool isImageFile(String? path) {

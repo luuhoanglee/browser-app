@@ -13,7 +13,7 @@ class Logger {
     log('【Logger】- $message');
   }
 
-  static error(Object? error, [StackTrace? stack]) {
+  static void error(Object? error, [StackTrace? stack]) {
     log(
       '【${AppInfo.package?.packageName} - ${DateTime.now().format_yyyyMMdd_hhmmss}】 Error: $error',
       stackTrace: stack,

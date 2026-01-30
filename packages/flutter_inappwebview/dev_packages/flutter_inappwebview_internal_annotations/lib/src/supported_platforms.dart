@@ -19,11 +19,17 @@ abstract class Platform {
 }
 
 class AndroidPlatform implements Platform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
 
   const AndroidPlatform({
@@ -37,11 +43,17 @@ class AndroidPlatform implements Platform {
 }
 
 class IOSPlatform implements Platform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
 
   const IOSPlatform({
@@ -55,11 +67,17 @@ class IOSPlatform implements Platform {
 }
 
 class MacOSPlatform implements Platform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
 
   const MacOSPlatform({
@@ -73,11 +91,17 @@ class MacOSPlatform implements Platform {
 }
 
 class WindowsPlatform implements Platform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
 
   const WindowsPlatform({
@@ -91,11 +115,17 @@ class WindowsPlatform implements Platform {
 }
 
 class LinuxPlatform implements Platform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
 
   const LinuxPlatform({
@@ -109,11 +139,17 @@ class LinuxPlatform implements Platform {
 }
 
 class WebPlatform implements Platform {
+  @override
   final String? available;
+  @override
   final String? apiName;
+  @override
   final String? apiUrl;
+  @override
   final String? note;
+  @override
   final String name;
+  @override
   final String targetPlatformName;
   final bool requiresSameOrigin;
 

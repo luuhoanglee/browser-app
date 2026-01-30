@@ -220,7 +220,7 @@ class DownloadService {
       final uri = Uri.parse(url);
       final path = uri.path.toLowerCase();
       if (path.contains('.')) {
-        return '.' + path.split('.').last;
+        return '.${path.split('.').last}';
       }
       return '';
     } catch (_) {

@@ -277,7 +277,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
             final index = entry.key;
             final suggestion = entry.value;
             return _buildSuggestionItem(suggestion, query, index);
-          }).toList(),
+          }),
       ],
     );
   }
@@ -432,7 +432,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           final index = entry.key;
           final query = entry.value;
           return _buildRecentItem(query, index);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -658,7 +658,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                     Navigator.pop(sheetContext);
                   },
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
