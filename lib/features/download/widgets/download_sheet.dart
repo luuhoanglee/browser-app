@@ -8,6 +8,21 @@ import '../bloc/download_event.dart';
 import '../bloc/download_state.dart';
 import '../../../data/services/download_service.dart';
 
+enum DownloadTab { all, active, completed }
+
+extension DownloadTabExtension on DownloadTab {
+  String get label {
+    switch (this) {
+      case DownloadTab.all:
+        return 'All';
+      case DownloadTab.active:
+        return 'Active';
+      case DownloadTab.completed:
+        return 'Completed';
+    }
+  }
+}
+
 class DownloadSheet extends StatefulWidget {
   final double heightFactor;
   final VoidCallback onClose;
@@ -25,7 +40,7 @@ class DownloadSheet extends StatefulWidget {
 }
 
 class _DownloadSheetState extends State<DownloadSheet> {
-  String _selectedTab = 'All';
+  DownloadTab _selectedTab = DownloadTab.all;
 
   Future<void> _openFile(BuildContext context, String filePath, String fileName) async {
     print('[DOWNLOAD_SHEET] Opening file: $fileName');
@@ -269,21 +284,31 @@ class _DownloadSheetState extends State<DownloadSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          _buildTabChip('All', state.downloads.length, _selectedTab == 'All'),
-          const SizedBox(width: 8),
-          _buildTabChip('Active', state.active.length, _selectedTab == 'Active'),
-          const SizedBox(width: 8),
-          _buildTabChip('Completed', state.completed.length, _selectedTab == 'Completed'),
+          for (final tab in DownloadTab.values) ...[
+            _buildTabChip(tab.label, _getCountForTab(tab, state), _selectedTab == tab),
+            if (tab != DownloadTab.completed) const SizedBox(width: 8),
+          ],
         ],
       ),
     );
+  }
+
+  int _getCountForTab(DownloadTab tab, DownloadState state) {
+    switch (tab) {
+      case DownloadTab.all:
+        return state.downloads.length;
+      case DownloadTab.active:
+        return state.active.length;
+      case DownloadTab.completed:
+        return state.completed.length;
+    }
   }
 
   Widget _buildTabChip(String label, int count, bool isSelected) {
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedTab = label;
+          _selectedTab = DownloadTab.values.firstWhere((tab) => tab.label == label);
         });
       },
       child: Container(
@@ -307,13 +332,13 @@ class _DownloadSheetState extends State<DownloadSheet> {
   Widget _buildDownloadsList(DownloadState state, bool isExpanded) {
     List<DownloadTask> downloads;
     switch (_selectedTab) {
-      case 'Active':
+      case DownloadTab.active:
         downloads = state.active;
         break;
-      case 'Completed':
+      case DownloadTab.completed:
         downloads = state.completed;
         break;
-      default:
+      case DownloadTab.all:
         downloads = state.downloads;
     }
 
