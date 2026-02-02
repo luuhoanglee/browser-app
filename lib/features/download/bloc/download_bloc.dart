@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/services/download_service.dart';
+import '../../../data/services/download_notification_service.dart';
 import 'download_event.dart';
 import 'download_state.dart';
 
 class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
   final DownloadService _downloadService = DownloadService();
+  final DownloadNotificationService _notificationService =
+      DownloadNotificationService();
   static const int _maxConcurrentDownloads = 5;
   final List<BatchDownloadItem> _batchQueue = [];
   final Set<String> _activeBatchDownloads = {};
@@ -13,6 +16,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
   bool _hasEmittedBatchComplete = false;
 
   DownloadBloc() : super(const DownloadState()) {
+    _notificationService.initialize();
     on<DownloadStartEvent>(_onStartDownload);
     on<DownloadPauseEvent>(_onPauseDownload);
     on<DownloadResumeEvent>(_onResumeDownload);
@@ -191,10 +195,35 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
       updatedActive.remove(event.task.id);
     }
 
+    _handleNotificationForTask(event.task);
+
     emit(state.copyWith(
       downloads: updatedDownloads,
       activeDownloads: updatedActive,
     ));
+  }
+
+  void _handleNotificationForTask(DownloadTask task) {
+    switch (task.status) {
+      case DownloadStatus.downloading:
+        _notificationService.onDownloadProgress(task);
+        break;
+      case DownloadStatus.completed:
+        _notificationService.onDownloadCompleted(task);
+        break;
+      case DownloadStatus.failed:
+        _notificationService.onDownloadFailed(task);
+        break;
+      case DownloadStatus.cancelled:
+        _notificationService.onDownloadCancelled(task);
+        break;
+      case DownloadStatus.paused:
+        _notificationService.onDownloadPaused(task);
+        break;
+      case DownloadStatus.pending:
+        // Don't show notification for pending
+        break;
+    }
   }
 
   Future<void> _onDownloadProgress(
@@ -270,6 +299,11 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
       // Show batch completion notification
       if (total > 0) {
         print('[BATCH] Complete: $completed/$total succeeded, $failed failed');
+        _notificationService.onBatchDownloadComplete(
+          total: total,
+          completed: completed,
+          failed: failed,
+        );
       }
 
       // Don't emit here, let the caller handle it
