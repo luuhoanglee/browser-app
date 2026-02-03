@@ -39,7 +39,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
   final Set<String> _selectedUrls = {};
   bool _isSelectionMode = false;
   bool _wasBatchDownloading = false;
-
+  bool _isQuickSelectionMode = false;
   @override
   void initState() {
     super.initState();
@@ -62,20 +62,22 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       if (_isSelectionMode) {
         _isSelectionMode = false;
         _selectedUrls.clear();
+        _isQuickSelectionMode = false;
       } else {
         _isSelectionMode = true;
+        _isQuickSelectionMode = false; // Normal selection mode
       }
     });
   }
 
-  void _toggleUrlSelection(String url) {
+  void _toggleUrlSelection(String url, bool isCompleted) {
     setState(() {
       if (_selectedUrls.contains(url)) {
         _selectedUrls.remove(url);
-        if (_selectedUrls.isEmpty) {
-          _isSelectionMode = false;
-        }
       } else {
+        if (_isQuickSelectionMode && isCompleted) {
+          return;
+        }
         if (_selectedUrls.length < 5) {
           _selectedUrls.add(url);
         }
@@ -83,10 +85,23 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
     });
   }
 
+  bool _areFirst5Completed(List<String> urls, Set<String> completedUrls) {
+    int count = 0;
+    for (final url in urls) {
+      if (count >= 5) break;
+      if (!completedUrls.contains(url)) {
+        return false;
+      }
+      count++;
+    }
+    return urls.length >= 5 || urls.every((u) => completedUrls.contains(u));
+  }
+
   void _selectFirst5(List<String> urls, Set<String> completedUrls) {
     setState(() {
       _selectedUrls.clear();
       _isSelectionMode = true;
+      _isQuickSelectionMode = true;
       int selected = 0;
       for (final url in urls) {
         // Skip URLs that are already completed
@@ -104,6 +119,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
     setState(() {
       _selectedUrls.clear();
       _isSelectionMode = false;
+      _isQuickSelectionMode = false;
     });
   }
 
@@ -197,7 +213,16 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                       return _buildEmptyState();
                     }
 
-                    return _buildMediaList(urls, state);
+                    return BlocBuilder<DownloadBloc, DownloadState>(
+                      builder: (context, downloadState) {
+                        final completedUrls = downloadState.completed
+                            .where((t) => t.status == DownloadStatus.completed)
+                            .map((t) => t.url)
+                            .toSet();
+
+                        return _buildMediaList(urls, state, completedUrls);
+                      },
+                    );
                   }
                   return const SizedBox.shrink();
                 },
@@ -284,20 +309,6 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                       ),
                     ] else ...[
                       // Normal mode actions
-                      if (urls.isNotEmpty)
-                        GestureDetector(
-                          onTap: () => _selectFirst5(urls, completedUrls),
-                          child: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: Colors.blue[100],
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.select_all, size: 18, color: Colors.blue[700]),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: _toggleSelectionMode,
                         child: Container(
@@ -310,6 +321,20 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                           child: Icon(Icons.check_box_outline_blank, size: 18, color: Colors.grey[700]),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      if (urls.isNotEmpty)
+                        GestureDetector(
+                          onTap: () => _selectFirst5(urls, completedUrls),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.blue[100],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.download, size: 18, color: Colors.blue[700]),
+                          ),
+                        ),
                       const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
@@ -367,7 +392,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
     );
   }
 
-  Widget _buildMediaList(List<String> urls, MediaLoaded state) {
+  Widget _buildMediaList(List<String> urls, MediaLoaded state, Set<String> completedUrls) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -399,7 +424,9 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                 onTap: () => _openMedia(url, state),
                 isSelectionMode: _isSelectionMode,
                 isSelected: isSelected,
-                onToggleSelect: () => _toggleUrlSelection(url),
+                onToggleSelect: (isCompleted) => _toggleUrlSelection(url, isCompleted),
+                completedUrls: completedUrls,
+                isQuickSelectionMode: _isQuickSelectionMode,
               );
             },
           ),
@@ -512,7 +539,9 @@ class _MediaItem extends StatelessWidget {
   final VoidCallback onTap;
   final bool isSelectionMode;
   final bool isSelected;
-  final VoidCallback onToggleSelect;
+  final Function(bool isCompleted) onToggleSelect;
+  final Set<String> completedUrls;
+  final bool isQuickSelectionMode;
 
   const _MediaItem({
     required this.url,
@@ -521,6 +550,8 @@ class _MediaItem extends StatelessWidget {
     this.isSelectionMode = false,
     this.isSelected = false,
     required this.onToggleSelect,
+    required this.completedUrls,
+    this.isQuickSelectionMode = false,
   });
 
   /// Get media type from result lists
@@ -568,10 +599,14 @@ class _MediaItem extends StatelessWidget {
     final isFromAudioList = state.result.audios.contains(url);
     final mediaType = _getMediaTypeFromResult();
     final host = _extractHost(url);
+    final isCompleted = completedUrls.contains(url);
+    final showCheckbox = isSelectionMode && !(isQuickSelectionMode && isCompleted);
 
     return RepaintBoundary(
       child: GestureDetector(
-        onTap: isSelectionMode ? onToggleSelect : onTap,
+        onTap: isSelectionMode
+            ? () => onToggleSelect(isCompleted)
+            : onTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
@@ -601,7 +636,7 @@ class _MediaItem extends StatelessWidget {
             ),
             trailing: SizedBox(
               width: isSelectionMode ? 40 : null,
-              child: isSelectionMode
+              child: showCheckbox
                   ? (isSelected
                       ? Icon(Icons.check_circle, color: Colors.blue, size: 24)
                       : Icon(Icons.circle_outlined, color: Colors.grey, size: 24))
@@ -785,8 +820,10 @@ class _DownloadButtonState extends State<_DownloadButton> {
           });
         }
 
-        if (ourTask.status == DownloadStatus.downloading && mounted) {
+        // Handle downloading and pending states (for batch downloads)
+        if ((ourTask.status == DownloadStatus.downloading || ourTask.status == DownloadStatus.pending) && mounted) {
           setState(() {
+            _isDownloading = true;
             _progress = ourTask.progress;
           });
         }
