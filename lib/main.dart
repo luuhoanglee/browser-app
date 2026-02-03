@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:browser_app/core/services/local_notification_service.dart';
+import 'package:browser_app/data/services/download_notification_service.dart';
 import 'presentation/pages/home/home_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LocalNotificationService().initialize();
+  await DownloadNotificationService().initialize();
   runApp(const BrowserApp());
 }
 
