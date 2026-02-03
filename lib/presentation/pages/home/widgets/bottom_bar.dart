@@ -52,8 +52,6 @@ class BottomBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
       ),
-      child: SafeArea(
-        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -89,7 +87,6 @@ class BottomBar extends StatelessWidget {
           ],
         ),
       ),
-    ),
     );
   }
 
