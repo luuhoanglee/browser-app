@@ -185,7 +185,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         urlLower.startsWith('firefox://') ||
         urlLower.startsWith('chrome://') ||
         urlLower.startsWith('edge://') ||
-        urlLower.startsWith('opera://');
+        urlLower.startsWith('opera://') ||
+        urlLower.startsWith('x-safari-');
   }
 
   /// Kiểm tra URL có phải custom scheme không (không phải http/https)
@@ -463,8 +464,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       return NavigationActionPolicy.CANCEL;
     }
 
-    // Handle custom schemes - convert to https
-    if (_isCustomScheme(url)) {
+  
+    if (_isCustomScheme(url) && Platform.isAndroid ) {
       final httpsUrl = _convertCustomSchemeToHttps(url);
       if (httpsUrl != null) {
         await controller.loadUrl(

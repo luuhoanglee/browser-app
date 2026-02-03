@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:browser_app/core/services/foreground_download_service.dart';
 
 class DownloadTask {
   final String id;
@@ -112,10 +113,17 @@ class DownloadService {
 
   factory DownloadService() => _instance;
 
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(minutes: 5),
+      receiveTimeout: const Duration(minutes: 5),
+      sendTimeout: const Duration(minutes: 5),
+    ),
+  );
   final Map<String, CancelToken> _cancelTokens = {};
   final List<DownloadTask> _downloads = [];
   static const String _storageKey = 'downloads_list';
+  final ForegroundDownloadService _foregroundService = ForegroundDownloadService();
 
   List<DownloadTask> get downloads => List.unmodifiable(_downloads);
 
@@ -374,6 +382,8 @@ class DownloadService {
 
     _addDownload(task);
     onStatusChange?.call(task);
+    await _foregroundService.initialize();
+    await _foregroundService.startForegroundService();
 
     final cancelToken = CancelToken();
     _cancelTokens[id] = cancelToken;
@@ -386,8 +396,11 @@ class DownloadService {
         options: Options(
           followRedirects: true,
           maxRedirects: 5,
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(minutes: 5),
+          sendTimeout: const Duration(minutes: 5),
+          headers: {
+            'Connection': 'keep-alive',
+          },
         ),
         onReceiveProgress: (received, total) {
           if (total > 0) {
@@ -444,6 +457,7 @@ class DownloadService {
       }
     } finally {
       _cancelTokens.remove(id);
+      await _foregroundService.stopForegroundService();
     }
 
     return _downloads.firstWhere((t) => t.id == id);
@@ -501,6 +515,8 @@ class DownloadService {
     );
     _updateDownload(index, pendingTask);
     onStatusChange?.call(pendingTask);
+    await _foregroundService.initialize();
+    await _foregroundService.startForegroundService();
 
     final cancelToken = CancelToken();
     _cancelTokens[id] = cancelToken;
@@ -513,8 +529,11 @@ class DownloadService {
         options: Options(
           followRedirects: true,
           maxRedirects: 5,
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(minutes: 5),
+          sendTimeout: const Duration(minutes: 5),
+          headers: {
+            'Connection': 'keep-alive',
+          },
         ),
         onReceiveProgress: (received, total) {
           if (total > 0) {
@@ -571,6 +590,7 @@ class DownloadService {
       }
     } finally {
       _cancelTokens.remove(id);
+      await _foregroundService.stopForegroundService();
     }
 
     return _downloads.firstWhere((t) => t.id == id);
