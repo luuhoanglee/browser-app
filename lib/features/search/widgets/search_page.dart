@@ -506,6 +506,9 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
+          constraints: const BoxConstraints(
+            maxWidth: 280,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: const Color(0xFFF2F2F7),
@@ -524,15 +527,17 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                 color: Color(0xFF8E8E93),
               ),
               const SizedBox(width: 6),
-              Text(
-                query,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  query,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
