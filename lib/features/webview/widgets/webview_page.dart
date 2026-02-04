@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
@@ -246,6 +246,55 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     return url;
   }
 
+/// Show confirmation dialog before opening external app
+Future<bool> _showOpenExternalAppDialog(String url) async {
+  final uri = Uri.tryParse(url);
+  final scheme = uri?.scheme ?? 'app';
+  final appName = scheme.isNotEmpty 
+      ? '${scheme[0].toUpperCase()}${scheme.substring(1)}' 
+      : 'External App';
+
+  return await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('Open in $appName?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('This website wants to open a link using $appName.'),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              url,
+              style: const TextStyle(
+                fontSize: 12, 
+                color: Colors.blue,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Open'),
+        ),
+      ],
+    ),
+  ) ?? false;
+}
   Map<String, String> _getHeaders(String url) {
     final uri = Uri.parse(url);
 
@@ -795,18 +844,38 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     }
 
   
-    if (_isCustomScheme(url) && Platform.isAndroid ) {
-      final httpsUrl = _convertCustomSchemeToHttps(url);
-      if (httpsUrl != null) {
-        await controller.loadUrl(
-          urlRequest: URLRequest(
-            url: WebUri(httpsUrl),
-            headers: _getHeaders(httpsUrl),
-          ),
-        );
-        return NavigationActionPolicy.CANCEL;
+    if (_isCustomScheme(url)) {
+      final shouldOpen = await _showOpenExternalAppDialog(url);
+      if (shouldOpen) {
+        try {
+          final launched = await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          );
+          if (!launched) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('No app found to open this link'),
+                  duration: Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cannot open app: $e'),
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       }
-      // If conversion fails, block the URL
       return NavigationActionPolicy.CANCEL;
     }
 
