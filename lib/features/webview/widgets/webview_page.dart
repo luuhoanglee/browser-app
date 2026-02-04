@@ -297,12 +297,55 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     );
   }
 
+  
+  Future<void> _injectAntiDetectScript(InAppWebViewController controller) async {
+    final antiDetectScript = r"""
+(function() {
+  try {
+    const originalEval = window.eval;
+    window.eval = function(code) {
+      if (typeof code === 'string' && code.includes('debugger')) return;
+      return originalEval(code);
+    };
+
+    ['log','warn','error','info','debug','trace','clear'].forEach(m => {
+      console[m] = function(){};
+    });
+
+    Object.defineProperty(window, 'outerHeight', { get: () => window.innerHeight });
+    Object.defineProperty(window, 'outerWidth', { get: () => window.innerWidth });
+
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'platform', { get: () => 'iPhone' });
+
+    window.location.reload = function(){};
+    window.alert = function(){};
+    window.confirm = function(){ return true; };
+
+    console.log("✅ Anti-Detect script injected");
+  } catch(e) {
+    console.log("Anti-Detect Error:", e);
+  }
+})();
+""";
+
+    await controller.addUserScript(
+      userScript: UserScript(
+        source: antiDetectScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        contentWorld: ContentWorld.PAGE,
+      ),
+    );
+  }
+
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
     widget.onWebViewCreated(controller);
 
     // Inject intent blocking script
     await _injectBlockIntentScript(controller);
-
+  if(Platform.isIOS){
+    await _injectAntiDetectScript(controller);
+  }
     final initialUrl = _getInitialUrl();
     if (initialUrl.isNotEmpty) {
       await controller.loadUrl(
