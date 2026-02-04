@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -23,21 +25,23 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>Cần quyền truy cập để lưu file đã tải về</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Cần quyền để lưu ảnh vào thư viện ảnh</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Cần quyền để truy cập thư viện ảnh</string>
+    <string>Permission is required to save downloaded files.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Permission is required to save photos to the photo library.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Permission is required to access the photo library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allows you to record voice notes.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
