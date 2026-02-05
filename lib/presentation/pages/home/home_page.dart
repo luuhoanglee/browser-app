@@ -364,9 +364,10 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
             body: SizedBox.shrink(),
           );
         }
+        final isDark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: isDark ? Colors.black : Colors.white,
           body: Stack(
               children: [
                 _PageContentWrapper(
@@ -1096,12 +1097,13 @@ class _PageContentWrapper extends StatelessWidget {
   EdgeInsets _buildBottomPadding(BuildContext context) {
     const bottomBarHeight = 98.0;
     const miniUrlBarHeight = 0;
-    final safeAreaBottom = 0.0;
+    final safeAreaTop = MediaQuery.of(context).padding.top;
+    final safeAreaBottom = MediaQuery.of(context).padding.bottom;
 
     final bottomPadding = isToolbarVisible
         ? bottomBarHeight + safeAreaBottom
         : miniUrlBarHeight + safeAreaBottom;
 
-    return EdgeInsets.only(bottom: bottomPadding);
+    return EdgeInsets.only(top: safeAreaTop);
   }
 }
