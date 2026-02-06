@@ -352,10 +352,10 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
 (function() {
   try {
     const originalEval = window.eval;
-    window.eval = function(code) {
-      if (typeof code === 'string' && code.includes('debugger')) return;
-      return originalEval(code);
-    };
+    // window.eval = function(code) {
+    //   if (typeof code === 'string' && code.includes('debugger')) return;
+    //   return originalEval(code);
+    // };
 
     ['log','warn','error','info','debug','trace','clear'].forEach(m => {
       console[m] = function(){};
@@ -703,7 +703,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     // Filter media resources only
     if (!MediaUtils.isMedia(url)) return;
 
-    print('[Resource] Media detected: $url');
+    // print('[Resource] Media detected: $url');
 
     // Get the tab ID from activeTab
     final tabId = widget.activeTab?.id;
