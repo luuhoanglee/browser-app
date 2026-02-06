@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "521024674260",
+    "project_id": "browserapp-1b074",
+    "storage_bucket": "browserapp-1b074.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:521024674260:android:ecd37588bce6df776bde41",
+        "android_client_info": {
+          "package_name": "com.dino.blackdogbrowser.browser_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDY-QYZzwjK5hzrH3OgF1mrRPjek51Gpz4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

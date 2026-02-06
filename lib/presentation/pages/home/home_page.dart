@@ -368,6 +368,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         return Scaffold(
           backgroundColor: Colors.white,
           body: SafeArea(
+            bottom: false,
             child: Stack(
               children: [
                 _PageContentWrapper(
@@ -1097,13 +1098,15 @@ class _PageContentWrapper extends StatelessWidget {
 
   EdgeInsets _buildBottomPadding(BuildContext context) {
     const bottomBarHeight = 98.0;
-    const miniUrlBarHeight = 38.0;
+    const miniUrlBarHeight = 0.0;
     final safeAreaBottom = MediaQuery.of(context).padding.bottom;
+    final safeAreaTop = MediaQuery.of(context).padding.top;
+
 
     final bottomPadding = isToolbarVisible
         ? bottomBarHeight + safeAreaBottom
         : miniUrlBarHeight + safeAreaBottom;
 
-    return EdgeInsets.only(bottom: bottomPadding);
+    return EdgeInsets.only(top: safeAreaTop);
   }
 }

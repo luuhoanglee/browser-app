@@ -3,21 +3,21 @@ import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:browser_app/core/logger/logger.dart';
 import 'package:browser_app/core/services/fcm/notification_remote_service.dart';
 import 'package:browser_app/core/shared/cache/cache_key.dart';
 import 'package:browser_app/core/shared/cache/cache_manager.dart';
-import 'dart:html' as html;
 
 class FirebaseService {
-  static const String _channelId = 'satrepschannel';
-  static const String _channelName = 'SATREPS';
-  static const String _channelDescription = 'SATREPS Notification';
+  static const String _channelId = 'Dinofastschannel';
+  static const String _channelName = 'DINOFAST';
+  static const String _channelDescription = 'DINOFAST Notification';
   static const Importance _channelImportance = Importance.max;
   static const Priority _channelPriority = Priority.max;
-  static const String _iconName = '@drawable/icon_fmc';
+  static const String _iconName = '@mipmap/ic_launcher';
 
   static FirebaseMessaging? _firebaseMessaging;
   static FirebaseMessaging get firebaseMessaging =>
@@ -26,11 +26,23 @@ class FirebaseService {
   static Future<void> initializeFirebase() async {
     await Firebase.initializeApp();
     FirebaseService._firebaseMessaging = FirebaseMessaging.instance;
-    // FirebaseMessaging.instance.requestPermission();
+    FirebaseMessaging.instance.requestPermission();
 
-    // await FirebaseService.initializeLocalNotifications();
+    // Initialize Crashlytics
+    await _initializeCrashlytics();
+
+    await FirebaseService.initializeLocalNotifications();
     FirebaseService.onOpenedApp();
     FirebaseService.onMessage();
+  }
+
+  static Future<void> _initializeCrashlytics() async {
+
+    final crashlytics = FirebaseCrashlytics.instance;
+
+    await crashlytics.setCrashlyticsCollectionEnabled(true);
+
+    Logger.show('Firebase Crashlytics initialized');
   }
 
   static Future<void> createDeviceToken() async {
@@ -101,13 +113,13 @@ class FirebaseService {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       Logger.show(
           "FirebaseMessagingService onMessage data: ${message.data}, notification: ${message.notification}");
-      if (kIsWeb) {
-        html.Notification(
-          message.notification?.title ?? '',
-          body: message.notification?.body,
-        );
-        return;
-      }
+      // if (kIsWeb) {
+      //   html.Notification(
+      //     message.notification?.title ?? '',
+      //     body: message.notification?.body,
+      //   );
+      //   return;
+      // }
       // if this is available when Platform.isIOS, you'll receive the notification twice
       if (Platform.isAndroid) {
         await FirebaseService.localNotificationsPlugin.show(

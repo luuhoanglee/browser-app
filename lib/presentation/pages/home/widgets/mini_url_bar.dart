@@ -28,9 +28,6 @@ class MiniUrlBar extends StatelessWidget {
     return url;
   }
 
-  bool _isSecure(String url) {
-    return url.startsWith('https://');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,57 +38,50 @@ class MiniUrlBar extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                offset: const Offset(0, -1),
-                blurRadius: 0,
-              ),
-            ],
-          ),
+          color: Colors.transparent,
           child: SafeArea(
             bottom: false,
-            child: Container(
-              height: 36,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    child: Icon(
-                      _isSecure(activeTab.url) ? Icons.lock_outline : Icons.public,
-                      size: 12,
-                      color: Colors.grey[600],
-                    ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: Container(
+                  height: 28,
+                  constraints: const BoxConstraints(
+                    maxWidth: 250,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      displayUrl.isNotEmpty ? displayUrl : '...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[800],
-                        fontWeight: FontWeight.w500,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      textAlign: TextAlign.center,
-                    ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: () => controller?.reload(),
-                    child: SizedBox(
-                      width: 22,
-                      child: Icon(
-                        Icons.refresh,
-                        size: 14,
-                        color: Colors.grey[600],
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Domain name
+                      Flexible(
+                        child: Text(
+                          displayUrl.isNotEmpty ? displayUrl : '...',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[800],
+                            fontWeight: FontWeight.w400,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                    ),
-                  )
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

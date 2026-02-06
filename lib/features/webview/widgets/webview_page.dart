@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
@@ -246,6 +246,34 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     return url;
   }
 
+bool _isDialogShowing = false;
+
+/// Show confirmation dialog before opening external app
+Future<bool> _showOpenExternalAppDialog(String url) async {
+  setState(() => _isDialogShowing = true);
+
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Open external app?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Open'),
+        ),
+      ],
+    ),
+  );
+
+  setState(() => _isDialogShowing = false);
+  return result ?? false;
+}
+
   Map<String, String> _getHeaders(String url) {
     final uri = Uri.parse(url);
 
@@ -297,12 +325,342 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     );
   }
 
+  
+  Future<void> _injectAntiDetectScript(InAppWebViewController controller) async {
+    final antiDetectScript = r"""
+(function() {
+  try {
+    const originalEval = window.eval;
+    // window.eval = function(code) {
+    //   if (typeof code === 'string' && code.includes('debugger')) return;
+    //   return originalEval(code);
+    // };
+
+    ['log','warn','error','info','debug','trace','clear'].forEach(m => {
+      console[m] = function(){};
+    });
+
+    Object.defineProperty(window, 'outerHeight', { get: () => window.innerHeight });
+    Object.defineProperty(window, 'outerWidth', { get: () => window.innerWidth });
+
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'platform', { get: () => 'iPhone' });
+
+    window.location.reload = function(){};
+    window.alert = function(){};
+    window.confirm = function(){ return true; };
+
+    console.log("✅ Anti-Detect script injected");
+  } catch(e) {
+    console.log("Anti-Detect Error:", e);
+  }
+})();
+""";
+
+    await controller.addUserScript(
+      userScript: UserScript(
+        source: antiDetectScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        contentWorld: ContentWorld.PAGE,
+      ),
+    );
+  }
+
+  Future<void> _injectYouTubeAdBlocker(InAppWebViewController controller) async {
+    const youtubeAdScript = r'''
+      (function() {
+        if (!window.location.hostname.includes('youtube.com')) {
+          return;
+        }
+
+        console.log('[YouTube-AdBlocker] Initializing Enhanced v2.0...');
+
+        // Statistics tracking
+        var stats = {
+          total: 0,
+          fetch: 0,
+          xhr: 0,
+          cosmetic: 0,
+          player: 0
+        };
+
+        // Comprehensive ad domains and patterns (like uBlock filter lists)
+        const adPatterns = [
+          // Ad servers
+          'doubleclick.net',
+          'googlesyndication.com',
+          'googleadservices.com',
+          'google-analytics.com',
+          'googletagmanager.com',
+          'googletagservices.com',
+
+          // YouTube specific
+          '/pagead/',
+          '/api/stats/ads',
+          '/api/stats/atr',
+          '/api/stats/qoe',
+          '/ptracking',
+          '/get_video_info',
+          '/youtubei/v1/player/ad',
+          '/youtubei/v1/next',
+          'ad_break',
+          'adformat',
+          'ad_flags',
+          'ad_video_id',
+
+          // Tracking
+          '/log_event',
+          '/log_interaction',
+          'doubleclick',
+          'ad_pod',
+          'adunit'
+        ];
+
+        // Check if URL contains ad patterns
+        function isAdRequest(url) {
+          if (typeof url !== 'string') return false;
+          const lowerUrl = url.toLowerCase();
+          return adPatterns.some(pattern => lowerUrl.includes(pattern.toLowerCase()));
+        }
+
+        // ===== NETWORK BLOCKING (like uBlock) =====
+
+        // Block Fetch API
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = args[0];
+          if (isAdRequest(url)) {
+            return Promise.reject(new Error('Blocked by AdBlocker'));
+          }
+          return originalFetch.apply(this, args);
+        };
+
+        // Block XMLHttpRequest
+        const originalXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (isAdRequest(url)) {
+            this.abort();
+            return;
+          }
+          return originalXHROpen.apply(this, [method, url, ...rest]);
+        };
+
+        // Block XMLHttpRequest send as backup
+        const originalXHRSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function(...args) {
+          if (this._blocked) return;
+          return originalXHRSend.apply(this, args);
+        };
+
+        // ===== PLAYER MODIFICATION (like uBlock) =====
+
+        // Hijack player response to remove ads
+        function removeAdsFromPlayerResponse(playerResponse) {
+          if (!playerResponse) return playerResponse;
+
+          try {
+            // Remove ad placements
+            if (playerResponse.adPlacements) {
+              delete playerResponse.adPlacements;
+              stats.player++;
+            }
+            if (playerResponse.ads) {
+              delete playerResponse.ads;
+              stats.player++;
+            }
+            if (playerResponse.adSlots) {
+              delete playerResponse.adSlots;
+              stats.player++;
+            }
+
+            // Remove playerAds
+            if (playerResponse.playerAds) {
+              delete playerResponse.playerAds;
+              stats.player++;
+            }
+
+            // Clean playbackTracking
+            if (playerResponse.playbackTracking) {
+              const tracking = playerResponse.playbackTracking;
+              delete tracking.videostatsPlaybackUrl;
+              delete tracking.videostatsDelayplayUrl;
+              delete tracking.videostatsWatchtimeUrl;
+              delete tracking.ptrackingUrl;
+              delete tracking.qoeUrl;
+              delete tracking.atrUrl;
+            }
+          } catch(e) {
+            console.log('[YouTube-AdBlocker] Player response clean error:', e.message);
+          }
+
+          return playerResponse;
+        }
+
+        // Intercept JSON parse for player responses
+        const originalParse = JSON.parse;
+        JSON.parse = function(text, ...args) {
+          const result = originalParse.apply(this, [text, ...args]);
+
+          if (result && typeof result === 'object') {
+            // Check if this is a player response
+            if (result.adPlacements || result.playerAds || result.ads) {
+              removeAdsFromPlayerResponse(result);
+            }
+
+            // Check nested responses
+            if (result.playerResponse) {
+              removeAdsFromPlayerResponse(result.playerResponse);
+            }
+          }
+
+          return result;
+        };
+
+        // ===== COSMETIC FILTERING (like uBlock) =====
+
+        // CSS to hide ad elements
+        const adBlockCSS = `
+          /* Video ads */
+          .video-ads,
+          .ytp-ad-module,
+          .ytp-ad-overlay-container,
+          .ytp-ad-image-overlay,
+          .ytp-ad-text-overlay,
+
+          /* Display ads */
+          #masthead-ad,
+          #player-ads,
+          #watch-branded-actions,
+          .ytd-merch-shelf-renderer,
+          .ytd-ad-slot-renderer,
+          ytd-display-ad-renderer,
+          ytd-video-masthead-ad-v3-renderer,
+          ytd-statement-banner-renderer,
+          ytd-ad-slot-renderer,
+          yt-mealbar-promo-renderer,
+
+          /* Sidebar ads */
+          #right-tabs > .ytd-item-section-renderer,
+          ytd-compact-promoted-video-renderer,
+
+          /* Banner ads */
+          ytd-banner-promo-renderer,
+          ytd-promoted-sparkles-web-renderer,
+
+          /* In-feed ads */
+          ytd-ad-slot-renderer,
+          ytd-in-feed-ad-layout-renderer,
+
+          /* Overlay ads */
+          .ytp-ce-element,
+          .ytp-cards-teaser,
+
+          /* Popup ads */
+          tp-yt-paper-dialog.ytd-popup-container,
+          ytd-popup-container
+          {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            width: 0 !important;
+            pointer-events: none !important;
+          }
+        `;
+
+        // Inject CSS
+        function injectCSS() {
+          const style = document.createElement('style');
+          style.id = 'youtube-adblocker-style';
+          style.textContent = adBlockCSS;
+          document.head.appendChild(style);
+          console.log('[YouTube-AdBlocker] CSS injected');
+        }
+
+        // Remove ad elements from DOM
+        function removeAdElements() {
+          const selectors = [
+            '.video-ads',
+            '.ytp-ad-module',
+            '.ytp-ad-overlay-container',
+            'ytd-display-ad-renderer',
+            'ytd-ad-slot-renderer',
+            'ytd-promoted-sparkles-web-renderer',
+            'ytd-compact-promoted-video-renderer',
+            'ytd-banner-promo-renderer',
+            'ytd-in-feed-ad-layout-renderer'
+          ];
+
+          let removed = 0;
+          selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              if (el && el.parentNode) {
+                el.parentNode.removeChild(el);
+                removed++;
+              }
+            });
+          });
+
+          if (removed > 0) {
+            stats.cosmetic += removed;
+          }
+        }
+
+        // ===== MUTATION OBSERVER (like uBlock) =====
+
+        // Watch for dynamically added ad elements
+        const observer = new MutationObserver(function(mutations) {
+          removeAdElements();
+        });
+
+        // Start observing when DOM is ready
+        function startObserver() {
+          if (document.body) {
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
+            console.log('[YouTube-AdBlocker] DOM observer started');
+          } else {
+            setTimeout(startObserver, 100);
+          }
+        }
+
+        // ===== INITIALIZATION =====
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            injectCSS();
+            removeAdElements();
+            startObserver();
+          });
+        } else {
+          injectCSS();
+          removeAdElements();
+          startObserver();
+        }
+        console.log('[YouTube-AdBlocker] Enhanced v2.0 Active!');
+      })();
+    ''';
+
+    await controller.addUserScript(
+      userScript: UserScript(
+        source: youtubeAdScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        contentWorld: ContentWorld.PAGE,
+      ),
+    );
+  }
+
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
     widget.onWebViewCreated(controller);
 
     // Inject intent blocking script
     await _injectBlockIntentScript(controller);
-
+    await _injectAntiDetectScript(controller);
+    await _injectYouTubeAdBlocker(controller);
     final initialUrl = _getInitialUrl();
     if (initialUrl.isNotEmpty) {
       await controller.loadUrl(
@@ -324,7 +682,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     // Filter media resources only
     if (!MediaUtils.isMedia(url)) return;
 
-    print('[Resource] Media detected: $url');
+    // print('[Resource] Media detected: $url');
 
     // Get the tab ID from activeTab
     final tabId = widget.activeTab?.id;
@@ -465,18 +823,38 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     }
 
   
-    if (_isCustomScheme(url) && Platform.isAndroid ) {
-      final httpsUrl = _convertCustomSchemeToHttps(url);
-      if (httpsUrl != null) {
-        await controller.loadUrl(
-          urlRequest: URLRequest(
-            url: WebUri(httpsUrl),
-            headers: _getHeaders(httpsUrl),
-          ),
-        );
-        return NavigationActionPolicy.CANCEL;
+    if (_isCustomScheme(url)) {
+      final shouldOpen = await _showOpenExternalAppDialog(url);
+      if (shouldOpen) {
+        try {
+          final launched = await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          );
+          if (!launched) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('No app found to open this link'),
+                  duration: Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cannot open app: $e'),
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       }
-      // If conversion fails, block the URL
       return NavigationActionPolicy.CANCEL;
     }
 
@@ -824,7 +1202,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                   ),
                 ),
               ),
-              if (_errorType == WebViewErrorType.none)
+              if (_errorType == WebViewErrorType.none && !_isDialogShowing)
                 Positioned.fill(
                   child: _FullScreenSwipeZone(
                     onSwipeBack: widget.onSwipeBack,
@@ -879,6 +1257,8 @@ class _FullScreenSwipeZoneState extends State<_FullScreenSwipeZone> {
         final diffY = endY - _startY!;
         final horizontalDistance = diffX.abs();
         final verticalDistance = diffY.abs();
+        print("diffX, $diffX");
+        print("diffY, $diffY");
 
         final isHorizontalSwipe = horizontalDistance > verticalDistance;
 

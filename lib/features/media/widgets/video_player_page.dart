@@ -121,26 +121,26 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          if (!_useWebView && _chewieController != null)
-            Chewie(controller: _chewieController!)
-          else if (_useWebView)
-            _buildWebViewPlayer()
-          else if (_isInitializing)
-            _buildLoading(),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            if (!_useWebView && _chewieController != null)
+              Chewie(controller: _chewieController!)
+            else if (_useWebView)
+              _buildWebViewPlayer()
+            else if (_isInitializing)
+              _buildLoading(),
 
-          Positioned(
-            top: 0,
-            left: 0,
-            child: SafeArea(
+            Positioned(
+              top: 0,
+              left: 0,
               child: IconButton(
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
