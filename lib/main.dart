@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:browser_app/core/services/local_notification_service.dart';
@@ -21,7 +21,9 @@ void main() async {
     statusBarIconBrightness: iconBrightness,
     statusBarBrightness: brightness, // cho iOS
   ));
+  if (!Platform.isIOS){
   await FirebaseService.initializeFirebase();
+  }
   runApp(const BrowserApp());
 
   _initBackgroundServices();
@@ -32,7 +34,9 @@ void _initBackgroundServices() {
     try {
       await LocalNotificationService().initialize();
       await DownloadNotificationService().initialize();
-      await FirebaseService.createDeviceToken();
+      if (!Platform.isIOS){
+        await FirebaseService.createDeviceToken();
+      }
     } catch (e) {
       print("❌ Background init error: $e");
     }

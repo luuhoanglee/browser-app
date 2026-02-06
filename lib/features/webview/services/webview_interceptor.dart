@@ -38,7 +38,7 @@ class WebViewInterceptor {
     'astronautlividlyreformer.com',
     'notificationpushmonetization.com',
     'pushmonetization.com',
-
+    'signamentswithd.com',
     // Common ad networks
     'doubleclick.net',
     'googlesyndication.com',

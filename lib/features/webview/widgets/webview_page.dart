@@ -246,55 +246,34 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     return url;
   }
 
+bool _isDialogShowing = false;
+
 /// Show confirmation dialog before opening external app
 Future<bool> _showOpenExternalAppDialog(String url) async {
-  final uri = Uri.tryParse(url);
-  final scheme = uri?.scheme ?? 'app';
-  final appName = scheme.isNotEmpty 
-      ? '${scheme[0].toUpperCase()}${scheme.substring(1)}' 
-      : 'External App';
+  setState(() => _isDialogShowing = true);
 
-  return await showDialog<bool>(
+  final result = await showDialog<bool>(
     context: context,
+    barrierDismissible: false,
     builder: (dialogContext) => AlertDialog(
-      title: Text('Open in $appName?'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('This website wants to open a link using $appName.'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              url,
-              style: const TextStyle(
-                fontSize: 12, 
-                color: Colors.blue,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-          ),
-        ],
-      ),
+      title: const Text('Open external app?'),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
+          onPressed: () => Navigator.pop(dialogContext, false),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
+          onPressed: () => Navigator.pop(dialogContext, true),
           child: const Text('Open'),
         ),
       ],
     ),
-  ) ?? false;
+  );
+
+  setState(() => _isDialogShowing = false);
+  return result ?? false;
 }
+
   Map<String, String> _getHeaders(String url) {
     final uri = Uri.parse(url);
 
@@ -1223,7 +1202,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                   ),
                 ),
               ),
-              if (_errorType == WebViewErrorType.none)
+              if (_errorType == WebViewErrorType.none && !_isDialogShowing)
                 Positioned.fill(
                   child: _FullScreenSwipeZone(
                     onSwipeBack: widget.onSwipeBack,
@@ -1278,6 +1257,8 @@ class _FullScreenSwipeZoneState extends State<_FullScreenSwipeZone> {
         final diffY = endY - _startY!;
         final horizontalDistance = diffX.abs();
         final verticalDistance = diffY.abs();
+        print("diffX, $diffX");
+        print("diffY, $diffY");
 
         final isHorizontalSwipe = horizontalDistance > verticalDistance;
 
