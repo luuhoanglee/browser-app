@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:browser_app/core/services/local_notification_service.dart';
 import 'package:browser_app/data/services/download_notification_service.dart';
 import 'presentation/pages/home/home_page.dart';
+import 'package:browser_app/core/services/fcm/firebase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,8 @@ void _initBackgroundServices() {
     try {
       await LocalNotificationService().initialize();
       await DownloadNotificationService().initialize();
+      await FirebaseService.initializeFirebase();
+      await FirebaseService.createDeviceToken();
     } catch (e) {
       print("❌ Background init error: $e");
     }
