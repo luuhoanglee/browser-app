@@ -21,6 +21,7 @@ void main() async {
     statusBarIconBrightness: iconBrightness,
     statusBarBrightness: brightness, // cho iOS
   ));
+  await FirebaseService.initializeFirebase();
   runApp(const BrowserApp());
 
   _initBackgroundServices();
@@ -31,7 +32,6 @@ void _initBackgroundServices() {
     try {
       await LocalNotificationService().initialize();
       await DownloadNotificationService().initialize();
-      await FirebaseService.initializeFirebase();
       await FirebaseService.createDeviceToken();
     } catch (e) {
       print("❌ Background init error: $e");
