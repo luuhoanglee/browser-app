@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../../../features/tabs/bloc/tab_bloc.dart';
+import '../../../../../../features/tabs/bloc/tab_event.dart';
 
 class BottomBar extends StatelessWidget {
   final dynamic activeTab;
@@ -15,6 +18,10 @@ class BottomBar extends StatelessWidget {
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final Function(String) onSearch;
+  final Function() onBack;
+  final Function() onForward;
+  final Future<bool> Function() canGoBack;
+  final Future<bool> Function() canGoForward;
 
   const BottomBar({
     super.key,
@@ -30,6 +37,10 @@ class BottomBar extends StatelessWidget {
     required this.searchController,
     required this.searchFocusNode,
     required this.onSearch,
+    required this.onBack,
+    required this.onForward,
+    required this.canGoBack,
+    required this.canGoForward,
   });
 
   String _formatDisplayUrl(String url) {
@@ -71,12 +82,8 @@ class BottomBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavBarItem(Icons.chevron_left, () {
-                    controller?.goBack();
-                  }),
-                  _buildNavBarItem(Icons.chevron_right, () {
-                    controller?.goForward();
-                  }),
+                  _buildNavBackItem(Icons.chevron_left, onBack),
+                  _buildNavForwardItem(Icons.chevron_right, onForward),
                   _buildNavBarItem(Icons.history, onShowHistory),
                   _buildNavBarItem(Icons.play_arrow, onShowMedia),
                   _buildNavBarItem(Icons.download, onShowDownload),
@@ -195,7 +202,7 @@ class BottomBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavBarItem(IconData icon, VoidCallback onTap, {bool isActive = true}) {
+  Widget _buildNavBarItem(IconData icon, VoidCallback onTap, {bool isActive = true, bool isNavigationButton = false}) {
     return GestureDetector(
       onTap: isActive ? onTap : null,
       child: Container(
@@ -204,7 +211,9 @@ class BottomBar extends StatelessWidget {
         child: Icon(
           icon,
           size: 22,
-          color: isActive ? Colors.grey[700] : Colors.grey[400],
+          color: isActive
+              ? (isNavigationButton ? Colors.blue : Colors.grey[700])
+              : Colors.grey[400],
         ),
       ),
     );
@@ -252,6 +261,28 @@ class BottomBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNavBackItem(IconData icon, VoidCallback? onTap) {
+    return FutureBuilder<bool>(
+      future: canGoBack(),
+      builder: (context, snapshot) {
+        final canGoBackVal = snapshot.data ?? false;
+        final isActive = canGoBackVal || activeTab.url.isNotEmpty;
+        return _buildNavBarItem(icon, onTap ?? () {}, isActive: isActive, isNavigationButton: true);
+      },
+    );
+  }
+
+  Widget _buildNavForwardItem(IconData icon, VoidCallback? onTap) {
+    return FutureBuilder<bool>(
+      future: canGoForward(),
+      builder: (context, snapshot) {
+        final canGoForwardVal = snapshot.data ?? false;
+        final isActive = canGoForwardVal;
+        return _buildNavBarItem(icon, onTap ?? () {}, isActive: isActive, isNavigationButton: true);
+      },
     );
   }
 }

@@ -196,6 +196,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     final activeTab = bloc.state.activeTab;
     if (activeTab != null) {
       print('🔗 Loading deep link URL: $url');
+      _addToNavHistory(activeTab.id, url);
       bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
       final controller = _getController(activeTab.id);
       if (controller != null) {
@@ -228,6 +229,100 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
       _history.removeLast();
     }
     StorageService.saveHistory(_history);
+  }
+
+  final Map<String, List<String>> _navHistory = {};
+  final Map<String, int> _navHistoryIndex = {};
+
+  Future<bool> _canNavigateBack(String tabId) async {
+    final controller = _getController(tabId);
+    if (controller != null) {
+      final canGoBack = await controller.canGoBack();
+      if (canGoBack) return true;
+    }
+    if (!_navHistory.containsKey(tabId)) return false;
+    final currentIndex = _navHistoryIndex[tabId] ?? -1;
+    return currentIndex > 0;
+  }
+
+  Future<bool> _canNavigateForward(String tabId) async {
+    final controller = _getController(tabId);
+    if (controller != null) {
+      final canGoForward = await controller.canGoForward();
+      if (canGoForward) return true;
+    }
+    if (!_navHistory.containsKey(tabId)) return false;
+    final history = _navHistory[tabId]!;
+    final currentIndex = _navHistoryIndex[tabId] ?? -1;
+    return currentIndex < history.length - 1;
+  }
+
+  void _handleNavigation(BuildContext context, String tabId, bool isForward) async {
+    final controller = _getController(tabId);
+    final bloc = context.read<TabBloc>();
+    final activeTab = bloc.state.activeTab;
+    if (activeTab == null) return;
+
+    if (!_navHistory.containsKey(tabId)) {
+      _navHistory[tabId] = [];
+      _navHistoryIndex[tabId] = -1;
+    }
+
+    final history = _navHistory[tabId]!;
+    final currentIndex = _navHistoryIndex[tabId]!;
+
+    if (isForward) {
+      if (currentIndex < history.length - 1) {
+        final nextUrl = history[currentIndex + 1];
+        _navHistoryIndex[tabId] = currentIndex + 1;
+        bloc.add(UpdateTabEvent(activeTab.copyWith(url: nextUrl)));
+        if (controller != null) {
+          controller.loadUrl(urlRequest: URLRequest(url: WebUri(nextUrl)));
+        }
+      } else if (controller != null) {
+        final canGoForward = await controller.canGoForward();
+        if (canGoForward) {
+          controller.goForward();
+        }
+      }
+    } else {
+      if (controller != null) {
+        final canGoBack = await controller.canGoBack();
+        if (canGoBack) {
+          controller.goBack();
+          return;
+        }
+      }
+
+      if (currentIndex > 0) {
+        final prevUrl = history[currentIndex - 1];
+        _navHistoryIndex[tabId] = currentIndex - 1;
+        bloc.add(UpdateTabEvent(activeTab.copyWith(url: prevUrl)));
+        if (controller != null) {
+          controller.loadUrl(urlRequest: URLRequest(url: WebUri(prevUrl)));
+        }
+      } else if (activeTab.url.isNotEmpty) {
+        bloc.add(UpdateTabEvent(activeTab.copyWith(url: '')));
+        _navHistoryIndex[tabId] = -1;
+      }
+    }
+  }
+
+  void _addToNavHistory(String tabId, String url) {
+    if (!_navHistory.containsKey(tabId)) {
+      _navHistory[tabId] = [];
+      _navHistoryIndex[tabId] = -1;
+    }
+
+    final history = _navHistory[tabId]!;
+    final currentIndex = _navHistoryIndex[tabId]!;
+    if (currentIndex < history.length - 1) {
+      _navHistory[tabId] = history.sublist(0, currentIndex + 1);
+    }
+    if (currentIndex < 0 || history[currentIndex] != url) {
+      _navHistory[tabId]!.add(url);
+      _navHistoryIndex[tabId] = _navHistory[tabId]!.length - 1;
+    }
   }
 
   Future<void> _captureThumbnail(String tabId) async {
@@ -295,6 +390,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     if (query.isNotEmpty) {
       final url = _formatUrl(query);
       print('🌐 Formatted URL: $url');
+      _addToNavHistory(activeTab.id, url);
 
       final bloc = context.read<TabBloc>();
       bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
@@ -304,7 +400,6 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
       print('🔍 Controller: ${controller != null ? "EXISTS" : "NULL"}');
 
       if (controller != null) {
-        // WebView đã tồn tại, load URL trực tiếp
         controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
         print('✅ loadUrl called on existing controller');
       } else {
@@ -414,6 +509,10 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                               _performSearch(currentTab);
                             }
                           },
+                          onBack: () => _handleNavigation(context, activeTab.id, false),
+                          onForward: () => _handleNavigation(context, activeTab.id, true),
+                          canGoBack: () => _canNavigateBack(activeTab.id),
+                          canGoForward: () => _canNavigateForward(activeTab.id),
                         ),
                       ),
                     ],
@@ -451,6 +550,9 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           onQuickAccessTap: (item) {
             _resetScrollState();
             final url = _formatUrl(item.url);
+
+            // Add to navigation history
+            _addToNavHistory(activeTab.id, url);
 
             final bloc = context.read<TabBloc>();
             bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
@@ -572,12 +674,10 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           _handleScrollChange(y);
         },
         onSwipeBack: () {
-          final controller = _getController(activeTab.id);
-          controller?.goBack();
+          _handleNavigation(context, activeTab.id, false);
         },
         onSwipeForward: () {
-          final controller = _getController(activeTab.id);
-          controller?.goForward();
+          _handleNavigation(context, activeTab.id, true);
         },
       ),
     );
@@ -662,6 +762,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           final bloc = context.read<TabBloc>();
           final currentTab = bloc.state.activeTab;
           if (currentTab != null) {
+            _addToNavHistory(currentTab.id, url);
             bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
             final controller = _getController(currentTab.id);
             if (controller != null) {
@@ -868,6 +969,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
             onSearch: (query) {
               // Dùng formatUrl để tự động detect URL hoặc search query
               final url = SearchService.formatUrl(query);
+              _addToNavHistory(currentTab.id, url);
               bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
               final controller = _getController(currentTab.id);
               if (controller != null) {
@@ -930,6 +1032,10 @@ class _BottomBarWrapper extends StatelessWidget {
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final Function(String) onSearch;
+  final VoidCallback onBack;
+  final VoidCallback onForward;
+  final Future<bool> Function() canGoBack;
+  final Future<bool> Function() canGoForward;
 
   const _BottomBarWrapper({
     required this.activeTabId,
@@ -939,11 +1045,14 @@ class _BottomBarWrapper extends StatelessWidget {
     required this.onShowHistory,
     required this.onShowDownload,
     required this.onShowMedia,
-
     required this.isSearching,
     required this.searchController,
     required this.searchFocusNode,
     required this.onSearch,
+    required this.onBack,
+    required this.onForward,
+    required this.canGoBack,
+    required this.canGoForward,
   });
 
   @override
@@ -979,11 +1088,14 @@ class _BottomBarWrapper extends StatelessWidget {
           onShowHistory: onShowHistory,
           onShowDownload: onShowDownload,
           onShowMedia: onShowMedia,
-
           isSearching: isSearching,
           searchController: searchController,
           searchFocusNode: searchFocusNode,
           onSearch: onSearch,
+          onBack: onBack,
+          onForward: onForward,
+          canGoBack: canGoBack,
+          canGoForward: canGoForward,
         );
       },
     );
