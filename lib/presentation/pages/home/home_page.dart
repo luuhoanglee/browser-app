@@ -735,13 +735,50 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
             }
 
             Navigator.pop(sheetContext);
+            if (currentTabId == tabId && selectedTab.url.isNotEmpty) {
+              final controller = _getController(tabId);
+              if (controller != null) {
+                controller.canGoBack().then((canGoBack) {
+                  if (canGoBack) {
+                    controller.goBack();
+                    Future.delayed(const Duration(milliseconds: 50), () {
+                      controller.goForward();
+                    });
+                  } else {
+                    controller.evaluateJavascript(source: 'window.location.reload()');
+                  }
+                });
+              }
+            }
           },
           onAddTab: () {
             Navigator.pop(sheetContext);
           },
         ),
       ),
-    );
+    ).then((_) {
+      _refreshWebViewForInteraction();
+    });
+  }
+
+  void _refreshWebViewForInteraction() {
+    final bloc = context.read<TabBloc>();
+    final activeTab = bloc.state.activeTab;
+    if (activeTab != null && activeTab.url.isNotEmpty) {
+      final controller = _getController(activeTab.id);
+      if (controller != null) {
+        controller.canGoBack().then((canGoBack) {
+          if (canGoBack) {
+            controller.goBack();
+            Future.delayed(const Duration(milliseconds: 50), () {
+              controller.goForward();
+            });
+          } else {
+            controller.evaluateJavascript(source: 'window.location.reload()');
+          }
+        });
+      }
+    }
   }
 
   void _showHistorySheet(BuildContext context) {
@@ -783,7 +820,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           StorageService.saveHistory(_history);
         },
       ),
-    );
+    ).then((_) => _refreshWebViewForInteraction());
   }
 
     void _showDownloadSheet(BuildContext context) {
@@ -792,7 +829,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => _buildDownloadSheet(sheetContext, context, 0.6),
-    );
+    ).then((_) => _refreshWebViewForInteraction());
   }
 
   void _showDownloadSheetExpanded(BuildContext context) {
@@ -801,7 +838,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => _buildDownloadSheet(sheetContext, context, 0.9),
-    );
+    ).then((_) => _refreshWebViewForInteraction());
   }
 
   Widget _buildDownloadSheet(BuildContext sheetContext, BuildContext parentContext, double heightFactor) {
@@ -861,7 +898,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (sheetContext) => _buildMediaSheet(sheetContext, context, controller, loadedResources, 0.6),
-      );
+      ).then((_) => _refreshWebViewForInteraction());
     }
 
     void _showMediaSheetExpanded(BuildContext context, InAppWebViewController controller, List<LoadedResource> loadedResources) {
@@ -870,7 +907,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (sheetContext) => _buildMediaSheet(sheetContext, context, controller, loadedResources, 0.9),
-      );
+      ).then((_) => _refreshWebViewForInteraction());
     }
 
     Widget _buildMediaSheet(BuildContext sheetContext, BuildContext parentContext, InAppWebViewController controller, List<LoadedResource> loadedResources, double heightFactor) {
@@ -979,7 +1016,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           ),
         ),
       ),
-    );
+    ).then((_) => _refreshWebViewForInteraction());
   }
 
   String _formatUrl(String input) {

@@ -271,6 +271,18 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
   );
 
   setState(() => _isDialogShowing = false);
+  
+  final controller = widget.controller;
+  if (controller != null) {
+    controller.canGoBack().then((canGoBack) {
+      if (canGoBack) {
+        controller.goBack();
+        Future.delayed(const Duration(milliseconds: 50), () {
+          controller.goForward();
+        });
+      }
+    });
+  }
   return result ?? false;
 }
 
