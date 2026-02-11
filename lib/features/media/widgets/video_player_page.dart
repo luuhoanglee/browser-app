@@ -96,6 +96,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       videoPlayerController: _videoPlayerController!,
       autoPlay: true,
       looping: false,
+      allowFullScreen: false,
       showControls: true,
       materialProgressColors: ChewieProgressColors(
         playedColor: Colors.blue,
