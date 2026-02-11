@@ -24,6 +24,7 @@ import '../../../features/search/search_service.dart';
 import '../../../features/media/widgets/media_gallery_sheet.dart';
 import '../../../features/download/bloc/download_bloc.dart';
 import '../../../features/download/widgets/download_sheet.dart';
+import '../../widgets/custom_bottom_sheet.dart';
 
 class HomePage extends StatelessWidget {
   final String? initialUrl;
@@ -88,6 +89,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
   final List<String> _history = [];
   int _lastProgress = 0;
   Timer? _progressDebounce;
+  bool _isTabsSheetVisible = false;
 
   // Pull-to-refresh controller
   PullToRefreshController? _pullToRefreshController;
@@ -466,11 +468,14 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
             bottom: false,
             child: Stack(
               children: [
-                _PageContentWrapper(
-                  activeTab: activeTab,
-                  tabState: tabState,
-                  isToolbarVisible: _isToolbarVisible,
-                  buildPageContent: _buildPageContent,
+                // Page content - must be Positioned.fill to take full space
+                Positioned.fill(
+                  child: _PageContentWrapper(
+                    activeTab: activeTab,
+                    tabState: tabState,
+                    isToolbarVisible: _isToolbarVisible,
+                    buildPageContent: _buildPageContent,
+                  ),
                 ),
                 // Bottom bar - Address bar and navigation
                 AnimatedPositioned(
@@ -531,6 +536,14 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                     onTap: () => _showSearchPage(context),
                   ),
                 ),
+                // Tabs Sheet using CustomBottomSheet
+                if (_isTabsSheetVisible)
+                  CustomBottomSheet(
+                    isVisible: _isTabsSheetVisible,
+                    heightFactor: 0.75,
+                    onDismiss: _hideTabsSheet,
+                    child: _buildTabsSheetContent(context),
+                  ),
               ],
             ),
           ),
@@ -697,50 +710,114 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
       _captureThumbnail(activeTabId);
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => BlocProvider.value(
-        value: context.read<TabBloc>(),
-        child: TabsSheet(
-          onCloseTab: (tabId) {
-            context.read<TabBloc>().add(RemoveTabEvent(tabId));
-            final controller = _controllers.remove(tabId);
-            if (controller != null) {
-            }
-            // Clear search khi đóng tab
-            if (_isSearching) {
-              _searchController.clear();
-              setState(() {
-                _isSearching = false;
-              });
-            }
-          },
-          onSelectTab: (tabId) {
-            final bloc = context.read<TabBloc>();
-            final currentTabId = bloc.state.activeTab?.id;
+    setState(() {
+      _isTabsSheetVisible = true;
+    });
+  }
 
-            if (currentTabId != null && currentTabId != tabId) {
-              _captureThumbnail(currentTabId);
-            }
+  void _hideTabsSheet() {
+    setState(() {
+      _isTabsSheetVisible = false;
+    });
+  }
 
-            bloc.add(SelectTabEvent(tabId));
+  Widget _buildTabsSheetContent(BuildContext context) {
+    return BlocBuilder<TabBloc, TabState>(
+      builder: (context, tabState) {
+        return Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${tabState.tabs.length} Tabs',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      context.read<TabBloc>().add(AddTabEvent());
+                      _hideTabsSheet();
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.add, size: 20, color: Colors.grey[700]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Tabs grid
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.75,
+                  ),
+                  itemCount: tabState.tabs.length,
+                  itemBuilder: (context, index) {
+                    final tab = tabState.tabs[index];
+                    final isActive = tab.id == tabState.activeTab?.id;
 
-            final selectedTab = bloc.state.tabs.firstWhere((t) => t.id == tabId);
-            if (selectedTab.thumbnail == null) {
-              Future.delayed(const Duration(milliseconds: 100), () {
-                _captureThumbnail(tabId);
-              });
-            }
+                    return RepaintBoundary(
+                      child: TabCardBuilder.buildTabCard(
+                        tab: tab,
+                        isActive: isActive,
+                        onTap: () {
 
-            Navigator.pop(sheetContext);
-          },
-          onAddTab: () {
-            Navigator.pop(sheetContext);
-          },
-        ),
-      ),
+                          final bloc = context.read<TabBloc>();
+                          final currentTabId = bloc.state.activeTab?.id;
+
+                          if (currentTabId != null && currentTabId != tab.id) {
+                            _captureThumbnail(currentTabId);
+                          }
+
+                          bloc.add(SelectTabEvent(tab.id));
+
+                          final selectedTab = bloc.state.tabs.firstWhere((t) => t.id == tab.id);
+                          if (selectedTab.thumbnail == null) {
+                            Future.delayed(const Duration(milliseconds: 100), () {
+                              _captureThumbnail(tab.id);
+                            });
+                          }
+
+                          _hideTabsSheet();
+                        },
+                        onClose: () {
+                          context.read<TabBloc>().add(RemoveTabEvent(tab.id));
+                          _controllers.remove(tab.id);
+                          if (_isSearching) {
+                            _searchController.clear();
+                            setState(() {
+                              _isSearching = false;
+                            });
+                          }
+                        },
+                        canClose: tabState.tabs.isNotEmpty,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

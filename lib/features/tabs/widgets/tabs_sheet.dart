@@ -190,9 +190,33 @@ class _TabCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TabCardBuilder.buildTabCard(
+      tab: tab,
+      isActive: isActive,
       onTap: onTap,
+      onClose: onClose,
+      canClose: canClose,
+    );
+  }
+}
+
+// Static method for building tab card - can be reused anywhere
+class TabCardBuilder {
+  static Widget buildTabCard({
+    Key? key,
+    required dynamic tab,
+    required bool isActive,
+    required VoidCallback onTap,
+    required VoidCallback onClose,
+    required bool canClose,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
       child: Container(
+        key: key,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -229,7 +253,7 @@ class _TabCard extends StatelessWidget {
                                   fit: BoxFit.cover,
                                   gaplessPlayback: true, // Prevent flicker
                                 )
-                              : _buildEmptyThumbnail(),
+                              : _buildEmptyThumbnail(tab),
                         ),
                       ),
                       if (isActive)
@@ -320,7 +344,7 @@ class _TabCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyThumbnail() {
+  static Widget _buildEmptyThumbnail(dynamic tab) {
     final color = _getColorFromUrl(tab.url);
 
     String firstLetter = 'N';
@@ -368,7 +392,7 @@ class _TabCard extends StatelessWidget {
     );
   }
 
-  Color _getColorFromUrl(String url) {
+  static Color _getColorFromUrl(String url) {
     if (url.isEmpty) {
       return Colors.blue;
     }
@@ -389,7 +413,7 @@ class _TabCard extends StatelessWidget {
     return colors[hash.abs() % colors.length];
   }
 
-  String _formatTabUrl(String url) {
+  static String _formatTabUrl(String url) {
     if (url.startsWith('https://')) {
       url = url.substring(8);
     } else if (url.startsWith('http://')) {
@@ -401,7 +425,7 @@ class _TabCard extends StatelessWidget {
     return url;
   }
 
-  String _formatDisplayUrl(String url) {
+  static String _formatDisplayUrl(String url) {
     if (url.startsWith('https://')) {
       return url.substring(8);
     } else if (url.startsWith('http://')) {
