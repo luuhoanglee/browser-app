@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../search_service.dart';
+import 'package:browser_app/features/search/search_service.dart';
 import '../../../../data/services/storage_service.dart';
 import 'search_event.dart';
 import 'search_state.dart';
@@ -33,7 +33,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   Future<void> _onLoadSuggestions(LoadSuggestionsEvent event, Emitter<SearchState> emit) async {
     emit(state.copyWith(isLoadingSuggestions: true));
     try {
-      final suggestions = await state.selectedEngine.getSearchSuggest(event.query);
+      final suggestions = await SearchService.getSuggestions(event.query, engine: state.selectedEngine);
       emit(state.copyWith(searchSuggestions: suggestions, isLoadingSuggestions: false));
     } catch (e) {
       print('🎯 [Bloc] Error loading suggestions: $e');
@@ -44,6 +44,8 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   void _onSetEngine(SetEngineEvent event, Emitter<SearchState> emit) {
     SearchService.setDefaultEngine(event.engine);
     emit(state.copyWith(selectedEngine: event.engine));
+    // Reload trending khi thay đổi engine
+    add(LoadTrendingEvent());
   }
 
   void _onPerformSearch(PerformSearchEvent event, Emitter<SearchState> emit) async {
@@ -63,7 +65,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     }
 
     // Sử dụng keyword search
-    final url = SearchService.formatUrlWithKeyword(query);
+    final url = SearchService.buildSearchUrl(query);
     emit(state.copyWith(resultUrl: url, query: query));
   }
 
@@ -92,8 +94,10 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     print('🎯 [Bloc] LoadTrendingEvent received');
     emit(state.copyWith(isLoadingTrending: true));
     try {
-      final trending = await SearchService.fetchTrendingSearches();
-      print('🎯 [Bloc] Fetched ${trending.length} trending searches');
+      final trending = await SearchService.fetchTrending(
+        engine: state.selectedEngine,
+      );
+      print('🎯 [Bloc] Fetched ${trending.length} trending searches for ${state.selectedEngine}');
       print('🎯 [Bloc] Trending list: $trending');
       emit(state.copyWith(trendingSearches: trending, isLoadingTrending: false));
       print('🎯 [Bloc] State updated: trendingSearches = ${state.trendingSearches.length}');
@@ -107,6 +111,6 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   String? getSearchUrl([String? query]) {
     final q = query ?? state.query;
     if (q.isEmpty) return null;
-    return SearchService.formatUrlWithKeyword(q);
+    return SearchService.buildSearchUrl(q);
   }
 }

@@ -20,7 +20,7 @@ import '../../../features/tabs/widgets/tabs_sheet.dart';
 import '../../../features/search/widgets/search_page.dart';
 import '../../../features/search/bloc/search_bloc.dart';
 import '../../../features/search/bloc/search_event.dart';
-import '../../../features/search/search_service.dart';
+import 'package:browser_app/features/search/search_service.dart';
 import '../../../features/media/widgets/media_gallery_sheet.dart';
 import '../../../features/download/bloc/download_bloc.dart';
 import '../../../features/download/widgets/download_sheet.dart';
@@ -975,8 +975,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           child: SearchPage(
             initialUrl: currentTab.url.isNotEmpty ? currentTab.url : null,
             onSearch: (query) {
-              // Dùng formatUrl để tự động detect URL hoặc search query
-              final url = SearchService.formatUrl(query);
+              final url = SearchService.formatInput(query);
               _addToNavHistory(currentTab.id, url);
               bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
               final controller = _getController(currentTab.id);
