@@ -27,41 +27,38 @@ class _TabsSheetState extends State<TabsSheet> {
   @override
   void initState() {
     super.initState();
-    // Scroll đến active tab sau khi widget được build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToActiveTab();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tabState = context.read<TabBloc>().state;
+      final activeTabId = tabState.activeTab?.id;
+      if (activeTabId == null) return;
+
+      final activeIndex = tabState.tabs.indexWhere((tab) => tab.id == activeTabId);
+      if (activeIndex == -1) return;
+
+      final offset = _calculateInitialOffset(activeIndex);
+      
+      if (_scrollController.hasClients && offset > 0) {
+        _scrollController.jumpTo(offset);
+      }
     });
   }
+
+   double _calculateInitialOffset(int activeIndex) {
+    const crossAxisCount = 2.5;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final itemHeight = (screenWidth - 32 - 8) / 2 / 0.75;
+    
+    final activeRow = activeIndex ~/ crossAxisCount;
+    final targetPosition = activeRow * (itemHeight + 8);
+    
+    return max(0.0, targetPosition);
+  }
+
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _scrollToActiveTab() {
-    final tabState = context.read<TabBloc>().state;
-    final activeTabId = tabState.activeTab?.id;
-    if (activeTabId == null) return;
-
-    // Tìm index của active tab
-    final activeIndex = tabState.tabs.indexWhere((tab) => tab.id == activeTabId);
-    if (activeIndex == -1) return;
-
-    // Tính vị trí scroll (2 cột, mỗi item có spacing)
-    final crossAxisCount = 2;
-    final mainAxisSpacing = 8.0;
-    final itemHeight = (MediaQuery.of(context).size.width - 32 - 8) / 2 / 0.75; // padding + spacing + childAspectRatio
-
-    // Scroll đến vị trí của active tab với một chút offset để nó hiển thị ở giữa
-    final targetPosition = (activeIndex ~/ crossAxisCount) * (itemHeight + mainAxisSpacing);
-    final offset = max(0.0, targetPosition - 100); // Offset để active tab không bị che
-
-    _scrollController.animateTo(
-      offset.toDouble(),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
   }
 
   @override
@@ -137,29 +134,6 @@ class _TabsSheetState extends State<TabsSheet> {
                         ),
                       );
                     },
-                  ),
-                ),
-              ),
-              // Done button
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue,
-                      ),
-                    ),
                   ),
                 ),
               ),

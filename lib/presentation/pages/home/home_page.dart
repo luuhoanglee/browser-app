@@ -91,6 +91,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
   // Pull-to-refresh controller
   PullToRefreshController? _pullToRefreshController;
+  bool _isMediaSheetOpen = false;
 
   @override
   bool get wantKeepAlive => true; // Keep WebView alive when switching tabs
@@ -497,6 +498,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                           onShowDownload: () => _showDownloadSheet(context),
                           onShowMedia: () => _showMediaSheet(context),
                           isSearching: _isSearching,
+                          isMediaSheetOpen: _isMediaSheetOpen,
                           searchController: _searchController,
                           searchFocusNode: _searchFocusNode,
                           onSearch: (query) {
@@ -734,22 +736,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
               });
             }
 
-            Navigator.pop(sheetContext);
-            if (currentTabId == tabId && selectedTab.url.isNotEmpty) {
-              final controller = _getController(tabId);
-              if (controller != null) {
-                controller.canGoBack().then((canGoBack) {
-                  if (canGoBack) {
-                    controller.goBack();
-                    Future.delayed(const Duration(milliseconds: 50), () {
-                      controller.goForward();
-                    });
-                  } else {
-                    controller.evaluateJavascript(source: 'window.location.reload()');
-                  }
-                });
-              }
-            }
+            Navigator.pop(sheetContext);            
           },
           onAddTab: () {
             Navigator.pop(sheetContext);
@@ -762,23 +749,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
   }
 
   void _refreshWebViewForInteraction() {
-    final bloc = context.read<TabBloc>();
-    final activeTab = bloc.state.activeTab;
-    if (activeTab != null && activeTab.url.isNotEmpty) {
-      final controller = _getController(activeTab.id);
-      if (controller != null) {
-        controller.canGoBack().then((canGoBack) {
-          if (canGoBack) {
-            controller.goBack();
-            Future.delayed(const Duration(milliseconds: 50), () {
-              controller.goForward();
-            });
-          } else {
-            controller.evaluateJavascript(source: 'window.location.reload()');
-          }
-        });
-      }
-    }
+
   }
 
   void _showHistorySheet(BuildContext context) {
@@ -1066,6 +1037,7 @@ class _BottomBarWrapper extends StatelessWidget {
   final VoidCallback onShowMedia;
 
   final bool isSearching;
+  final bool isMediaSheetOpen;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final Function(String) onSearch;
@@ -1083,6 +1055,7 @@ class _BottomBarWrapper extends StatelessWidget {
     required this.onShowDownload,
     required this.onShowMedia,
     required this.isSearching,
+    required this.isMediaSheetOpen,
     required this.searchController,
     required this.searchFocusNode,
     required this.onSearch,
@@ -1126,6 +1099,7 @@ class _BottomBarWrapper extends StatelessWidget {
           onShowDownload: onShowDownload,
           onShowMedia: onShowMedia,
           isSearching: isSearching,
+          isMediaSheetOpen: isMediaSheetOpen,
           searchController: searchController,
           searchFocusNode: searchFocusNode,
           onSearch: onSearch,

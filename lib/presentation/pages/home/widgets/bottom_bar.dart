@@ -15,6 +15,7 @@ class BottomBar extends StatelessWidget {
   final VoidCallback onShowMedia;
 
   final bool isSearching;
+  final bool isMediaSheetOpen;
   final TextEditingController searchController;
   final FocusNode searchFocusNode;
   final Function(String) onSearch;
@@ -34,6 +35,7 @@ class BottomBar extends StatelessWidget {
     required this.onShowDownload,
     required this.onShowMedia,
     required this.isSearching,
+    required this.isMediaSheetOpen,
     required this.searchController,
     required this.searchFocusNode,
     required this.onSearch,
@@ -85,7 +87,7 @@ class BottomBar extends StatelessWidget {
                   _buildNavBackItem(Icons.chevron_left, onBack),
                   _buildNavForwardItem(Icons.chevron_right, onForward),
                   _buildNavBarItem(Icons.history, onShowHistory),
-                  _buildNavBarItem(Icons.play_arrow, onShowMedia),
+                  _buildNavBarItem(Icons.play_arrow, onShowMedia, isDisabled: activeTab.url.isEmpty),
                   _buildNavBarItem(Icons.download, onShowDownload),
 
                   _buildNavBarItemWithBadge(
@@ -202,24 +204,30 @@ class BottomBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavBarItem(IconData icon, VoidCallback onTap, {bool isActive = true, bool isNavigationButton = false}) {
+  Widget _buildNavBarItem(IconData icon, VoidCallback onTap, {bool isActive = true, bool isNavigationButton = false, bool isDisabled = false}) {
+    final iconColor = isMediaSheetOpen || isDisabled
+        ? Colors.grey[400]
+        : (isActive
+            ? (isNavigationButton ? Colors.blue : Colors.grey[700])
+            : Colors.grey[400]);
+
     return GestureDetector(
-      onTap: isActive ? onTap : null,
+      onTap: (isActive && !isDisabled) ? onTap : null,
       child: Container(
         width: 50,
         alignment: Alignment.center,
         child: Icon(
           icon,
           size: 22,
-          color: isActive
-              ? (isNavigationButton ? Colors.blue : Colors.grey[700])
-              : Colors.grey[400],
+          color: iconColor,
         ),
       ),
     );
   }
 
   Widget _buildNavBarItemWithBadge(IconData icon, VoidCallback onTap, {bool isActive = true, required int badgeCount}) {
+    final iconColor = isMediaSheetOpen ? Colors.grey[400] : (isActive ? Colors.grey[700] : Colors.grey[400]);
+
     return GestureDetector(
       onTap: isActive ? onTap : null,
       child: Container(
@@ -231,7 +239,7 @@ class BottomBar extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color: isActive ? Colors.grey[700] : Colors.grey[400],
+              color: iconColor,
             ),
             if (badgeCount >= 1)
               Positioned(
