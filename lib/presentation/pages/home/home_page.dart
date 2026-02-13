@@ -465,73 +465,66 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           backgroundColor: Colors.white,
           body: SafeArea(
             bottom: false,
-            child: Stack(
+            child: Column(
               children: [
-                _PageContentWrapper(
-                  activeTab: activeTab,
-                  tabState: tabState,
-                  isToolbarVisible: _isToolbarVisible,
-                  buildPageContent: _buildPageContent,
+                // Page content (WebView/EmptyPage)
+                Expanded(
+                  child: _PageContentWrapper(
+                    activeTab: activeTab,
+                    tabState: tabState,
+                    isToolbarVisible: _isToolbarVisible,
+                    buildPageContent: _buildPageContent,
+                  ),
                 ),
                 // Bottom bar - Address bar and navigation
-                AnimatedPositioned(
+                AnimatedSize(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
-                  left: 0,
-                  right: 0,
-                  bottom: _isToolbarVisible ? 0 : -150,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Progress bar - tách riêng để update độc lập
-                      _ProgressBarWrapper(
-                        activeTabId: activeTab.id,
-                      ),
-                      // Bottom bar
-                      RepaintBoundary(
-                        child: _BottomBarWrapper(
+                  child: _isToolbarVisible
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Progress bar - tách riêng để update độc lập
+                            _ProgressBarWrapper(
+                              activeTabId: activeTab.id,
+                            ),
+                            // Bottom bar
+                            RepaintBoundary(
+                              child: _BottomBarWrapper(
+                                activeTabId: activeTab.id,
+                                controller: _getController(activeTab.id),
+                                onShowTabs: () => _showTabsSheet(context),
+                                onAddressBarTap: () => _showSearchPage(context),
+                                onShowHistory: () => _showHistorySheet(context),
+                                onShowDownload: () => _showDownloadSheet(context),
+                                onShowMedia: () => _showMediaSheet(context),
+                                isSearching: _isSearching,
+                                isMediaSheetOpen: _isMediaSheetOpen,
+                                searchController: _searchController,
+                                searchFocusNode: _searchFocusNode,
+                                onSearch: (query) {
+                                  _searchController.text = query;
+                                  // Lưu vào search history
+                                  context.read<SearchBloc>().add(PerformSearchEvent(query));
+                                  final bloc = context.read<TabBloc>();
+                                  final currentTab = bloc.state.activeTab;
+                                  if (currentTab != null) {
+                                    _performSearch(currentTab);
+                                  }
+                                },
+                                onBack: () => _handleNavigation(context, activeTab.id, false),
+                                onForward: () => _handleNavigation(context, activeTab.id, true),
+                                canGoBack: () => _canNavigateBack(activeTab.id),
+                                canGoForward: () => _canNavigateForward(activeTab.id),
+                              ),
+                            ),
+                          ],
+                        )
+                      : _MiniUrlBarWrapper(
                           activeTabId: activeTab.id,
                           controller: _getController(activeTab.id),
-                          onShowTabs: () => _showTabsSheet(context),
-                          onAddressBarTap: () => _showSearchPage(context),
-                          onShowHistory: () => _showHistorySheet(context),
-                          onShowDownload: () => _showDownloadSheet(context),
-                          onShowMedia: () => _showMediaSheet(context),
-                          isSearching: _isSearching,
-                          isMediaSheetOpen: _isMediaSheetOpen,
-                          searchController: _searchController,
-                          searchFocusNode: _searchFocusNode,
-                          onSearch: (query) {
-                            _searchController.text = query;
-                            // Lưu vào search history
-                            context.read<SearchBloc>().add(PerformSearchEvent(query));
-                            final bloc = context.read<TabBloc>();
-                            final currentTab = bloc.state.activeTab;
-                            if (currentTab != null) {
-                              _performSearch(currentTab);
-                            }
-                          },
-                          onBack: () => _handleNavigation(context, activeTab.id, false),
-                          onForward: () => _handleNavigation(context, activeTab.id, true),
-                          canGoBack: () => _canNavigateBack(activeTab.id),
-                          canGoForward: () => _canNavigateForward(activeTab.id),
+                          onTap: () => _showSearchPage(context),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Mini URL bar - hiển thị dài hết màn hình khi scroll
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  left: 0,
-                  right: 0,
-                  bottom: _isToolbarVisible ? -50 : 0,
-                  child: _MiniUrlBarWrapper(
-                    activeTabId: activeTab.id,
-                    controller: _getController(activeTab.id),
-                    onTap: () => _showSearchPage(context),
-                  ),
                 ),
               ],
             ),
