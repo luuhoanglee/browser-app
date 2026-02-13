@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:browser_app/features/search/search_service.dart';
 import '../bloc/search_bloc.dart';
 import '../bloc/search_state.dart';
 import '../bloc/search_event.dart';
-import '../search_service.dart';
 
 class SearchPage extends StatefulWidget {
   final Function(String) onSearch;
@@ -168,10 +168,10 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _getEngineIcon(state.selectedEngine),
-                  size: 20,
-                  color: _getEngineColor(state.selectedEngine),
+                Image.asset(
+                  _getEngineLogo(state.selectedEngine),
+                  width: 20,
+                  height: 20,
                 ),
                 const SizedBox(width: 4),
                 const Icon(
@@ -644,9 +644,10 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
               ...SearchEngine.values.map((engine) {
                 final isSelected = engine == state.selectedEngine;
                 return ListTile(
-                  leading: Icon(
-                    _getEngineIcon(engine),
-                    color: _getEngineColor(engine),
+                  leading: Image.asset(
+                    _getEngineLogo(engine),
+                    width: 24,
+                    height: 24,
                   ),
                   title: Text(
                     _getEngineName(engine),
@@ -684,29 +685,16 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
     }
   }
 
-  IconData _getEngineIcon(SearchEngine engine) {
+  String _getEngineLogo(SearchEngine engine) {
     switch (engine) {
       case SearchEngine.google:
-        return Icons.public;
+        return 'assets/logo/google_logo.png';
       case SearchEngine.bing:
-        return Icons.bubble_chart;
+        return 'assets/logo/bing_logo.png';
       case SearchEngine.duckduckgo:
-        return Icons.shield;
+        return 'assets/logo/duckduckgo_logo.png';
       case SearchEngine.youtube:
-        return Icons.play_circle_filled;
-    }
-  }
-
-  Color _getEngineColor(SearchEngine engine) {
-    switch (engine) {
-      case SearchEngine.google:
-        return const Color(0xFF4285F4);
-      case SearchEngine.bing:
-        return const Color(0xFF008373);
-      case SearchEngine.duckduckgo:
-        return const Color(0xFFDE5833);
-      case SearchEngine.youtube:
-        return const Color(0xFFFF0000);
+        return 'assets/logo/youtube_logo.png';
     }
   }
 }
