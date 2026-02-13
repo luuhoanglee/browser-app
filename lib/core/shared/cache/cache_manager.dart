@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:browser_app/core/resources/app_info.dart';
 import 'package:browser_app/core/shared/cache/base_model_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:browser_app/core/logger/logger.dart';
