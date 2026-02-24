@@ -1,4 +1,6 @@
+import 'dart:async' show runZonedGuarded;
 import 'dart:io';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart' show FirebaseCrashlytics;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:browser_app/core/services/local_notification_service.dart';
@@ -7,24 +9,28 @@ import 'presentation/pages/home/home_page.dart';
 import 'package:browser_app/core/services/fcm/firebase_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Lấy theme hiện tại của thiết bị
-  final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    await FirebaseService.initializeFirebase();
 
-  final iconBrightness = brightness == Brightness.dark
-      ? Brightness.light 
-      : Brightness.dark;
+    // Lấy theme hiện tại của thiết bị
+    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
 
-  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: iconBrightness,
-    statusBarBrightness: brightness, // cho iOS
-  ));
+    final iconBrightness = brightness == Brightness.dark
+        ? Brightness.light
+        : Brightness.dark;
 
-  _initBackgroundServices();
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: iconBrightness,
+      statusBarBrightness: brightness, // cho iOS
+    ));
 
-  runApp(const BrowserApp());
+    _initBackgroundServices();
+
+    runApp(const BrowserApp());
+  }, (error, stack) => FirebaseCrashlytics.instance.recordError(error, stack));
 }
 
 void _initBackgroundServices() {
