@@ -1,5 +1,5 @@
-import '../../../../../core/services/oxodb_service.dart';
-import '../../../../../core/usecases/usecase.dart';
+import '../../../core/services/oxodb_service.dart';
+import '../../../core/usecases/usecase.dart';
 
 class GetCachedWebsiteInfoParams {
   final String url;

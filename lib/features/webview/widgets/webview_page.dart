@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
-import '../../../core/usecases/website/analyze_website_usecase.dart';
+import '../repositories/website_repository.dart';
 import '../../tabs/bloc/tab_bloc.dart';
 import '../../tabs/bloc/tab_event.dart';
 import '../../../features/download/bloc/download_bloc.dart';
@@ -76,7 +76,7 @@ static final Set<String> _extractedDescriptions = {};
   bool _isOffline = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _hadError = false; // Track if error occurred during current load
-  String? _lastAnalyzedUrl; // Track last URL sent to Oxodb API
+  final _websiteRepository = WebsiteRepository();
 
   // User-Agent chuẩn để tránh bị rate limit
   static const String _iosUserAgent =
@@ -669,68 +669,6 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     );
   }
 
-  Future<void> _analyzeWebsiteWithDescription(InAppWebViewController controller, String url) async {
-    // Skip if same URL was already analyzed in this session
-    if (_lastAnalyzedUrl == url) {
-      print('[OxodbService] URL already analyzed in session, skipping JS extraction: $url');
-      return;
-    }
-
-    String? description;
-
-    try {
-      // Try to get meta description from the loaded page using JavaScript
-      description = await controller.evaluateJavascript(source: '''
-        (function() {
-          // Try meta name="description"
-          var metaDesc = document.querySelector('meta[name="description"]');
-          if (metaDesc && metaDesc.content) {
-            return metaDesc.content.trim();
-          }
-
-          // Try Open Graph description
-          var ogDesc = document.querySelector('meta[property="og:description"]');
-          if (ogDesc && ogDesc.content) {
-            return ogDesc.content.trim();
-          }
-
-          // Try Twitter description
-          var twDesc = document.querySelector('meta[name="twitter:description"]');
-          if (twDesc && twDesc.content) {
-            return twDesc.content.trim();
-          }
-
-          return '';
-        })();
-      ''');
-
-      if (description != null && description.isNotEmpty && description != 'null') {
-        // Clean up the string (remove quotes if present)
-        description = description.toString().trim();
-        if (description.startsWith('"') && description.endsWith('"')) {
-          description = description.substring(1, description.length - 1);
-        }
-        if (description.length > 500) {
-          description = description.substring(0, 500);
-        }
-        print('[OxodbService] Got description from JS: ${description.substring(0, 100)}...');
-      } else {
-        description = null;
-      }
-    } catch (e) {
-      print('[OxodbService] Error getting description from JS: $e');
-      description = null;
-    }
-
-    // Mark as analyzed before calling API to avoid race conditions
-    _lastAnalyzedUrl = url;
-
-    // Call API with or without description
-    await AnalyzeWebsiteUseCase().call(
-      AnalyzeWebsiteParams(url: url, description: description),
-    );
-  }
-
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
     widget.onWebViewCreated(controller);
 
@@ -877,7 +815,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
 
     // Call Oxodb API when website loads successfully
     if (urlStr.isNotEmpty && _errorType == WebViewErrorType.none) {
-      _analyzeWebsiteWithDescription(controller, urlStr);
+      _websiteRepository.analyzeWebsite(controller, urlStr);
     }
 
     widget.onLoadStop(controller, url);
