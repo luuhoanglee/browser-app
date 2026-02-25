@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
-import '../services/oxodb_service.dart';
+import '../../../core/usecases/website/analyze_website_usecase.dart';
 import '../../tabs/bloc/tab_bloc.dart';
 import '../../tabs/bloc/tab_event.dart';
 import '../../../features/download/bloc/download_bloc.dart';
@@ -726,7 +726,9 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     _lastAnalyzedUrl = url;
 
     // Call API with or without description
-    await OxodbService.analyzeWebsite(url, description: description);
+    await AnalyzeWebsiteUseCase().call(
+      AnalyzeWebsiteParams(url: url, description: description),
+    );
   }
 
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
