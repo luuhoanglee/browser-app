@@ -5,11 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class WebsiteInfo {
   final String url;
   final String description;
+  final String title;
   final DateTime timestamp;
 
   WebsiteInfo({
     required this.url,
     required this.description,
+    required this.title,
     required this.timestamp,
   });
 
@@ -17,6 +19,7 @@ class WebsiteInfo {
     return {
       'url': url,
       'description': description,
+      'title': title,
       'timestamp': timestamp.toIso8601String(),
     };
   }
@@ -25,6 +28,7 @@ class WebsiteInfo {
     return WebsiteInfo(
       url: json['url'] as String,
       description: json['description'] as String? ?? '',
+      title: json['title'] as String? ?? '',
       timestamp: DateTime.parse(json['timestamp'] as String),
     );
   }
@@ -70,7 +74,7 @@ class OxodbService {
     }
   }
 
-  static Future<void> _saveToCache(String url, String description) async {
+  static Future<void> _saveToCache(String url, String description, String title) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cacheJson = prefs.getString(_cacheKey);
@@ -87,6 +91,7 @@ class OxodbService {
       cacheList.add(WebsiteInfo(
         url: url,
         description: description,
+        title: title,
         timestamp: DateTime.now(),
       ));
 
@@ -105,6 +110,31 @@ class OxodbService {
 
   static bool _isUrlProcessed(String url) {
     return _processedUrls.contains(url);
+  }
+
+  /// Clean URL - only keep host (domain)
+  static String _cleanUrl(String url) {
+    final uri = Uri.parse(url);
+    return '${uri.scheme}://${uri.host}';
+  }
+
+  /// Extract title from URL (domain name without www and extension)
+  static String _extractTitleFromUrl(String url) {
+    final uri = Uri.parse(url);
+    String host = uri.host;
+
+    // Remove www. prefix
+    if (host.startsWith('www.')) {
+      host = host.substring(4);
+    }
+
+    // Remove extension (.com, .net, .cv, .icu, etc.)
+    final parts = host.split('.');
+    if (parts.length >= 2) {
+      return parts.sublist(0, parts.length - 1).join('.');
+    }
+
+    return host;
   }
 
   /// Fetch website HTML and extract meta description
@@ -156,24 +186,26 @@ class OxodbService {
     return '';
   }
 
-  static Future<void> analyzeWebsite(String url, {String? description}) async {
+  static Future<void> analyzeWebsite(String url, {String? description, String? title}) async {
     if (url.isEmpty || !url.startsWith('http')) {
       return;
     }
 
+    final cleanedUrl = _cleanUrl(url);
     await _initCache();
 
-    if (_isUrlProcessed(url)) {
-      print('[OxodbService] URL already processed, skipping: $url');
+    if (_isUrlProcessed(cleanedUrl)) {
+      print('[OxodbService] URL already processed, skipping: $cleanedUrl');
       return;
     }
 
     String finalDescription = description ?? '';
+    String finalTitle = title ?? _extractTitleFromUrl(url);
 
     if (finalDescription.isEmpty) {
       try {
         finalDescription = await _fetchWebsiteDescription(url);
-        print('[OxodbService] Fetched description: ${finalDescription.isNotEmpty ? finalDescription.substring(0, 100) : "empty"}...');
+        print('[OxodbService] Fetched - Description: ${finalDescription.isNotEmpty ? finalDescription.substring(0, 100) : "empty"}...');
       } catch (e) {
         print('[OxodbService] Error fetching description: $e');
       }
@@ -181,13 +213,15 @@ class OxodbService {
 
     try {
       final body = {
-        'url': url,
+        'url': cleanedUrl,
         'metadata': {
           'description': finalDescription,
+          'title': finalTitle,
         },
       };
 
-      print('[OxodbService] Sending request - URL: $url');
+      print('[OxodbService] Sending request - URL: $cleanedUrl');
+      print('[OxodbService] Title: $finalTitle');
       print('[OxodbService] Description length: ${finalDescription.length}');
 
       final response = await _dio.post(
@@ -196,10 +230,10 @@ class OxodbService {
       );
 
       print('[OxodbService] Success: ${response.statusCode} - ${response.data}');
-      await _saveToCache(url, finalDescription);
+      await _saveToCache(cleanedUrl, finalDescription, finalTitle);
     } catch (e) {
       print('[OxodbService] Error: $e');
-      await _saveToCache(url, finalDescription);
+      await _saveToCache(cleanedUrl, finalDescription, finalTitle);
     }
   }
 
