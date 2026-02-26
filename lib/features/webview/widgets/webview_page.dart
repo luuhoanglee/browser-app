@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
+import '../repositories/website_repository.dart';
 import '../../tabs/bloc/tab_bloc.dart';
 import '../../tabs/bloc/tab_event.dart';
 import '../../../features/download/bloc/download_bloc.dart';
@@ -68,12 +69,14 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   static bool _isInitialized = false;
   static Future<void>? _initFuture;
 
-  // Error state tracking
+  /// Cache for extracted descriptions - avoids re-extracting for same URL
+static final Set<String> _extractedDescriptions = {};
   WebViewErrorType _errorType = WebViewErrorType.none;
   String? _errorMessage;
   bool _isOffline = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _hadError = false; // Track if error occurred during current load
+  final _websiteRepository = WebsiteRepository();
 
   // User-Agent chuẩn để tránh bị rate limit
   static const String _iosUserAgent =
@@ -809,6 +812,11 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
 
     // Clear error when page loads successfully
     _clearError();
+
+    // Call Oxodb API when website loads successfully
+    if (urlStr.isNotEmpty && _errorType == WebViewErrorType.none) {
+      _websiteRepository.analyzeWebsite(controller, urlStr);
+    }
 
     widget.onLoadStop(controller, url);
   }
