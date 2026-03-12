@@ -47,7 +47,7 @@ class StorageService {
         final prefs = await SharedPreferences.getInstance();
 
         // Convert tabs to JSON (off-main-thread via Timer)
-        final List<Map<String, dynamic>> tabsJson = _pendingTabs!.map((tab) => {
+        final List<Map<String, dynamic>> tabsJson = _pendingTabs!.where((tab) => !tab.isIncognito).map((tab) => {
           'id': tab.id,
           'url': tab.url,
           'title': tab.title,
@@ -91,6 +91,7 @@ class StorageService {
         index: item['index'],
         isLoading: item['isLoading'] ?? false,
         thumbnail: item['thumbnail'] != null ? base64Decode(item['thumbnail']) : null,
+        isIncognito: item['isIncognito'] ?? false,
       )).toList();
 
       print('✅ Loaded ${tabs.length} tabs from cache');

@@ -10,6 +10,7 @@ class TabModel extends TabEntity {
     super.thumbnail,
     super.loadProgress = 0,
     super.lastAccessedAt,
+    super.isIncognito = false,
   });
 
   factory TabModel.fromEntity(TabEntity entity) {
@@ -22,6 +23,7 @@ class TabModel extends TabEntity {
       thumbnail: entity.thumbnail,
       loadProgress: entity.loadProgress,
       lastAccessedAt: entity.lastAccessedAt,
+      isIncognito: entity.isIncognito,
     );
   }
 
@@ -29,7 +31,7 @@ class TabModel extends TabEntity {
     return this;
   }
 
-  factory TabModel.create({required int index}) {
+  factory TabModel.create({required int index, bool isIncognito = false}) {
     return TabModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       url: '',
@@ -37,6 +39,7 @@ class TabModel extends TabEntity {
       index: index,
       loadProgress: 0,
       lastAccessedAt: DateTime.now(),
+      isIncognito: isIncognito,
     );
   }
 }

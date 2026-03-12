@@ -52,16 +52,17 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     final query = event.query ?? state.query;
     if (query.isEmpty) return;
 
-    // Thêm vào search history
-    final updatedHistory = List<String>.from(state.searchHistory);
-    if (!updatedHistory.contains(query)) {
-      updatedHistory.insert(0, query);
-      // Giới hạn 50 mục
-      if (updatedHistory.length > 50) {
-        updatedHistory.removeLast();
+    if (!event.skipHistory) {
+      final updatedHistory = List<String>.from(state.searchHistory);
+      if (!updatedHistory.contains(query)) {
+        updatedHistory.insert(0, query);
+        // Giới hạn 50 mục
+        if (updatedHistory.length > 50) {
+          updatedHistory.removeLast();
+        }
+        await StorageService.saveSearchHistory(updatedHistory);
+        emit(state.copyWith(searchHistory: updatedHistory));
       }
-      await StorageService.saveSearchHistory(updatedHistory);
-      emit(state.copyWith(searchHistory: updatedHistory));
     }
 
     // Sử dụng keyword search

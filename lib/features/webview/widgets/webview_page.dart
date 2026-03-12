@@ -66,6 +66,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   bool get wantKeepAlive => true;
 
   static InAppWebViewSettings? _cachedSettings;
+  static InAppWebViewSettings? _incognitoSettings;
   static bool _isInitialized = false;
   static Future<void>? _initFuture;
 
@@ -92,7 +93,9 @@ static final Set<String> _extractedDescriptions = {};
     if (_isInitialized) return;
 
     if (Platform.isIOS) {
-      final blockers = IOSContentBlockerService.getContentBlockers();   
+      final blockers = IOSContentBlockerService.getContentBlockers();
+
+      // Normal mode settings
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -115,7 +118,33 @@ static final Set<String> _extractedDescriptions = {};
         applicationNameForUserAgent: '',
         contentBlockers: blockers,
       );
-      print('[iOS] Settings initialized with ${blockers.length} content blockers');
+
+      // Incognito mode settings - no cache, no storage
+      _incognitoSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: false,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: false,
+        hardwareAcceleration: true,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        allowsLinkPreview: false,
+        cacheEnabled: false, // Disable cache for incognito
+        clearCache: true, // Clear cache on start
+        clearSessionCache: true, // Clear session cache (cookies) for incognito
+        databaseEnabled: false, // Disable database for incognito
+        domStorageEnabled: false, // Disable DOM storage for incognito
+        userAgent: _iosUserAgent,
+        applicationNameForUserAgent: '',
+        contentBlockers: blockers,
+      );
+      print('[iOS] Settings initialized with ${blockers.length} content blockers (including incognito mode)');
     } else {
       try {
         await ContentBlockerService.initialize();
@@ -124,6 +153,7 @@ static final Set<String> _extractedDescriptions = {};
         debugPrint('[Android] Failed to initialize ContentBlocker: $e');
       }
 
+      // Normal mode settings
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -146,10 +176,42 @@ static final Set<String> _extractedDescriptions = {};
         domStorageEnabled: true,
         contentBlockers: ContentBlockerService.createAdBlockers(),
       );
-      debugPrint('[Android] Settings initialized');
+
+      // Incognito mode settings - no cache, no storage
+      _incognitoSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: true,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: false,
+        hardwareAcceleration: true,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        userAgent: _androidUserAgent,
+        applicationNameForUserAgent: '',
+        cacheEnabled: false, // Disable cache for incognito
+        clearCache: true, // Clear cache on start
+        clearSessionCache: true, // Clear session cache (cookies) for incognito
+        databaseEnabled: false, // Disable database for incognito
+        domStorageEnabled: false, // Disable DOM storage for incognito
+        contentBlockers: ContentBlockerService.createAdBlockers(),
+      );
+      debugPrint('[Android] Settings initialized (including incognito mode)');
     }
 
     _isInitialized = true;
+  }
+
+  static InAppWebViewSettings _getSettingsForTab(dynamic tab) {
+    if (tab != null && tab.isIncognito == true) {
+      return _incognitoSettings ?? _cachedSettings ?? InAppWebViewSettings();
+    }
+    return _cachedSettings ?? InAppWebViewSettings();
   }
 
   /// Parse intent:// URL thành https:// URL
@@ -1172,6 +1234,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     super.build(context);
 
     final initialUrl = _getInitialUrl();
+    final isIncognito = widget.activeTab.isIncognito ?? false;
 
     return RepaintBoundary(
       child: FutureBuilder<void>(
@@ -1186,7 +1249,9 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: InAppWebView(
+                        child: Container(
+                          color: isIncognito ? Colors.black : Colors.transparent,
+                          child: InAppWebView(
                       key: ValueKey(widget.activeTab.id),
                       initialUrlRequest: initialUrl.isEmpty
                           ? null
@@ -1194,7 +1259,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                               url: WebUri(initialUrl),
                               headers: _getHeaders(initialUrl),
                             ),
-                      initialSettings: _cachedSettings,
+                      initialSettings: _getSettingsForTab(widget.activeTab),
                       pullToRefreshController: widget.pullToRefreshController,
                       onWebViewCreated: _onWebViewCreated,
                       onLoadStart: _onLoadStart,
@@ -1217,6 +1282,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                       onReceivedHttpError: _onReceivedHttpError,
                       onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
                     ),
+                        ),
                       ),
                     ],
                   ),

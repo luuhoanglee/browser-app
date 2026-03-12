@@ -8,11 +8,13 @@ import '../bloc/search_event.dart';
 class SearchPage extends StatefulWidget {
   final Function(String) onSearch;
   final String? initialUrl;
+  final bool skipHistory;
 
   const SearchPage({
     super.key,
     required this.onSearch,
     this.initialUrl,
+    this.skipHistory = false,
   });
 
   @override
@@ -213,8 +215,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
                   final query = value.trim();
-                  // Lưu vào search history
-                  _searchBloc.add(PerformSearchEvent(query));
+                  // Lưu vào search history (skip nếu incognito)
+                  _searchBloc.add(PerformSearchEvent(query, widget.skipHistory));
                   widget.onSearch(query);
                   Navigator.pop(context);
                 }
@@ -298,8 +300,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       },
       child: InkWell(
         onTap: () {
-          // Lưu vào search history trước khi search
-          _searchBloc.add(PerformSearchEvent(suggestion));
+          // Lưu vào search history trước khi search (skip nếu incognito)
+          _searchBloc.add(PerformSearchEvent(suggestion, widget.skipHistory));
           widget.onSearch(suggestion);
           Navigator.pop(context);
         },
@@ -499,8 +501,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       },
       child: InkWell(
         onTap: () {
-          // Lưu vào search history trước khi search
-          _searchBloc.add(PerformSearchEvent(query));
+          // Lưu vào search history trước khi search (skip nếu incognito)
+          _searchBloc.add(PerformSearchEvent(query, widget.skipHistory));
           widget.onSearch(query);
           Navigator.pop(context);
         },
@@ -561,8 +563,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       },
       child: InkWell(
         onTap: () {
-          // Lưu vào search history để đưa lên đầu
-          _searchBloc.add(PerformSearchEvent(query));
+          // Lưu vào search history để đưa lên đầu (skip nếu incognito)
+          _searchBloc.add(PerformSearchEvent(query, widget.skipHistory));
           widget.onSearch(query);
           Navigator.pop(context);
         },

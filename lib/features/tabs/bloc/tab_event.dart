@@ -37,3 +37,5 @@ class ClearLoadedResourcesEvent extends TabEvent {
 
   ClearLoadedResourcesEvent(this.tabId);
 }
+
+class ToggleIncognitoModeEvent extends TabEvent {}
