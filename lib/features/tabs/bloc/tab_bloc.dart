@@ -16,6 +16,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     on<UpdateTabEvent>(_onUpdateTab);
     on<AddLoadedResourceEvent>(_onAddLoadedResource);
     on<ClearLoadedResourcesEvent>(_onClearLoadedResources);
+    on<ToggleIncognitoModeEvent>(_onToggleIncognitoMode);
 
     _init();
   }
@@ -102,7 +103,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
 
   Future<void> _onAddTab(AddTabEvent event, Emitter<TabState> emit) async {
     final newIndex = state.tabs.length;
-    final newTab = TabModel.create(index: newIndex);
+    final newTab = TabModel.create(index: newIndex, isIncognito: state.isIncognitoMode);
 
     repository.addTab(newTab);
     repository.setActiveTab(newTab.id);
@@ -116,7 +117,75 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       activeTabIndex: newIndex,
     ));
 
-    await StorageService.saveTabs(updatedTabs, activeTab?.id);
+    // Only save non-incognito tabs
+    if (!state.isIncognitoMode) {
+      await StorageService.saveTabs(updatedTabs, activeTab?.id);
+    }
+  }
+
+  Future<void> _onToggleIncognitoMode(ToggleIncognitoModeEvent event, Emitter<TabState> emit) async {
+    final newIncognitoMode = !state.isIncognitoMode;
+
+    // Lưu active tab ID của chế độ hiện tại
+    final String? savedNormalTabId;
+    final String? savedIncognitoTabId;
+
+    if (state.isIncognitoMode) {
+      // Đang chuyển từ incognito sang normal, lưu active tab incognito
+      savedIncognitoTabId = state.activeTab?.id;
+      savedNormalTabId = state.normalModeActiveTabId;
+    } else {
+      // Đang chuyển từ normal sang incognito, lưu active tab normal
+      savedNormalTabId = state.activeTab?.id;
+      savedIncognitoTabId = state.incognitoModeActiveTabId;
+    }
+
+    // Tìm tab trong chế độ mới
+    final targetTabs = newIncognitoMode
+        ? state.tabs.where((t) => t.isIncognito).toList()
+        : state.tabs.where((t) => !t.isIncognito).toList();
+
+    if (targetTabs.isEmpty) {
+      // Nếu chưa có tab nào trong chế độ mới, tạo tab mới
+      final newTab = TabModel.create(index: state.tabs.length, isIncognito: newIncognitoMode);
+      repository.addTab(newTab);
+      repository.setActiveTab(newTab.id);
+
+      final updatedTabs = repository.getTabs();
+      final activeTab = repository.getActiveTab();
+      final activeIndex = repository.getTabIndex(activeTab?.id ?? '');
+
+      emit(state.copyWith(
+        tabs: updatedTabs,
+        activeTab: activeTab,
+        activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+        isIncognitoMode: newIncognitoMode,
+        normalModeActiveTabId: savedNormalTabId,
+        incognitoModeActiveTabId: savedIncognitoTabId,
+      ));
+    } else {
+      // Nếu đã có tab, khôi phục active tab đã lưu trước đó
+      final savedActiveTabId = newIncognitoMode
+          ? savedIncognitoTabId
+          : savedNormalTabId;
+
+      // Tìm tab đã lưu trong danh sách tabs của chế độ mới
+      final tabToActivate = savedActiveTabId != null
+          ? targetTabs.firstWhere((t) => t.id == savedActiveTabId, orElse: () => targetTabs.first)
+          : targetTabs.first;
+
+      repository.setActiveTab(tabToActivate.id);
+      final activeTab = repository.getActiveTab();
+      final activeIndex = repository.getTabIndex(activeTab?.id ?? '');
+
+      emit(state.copyWith(
+        activeTab: activeTab,
+        activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+        isIncognitoMode: newIncognitoMode,
+        normalModeActiveTabId: savedNormalTabId,
+        incognitoModeActiveTabId: savedIncognitoTabId,
+      ));
+    }
   }
 
   Future<void> _onRemoveTab(RemoveTabEvent event, Emitter<TabState> emit) async {
@@ -125,14 +194,19 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     var activeTab = repository.getActiveTab();
     var activeIndex = repository.getTabIndex(activeTab?.id ?? '');
 
-    // Chỉ tạo empty page nếu không còn tab nào
-    if (updatedTabs.isEmpty) {
-      final newTab = TabModel.create(index: 0);
+    // Lọc tabs theo chế độ hiện tại
+    final filteredTabs = state.isIncognitoMode
+        ? updatedTabs.where((t) => t.isIncognito).toList()
+        : updatedTabs.where((t) => !t.isIncognito).toList();
+
+    // Nếu không còn tab nào trong chế độ hiện tại, tạo tab mới
+    if (filteredTabs.isEmpty) {
+      final newTab = TabModel.create(index: updatedTabs.length, isIncognito: state.isIncognitoMode);
       repository.addTab(newTab);
       repository.setActiveTab(newTab.id);
       updatedTabs = repository.getTabs();
       activeTab = repository.getActiveTab();
-      activeIndex = 0;
+      activeIndex = repository.getTabIndex(activeTab?.id ?? '');
     }
 
     emit(state.copyWith(

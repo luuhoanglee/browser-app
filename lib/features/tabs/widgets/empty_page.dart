@@ -38,9 +38,11 @@ class EmptyPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isIncognito = activeTab.isIncognito ?? false;
+
     return RepaintBoundary(
       child: Container(
-        color: Colors.white,
+        color: isIncognito ? Colors.black : Colors.white,
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(16),
@@ -49,12 +51,12 @@ class EmptyPage extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Quick Access',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: isIncognito ? Colors.white70 : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -80,7 +82,8 @@ class EmptyPage extends StatelessWidget {
               BlocBuilder<TabBloc, TabState>(
                 builder: (context, tabState) {
                   // Lấy các tab không phải active tab và có URL, sắp xếp theo lastAccessedAt
-                  final recentTabs = tabState.tabs
+                  // Chỉ lấy tabs theo chế độ hiện tại (incognito hoặc thường)
+                  final recentTabs = tabState.filteredTabs
                       .where((t) => t.id != activeTab.id && t.url.isNotEmpty)
                       .toList()
                     ..sort((a, b) {
@@ -96,17 +99,19 @@ class EmptyPage extends StatelessWidget {
                     return const SizedBox.shrink();
                   }
 
+                  final isIncognito = activeTab.isIncognito ?? false;
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Recent Tabs',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                          color: isIncognito ? Colors.white70 : Colors.black87,
                       ),
+                    ),
                       const SizedBox(height: 12),
                       ...topRecentTabs.map((tab) => _buildRecentTabItem(context, tab, tabState)),
                     ],
@@ -121,6 +126,8 @@ class EmptyPage extends StatelessWidget {
   }
 
 Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
+  final isIncognito = activeTab.isIncognito ?? false;
+
   return GestureDetector(
     onTap: () => onQuickAccessTap(item),
     child: LayoutBuilder(
@@ -134,13 +141,15 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: item.color.withOpacity(0.1),
+                  color: isIncognito
+                      ? Colors.grey[800]
+                      : item.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   item.icon,
                   size: 24,
-                  color: item.color,
+                  color: isIncognito ? Colors.white60 : item.color,
                 ),
               ),
             ),
@@ -151,7 +160,7 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
                 item.title,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.grey[700],
+                  color: isIncognito ? Colors.white60 : Colors.grey[700],
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
@@ -169,6 +178,8 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
 
 
   Widget _buildRecentTabItem(BuildContext context, dynamic tab, TabState tabState) {
+    final isIncognito = activeTab.isIncognito ?? false;
+
     return GestureDetector(
       onTap: () {
         context.read<TabBloc>().add(SelectTabEvent(tab.id));
@@ -177,7 +188,7 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: isIncognito ? Colors.grey[850] : Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -186,10 +197,10 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: isIncognito ? Colors.grey[700] : Colors.grey[300],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.web, size: 20, color: Colors.grey),
+              child: Icon(Icons.web, size: 20, color: isIncognito ? Colors.white60 : Colors.grey),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -198,10 +209,10 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
                 children: [
                   Text(
                     tab.title.isNotEmpty ? tab.title : 'New Tab',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: isIncognito ? Colors.white70 : Colors.black87,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -211,7 +222,7 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
                     _formatDisplayUrl(tab.url),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[600],
+                      color: isIncognito ? Colors.white54 : Colors.grey[600],
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -219,7 +230,7 @@ Widget _buildQuickAccessItem(BuildContext context, QuickAccessItem item) {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
+            Icon(Icons.chevron_right, size: 20, color: isIncognito ? Colors.white54 : Colors.grey[400]),
           ],
         ),
       ),

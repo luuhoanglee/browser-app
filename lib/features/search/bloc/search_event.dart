@@ -16,8 +16,9 @@ class SetEngineEvent extends SearchEvent {
 
 class PerformSearchEvent extends SearchEvent {
   final String? query;
+  final bool skipHistory;
 
-  PerformSearchEvent([this.query]);
+  PerformSearchEvent([this.query, this.skipHistory = false]);
 }
 
 class ClearSearchEvent extends SearchEvent {}
