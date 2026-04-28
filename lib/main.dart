@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart' show FirebaseCrashlytics;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 import 'package:browser_app/core/services/local_notification_service.dart';
 import 'package:browser_app/data/services/download_notification_service.dart';
 import 'presentation/pages/home/home_page.dart';
@@ -30,7 +31,10 @@ void main() async {
     _initBackgroundServices();
 
     runApp(const BrowserApp());
-  }, (error, stack) => FirebaseCrashlytics.instance.recordError(error, stack));
+  }, (error, stack) {
+    AppLogger.fatal('App', 'Unhandled zone error', error: error, stackTrace: stack);
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+  });
 }
 
 void _initBackgroundServices() {
@@ -39,8 +43,8 @@ void _initBackgroundServices() {
       await LocalNotificationService().initialize();
       await DownloadNotificationService().initialize();
       await FirebaseService.createDeviceToken();
-    } catch (e) {
-      print("❌ Background init error: $e");
+    } catch (e, s) {
+      AppLogger.error('App', 'Background init failed', error: e, stackTrace: s);
     }
   });
 }
@@ -94,8 +98,8 @@ class _BrowserAppState extends State<BrowserApp> {
       if (link != null && mounted) {
         setState(() => _initialLink = link);
       }
-    } catch (e) {
-      print('❌ Error getting initial link: $e');
+    } catch (e, s) {
+      AppLogger.warning('App', 'Failed to get initial deep link', error: e, stackTrace: s);
     }
   }
 
