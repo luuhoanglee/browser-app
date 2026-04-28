@@ -9,15 +9,16 @@
 Initializes all Firebase products at app startup:
 
 ```dart
-await FirebaseService.initialize();
+await FirebaseService.initializeFirebase();
 ```
 
 Responsibilities:
-- `Firebase.initializeApp()` with platform options
-- `FirebaseCrashlytics` — sets `recordError` as the Flutter error handler
+- `Firebase.initializeApp()`
+- `FirebaseCrashlytics` — wires `FlutterError.onError` and `PlatformDispatcher.instance.onError` to `AppLogger.fatal()`; collection enabled in release only
+- `AppLogger.initFirebase()` — connects logger to Firebase after init
 - `FirebaseMessaging` — requests notification permissions, retrieves and caches FCM token
-- `FirebaseAnalytics` — enables analytics collection
-- Background message handler registration
+- `FirebaseAnalytics` — Analytics instance available via `AppLogger.event()`
+- Local notification channel registration
 
 FCM token is cached in SharedPreferences. Refreshed on each app start.
 
@@ -233,18 +234,140 @@ Dio instance configured with:
 - `LogInterceptor` — curl-style request logging in debug mode
 - Default timeout: connect 30s, receive 60s
 
-### Logger
+### AppLogger
 
-**File:** `lib/core/logger/logger.dart`
+**Files:**
+- `lib/core/logger/app_logger.dart` — core logger (use this)
+- `lib/core/logger/log_level.dart` — `LogLevel` enum
+- `lib/core/logger/log_record.dart` — structured log entry model
+- `lib/core/logger/analytics_event.dart` — Firebase Analytics event/param constants
+- `lib/core/logger/logger.dart` — legacy wrapper (`@Deprecated`, kept for backward compat)
 
-Custom structured logger with configurable log levels. Output format includes timestamp, level, and tag.
+#### Log Levels
+
+| Level | Emoji | Debug build | Release build |
+|-------|-------|-------------|---------------|
+| `VERBOSE` | 🔍 | Console only | Suppressed |
+| `DEBUG` | 🐛 | Console only | Suppressed |
+| `INFO` | 💡 | Console only | Crashlytics breadcrumb |
+| `WARNING` | ⚠️ | Console | Crashlytics breadcrumb + non-fatal (if error attached) |
+| `ERROR` | 🔴 | Console | Crashlytics non-fatal |
+| `FATAL` | 💀 | Console | Crashlytics fatal |
+
+`AppLogger.event()` always logs to Firebase Analytics in release builds.
+
+#### Initialization
+
+`AppLogger.initFirebase()` must be called after `Firebase.initializeApp()`. This is done automatically inside `FirebaseService.initializeFirebase()` — no manual call needed.
+
+#### API
 
 ```dart
-AppLogger.debug('WebView', 'Page loaded: $url');
-AppLogger.error('Download', 'Failed: $error', stackTrace);
+// ── Log levels ─────────────────────────────────────────────────
+AppLogger.verbose('Tag', 'Granular trace message');
+AppLogger.debug('Tag', 'Debug info: $value');
+AppLogger.info('Tag', 'Notable event', params: {'key': 'value'});
+AppLogger.warning('Tag', 'Unexpected but recoverable', error: e);
+AppLogger.error('Tag', 'Caught exception', error: e, stackTrace: s);
+AppLogger.fatal('Tag', 'Unrecoverable failure', error: e, stackTrace: s);
+
+// ── Firebase Analytics event ───────────────────────────────────
+AppLogger.event(AnalyticsEvent.searchPerformed, params: {
+  AnalyticsParam.engine: 'google',
+  AnalyticsParam.queryLength: query.length,
+});
+
+AppLogger.event(AnalyticsEvent.tabOpened, params: {
+  AnalyticsParam.isIncognito: false,
+  AnalyticsParam.tabCount: tabs.length,
+});
+
+AppLogger.event(AnalyticsEvent.downloadStarted, params: {
+  AnalyticsParam.fileType: 'pdf',
+  AnalyticsParam.fileSizeKb: 2048,
+});
 ```
 
-Log levels: `debug`, `info`, `warning`, `error`.
+#### Tag Convention
+
+Use the class or feature name as tag. This makes logs filterable in Logcat / IDE:
+
+| Context | Tag |
+|---------|-----|
+| `TabBloc` | `'TabBloc'` |
+| `WebViewPage` | `'WebView'` |
+| `DownloadBloc` | `'Download'` |
+| `SearchBloc` | `'Search'` |
+| `FirebaseService` | `'FirebaseService'` |
+| `StorageService` | `'Storage'` |
+
+#### Analytics Events (`AnalyticsEvent`)
+
+Constants defined in `lib/core/logger/analytics_event.dart`:
+
+| Constant | Event name | When to fire |
+|----------|------------|-------------|
+| `tabOpened` | `tab_opened` | New tab created |
+| `tabClosed` | `tab_closed` | Tab removed |
+| `tabSwitched` | `tab_switched` | Active tab changed |
+| `incognitoToggled` | `incognito_toggled` | Mode switched |
+| `pageLoaded` | `page_loaded` | WebView `onLoadStop` |
+| `pageLoadError` | `page_load_error` | WebView error |
+| `deepLinkOpened` | `deep_link_opened` | External URL received |
+| `searchPerformed` | `search_performed` | User submits search |
+| `searchEngineChanged` | `search_engine_changed` | Engine changed |
+| `downloadStarted` | `download_started` | Download enqueued |
+| `downloadCompleted` | `download_completed` | Download finished |
+| `downloadFailed` | `download_failed` | Download error |
+| `mediaGalleryOpened` | `media_gallery_opened` | Gallery sheet opened |
+| `mediaViewed` | `media_viewed` | Image/video/audio opened |
+| `adBlocked` | `ad_blocked` | Request blocked |
+| `notificationReceived` | `notification_received` | FCM message arrived |
+| `notificationTapped` | `notification_tapped` | User taps notification |
+
+#### Analytics Params (`AnalyticsParam`)
+
+Common parameter keys:
+
+```dart
+AnalyticsParam.isIncognito   // bool
+AnalyticsParam.tabCount      // int
+AnalyticsParam.domain        // String
+AnalyticsParam.errorType     // String
+AnalyticsParam.engine        // String — 'google' | 'bing' | 'duckduckgo' | 'youtube'
+AnalyticsParam.queryLength   // int
+AnalyticsParam.fileType      // String — file extension
+AnalyticsParam.fileSizeKb    // int
+AnalyticsParam.mediaType     // String — 'image' | 'video' | 'audio'
+AnalyticsParam.blockedCount  // int
+AnalyticsParam.blockReason   // String — 'domain' | 'pattern' | 'youtube'
+```
+
+#### Flutter & Platform Error Wiring
+
+`FirebaseService._initializeCrashlytics()` wires two global handlers:
+
+```dart
+// Flutter framework errors (rendering, widget tree)
+FlutterError.onError → AppLogger.fatal(...)
+
+// Dart/platform errors outside Flutter framework
+PlatformDispatcher.instance.onError → AppLogger.fatal(...)
+```
+
+`main.dart` `runZonedGuarded` also routes zone errors to `AppLogger.fatal()`.
+
+#### Migration from Legacy `Logger`
+
+```dart
+// Old — still works (deprecated)
+Logger.show('message');
+Logger.error(e, s);
+
+// New — preferred
+AppLogger.debug('MyClass', 'message');
+AppLogger.error('MyClass', 'message', error: e, stackTrace: s);
+```
 
 ### ValidateData
 
