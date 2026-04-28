@@ -1,4 +1,4 @@
-package com.dino.blackdogbrowser.browser_app
+package com.dino.pardix
 
 import android.util.Log
 import android.webkit.WebResourceRequest

@@ -58,7 +58,7 @@ class BrowserApp extends StatefulWidget {
 
 class _BrowserAppState extends State<BrowserApp> {
   static const _channel =
-      MethodChannel('com.dino.blackdogbrowser.browser_app/deeplink');
+      MethodChannel('com.dino.pardix/deeplink');
 
   String? _initialLink;
 
