@@ -1,5 +1,6 @@
 import 'dart:async' show runZonedGuarded;
 import 'dart:io';
+import 'package:browser_app/core/resources/app_colors.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart' show FirebaseCrashlytics;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,19 +15,6 @@ void main() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     await FirebaseService.initializeFirebase();
-
-    // Lấy theme hiện tại của thiết bị
-    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-
-    final iconBrightness = brightness == Brightness.dark
-        ? Brightness.light
-        : Brightness.dark;
-
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: iconBrightness,
-      statusBarBrightness: brightness, // cho iOS
-    ));
 
     _initBackgroundServices();
 
@@ -73,23 +61,6 @@ class _BrowserAppState extends State<BrowserApp> {
       _initDeepLinkListener();
       _getInitialLink();
     });
-
-    WidgetsBinding.instance.platformDispatcher.onPlatformBrightnessChanged = () {
-      _updateStatusBarStyle();
-    };
-  }
-
-  void _updateStatusBarStyle() {
-    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-    final iconBrightness = brightness == Brightness.dark
-        ? Brightness.light
-        : Brightness.dark;
-
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: iconBrightness,
-      statusBarBrightness: brightness,
-    ));
   }
 
   Future<void> _getInitialLink() async {
@@ -114,16 +85,10 @@ class _BrowserAppState extends State<BrowserApp> {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-
     return MaterialApp(
       title: 'Browser App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: brightness,
-        ),
         useMaterial3: true,
       ),
       home: HomePage(

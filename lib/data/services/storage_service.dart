@@ -2,12 +2,14 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../domain/entities/tab_entity.dart';
+import '../../features/quick_access/models/quick_access_site.dart';
 
 class StorageService {
   static const String _tabsKey = 'cached_tabs';
   static const String _activeTabKey = 'active_tab_id';
   static const String _historyKey = 'browser_history';
   static const String _searchHistoryKey = 'search_history';
+  static const String _quickAccessKey = 'quick_access_sites';
   static const int _maxHistorySize = 100; // Giới hạn 100 mục lịch sử
 
   // Debounce timers to avoid excessive disk writes
@@ -229,6 +231,33 @@ class StorageService {
       print('✅ Search history cleared');
     } catch (e) {
       print('❌ Error clearing search history: $e');
+    }
+  }
+
+  // Save quick access sites
+  static Future<void> saveQuickAccessSites(List<QuickAccessSite> sites) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = jsonEncode(sites.map((s) => s.toJson()).toList());
+      await prefs.setString(_quickAccessKey, json);
+    } catch (e) {
+      print('❌ Error saving quick access sites: $e');
+    }
+  }
+
+  // Load quick access sites
+  static Future<List<QuickAccessSite>> loadQuickAccessSites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_quickAccessKey);
+      if (raw == null) return [];
+      final List<dynamic> decoded = jsonDecode(raw);
+      return decoded
+          .map((item) => QuickAccessSite.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('❌ Error loading quick access sites: $e');
+      return [];
     }
   }
 }
