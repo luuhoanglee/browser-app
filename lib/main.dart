@@ -1,30 +1,28 @@
+import 'dart:async' show runZonedGuarded;
 import 'dart:io';
+import 'package:browser_app/core/resources/app_colors.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart' show FirebaseCrashlytics;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 import 'package:browser_app/core/services/local_notification_service.dart';
 import 'package:browser_app/data/services/download_notification_service.dart';
 import 'presentation/pages/home/home_page.dart';
 import 'package:browser_app/core/services/fcm/firebase_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Lấy theme hiện tại của thiết bị
-  final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    await FirebaseService.initializeFirebase();
 
-  final iconBrightness = brightness == Brightness.dark
-      ? Brightness.light 
-      : Brightness.dark;
+    _initBackgroundServices();
 
-  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: iconBrightness,
-    statusBarBrightness: brightness, // cho iOS
-  ));
-
-  _initBackgroundServices();
-
-  runApp(const BrowserApp());
+    runApp(const BrowserApp());
+  }, (error, stack) {
+    AppLogger.fatal('App', 'Unhandled zone error', error: error, stackTrace: stack);
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+  });
 }
 
 void _initBackgroundServices() {
@@ -33,8 +31,8 @@ void _initBackgroundServices() {
       await LocalNotificationService().initialize();
       await DownloadNotificationService().initialize();
       await FirebaseService.createDeviceToken();
-    } catch (e) {
-      print("❌ Background init error: $e");
+    } catch (e, s) {
+      AppLogger.error('App', 'Background init failed', error: e, stackTrace: s);
     }
   });
 }
@@ -52,7 +50,7 @@ class BrowserApp extends StatefulWidget {
 
 class _BrowserAppState extends State<BrowserApp> {
   static const _channel =
-      MethodChannel('com.dino.blackdogbrowser.browser_app/deeplink');
+      MethodChannel('com.dino.pardix/deeplink');
 
   String? _initialLink;
 
@@ -63,23 +61,6 @@ class _BrowserAppState extends State<BrowserApp> {
       _initDeepLinkListener();
       _getInitialLink();
     });
-
-    WidgetsBinding.instance.platformDispatcher.onPlatformBrightnessChanged = () {
-      _updateStatusBarStyle();
-    };
-  }
-
-  void _updateStatusBarStyle() {
-    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-    final iconBrightness = brightness == Brightness.dark
-        ? Brightness.light
-        : Brightness.dark;
-
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: iconBrightness,
-      statusBarBrightness: brightness,
-    ));
   }
 
   Future<void> _getInitialLink() async {
@@ -88,8 +69,8 @@ class _BrowserAppState extends State<BrowserApp> {
       if (link != null && mounted) {
         setState(() => _initialLink = link);
       }
-    } catch (e) {
-      print('❌ Error getting initial link: $e');
+    } catch (e, s) {
+      AppLogger.warning('App', 'Failed to get initial deep link', error: e, stackTrace: s);
     }
   }
 
@@ -104,16 +85,10 @@ class _BrowserAppState extends State<BrowserApp> {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-
     return MaterialApp(
       title: 'Browser App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: brightness,
-        ),
         useMaterial3: true,
       ),
       home: HomePage(

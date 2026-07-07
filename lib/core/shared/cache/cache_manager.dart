@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:browser_app/core/shared/cache/base_model_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 
 class CacheManager<T> {
   static SharedPreferences? prefs;
@@ -15,7 +15,7 @@ class CacheManager<T> {
 
   static T? getValue<T>(String key, {T Function(Map<String, dynamic>)? fromJson, List<T>? enumValues,}) {
     if (prefs == null) {
-      Logger.show('SharedPreferences not initialized. Call CacheManager.init() first.');
+      AppLogger.warning('CacheManager', 'SharedPreferences not initialized — call CacheManager.init() first');
       return null;
     }
     // Check if the type T is supported and return the value accordingly
@@ -51,7 +51,7 @@ class CacheManager<T> {
         final Map<String, dynamic> jsonMap = json.decode(jsonString);
         return fromJson(jsonMap);
       } catch (e) {
-        Logger.show('Failed to parse json for key "$key": $e');
+        AppLogger.error('CacheManager', 'Failed to parse JSON for key "$key"', error: e);
         return null;
       }
     }
@@ -88,7 +88,7 @@ class CacheManager<T> {
       } else if (data is Uint8List) {
         await prefs!.setString(_keyData, jsonEncode(data.toList()));
       } else {
-        Logger.show('Unsupported data type for SharedPreferences: ${data.runtimeType}');
+        AppLogger.warning('CacheManager', 'Unsupported data type: ${data.runtimeType}');
         return false; // Unsupported type.
       }
 
@@ -96,11 +96,11 @@ class CacheManager<T> {
         DateTime expirationTime = DateTime.now().add(expirationDuration!);
         await prefs!.setString(_keyExpiration!, expirationTime.toIso8601String());
       }
-      Logger.show('Data saved to SharedPreferences : $_keyData');
+      AppLogger.verbose('CacheManager', 'Saved: $_keyData');
       await prefs!.reload();
       return true;
     } catch (e, s) {
-      Logger.show('Error saving data to SharedPreferences: $e - $s');
+      AppLogger.error('CacheManager', 'Failed to save: $_keyData', error: e);
       return false;
     }
   }
@@ -115,7 +115,7 @@ class CacheManager<T> {
       if (_keyExpiration != null) {
         String? expirationTimeStr = prefs!.getString(_keyExpiration!);
         if (data == null || expirationTimeStr == null) {
-          Logger.show('No data or expiration time found in SharedPreferences.');
+          AppLogger.verbose('CacheManager', 'No data or expiration found for: $_keyData');
           return null; // No data or expiration time found.
         }
 
@@ -124,16 +124,16 @@ class CacheManager<T> {
           // Data has expired. Remove it from SharedPreferences.
           await prefs!.remove(_keyData);
           await prefs!.remove(_keyExpiration!);
-          Logger.show('Data has expired. Removed from SharedPreferences.');
+          AppLogger.verbose('CacheManager', 'Cache expired, removed: $_keyData');
           return null;
         }
       }
 
-      Logger.show('Data has not expired.');
+      AppLogger.verbose('CacheManager', 'Cache hit: $_keyData');
       // The data has not expired.
       return data;
     } catch (e) {
-      Logger.show('Error retrieving data from SharedPreferences: $e');
+      AppLogger.error('CacheManager', 'Failed to retrieve: $_keyData', error: e);
       return null;
     }
   }
@@ -146,9 +146,9 @@ class CacheManager<T> {
       if (_keyExpiration != null) {
         await prefs!.remove(_keyExpiration!);
       }
-      Logger.show('Data cleared from SharedPreferences.');
+      AppLogger.verbose('CacheManager', 'Cleared: $_keyData');
     } catch (e) {
-      Logger.show('Error clearing data from SharedPreferences: $e');
+      AppLogger.error('CacheManager', 'Failed to clear: $_keyData', error: e);
     }
   }
 }

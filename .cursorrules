@@ -1,0 +1,85 @@
+# Cursor Rules — Pardix Browser
+
+## Project Context
+Flutter mobile browser app (Android/iOS). Package: `com.dino.pardix`. Flutter SDK ^3.10.0.
+Architecture: Clean Architecture + BLoC (flutter_bloc ^8.1.6).
+
+## Layer Rules
+- `lib/core/` — shared infrastructure, imported by all layers
+- `lib/domain/` — pure Dart only, no Flutter/third-party imports
+- `lib/data/` — implements domain contracts
+- `lib/features/` — feature modules with their own bloc/ + widgets/ + services/
+- `lib/presentation/` — top-level pages (HomePage, sheets)
+- Dependency direction: presentation → features → domain ← data
+
+## State Management
+- ALL feature state goes in BLoC, never in widget setState
+- BLoC events: NounVerbEvent (e.g., TabAddEvent, DownloadStartEvent)
+- Use Equatable on all events and states
+- Use Freezed for sealed state unions
+- Access BLoC at the top level, pass callbacks to children — never context.read() deep in widget trees
+
+## Code Style
+- Files: snake_case.dart
+- Classes: PascalCase
+- Variables/methods: camelCase
+- Private: _leadingUnderscore
+- Constants: camelCase (not SCREAMING_SNAKE)
+- Never hardcode colors → use AppColors (lib/core/resources/app_colors.dart)
+- Never hardcode strings → use AppStrings (lib/core/resources/app_strings.dart)
+- Never hardcode sizes → use AppSizes (lib/core/resources/app_size.dart)
+- Never use print() → use AppLogger (lib/core/logger/logger.dart)
+
+## Key Patterns
+- Storage: always through StorageService (lib/data/services/storage_service.dart)
+- HTTP: always through ApiClient (lib/core/api/api_client.dart)
+- Media type detection: MediaUtils.detectType(url) → MediaType enum
+
+## Logging — AppLogger (lib/core/logger/app_logger.dart)
+Never use print() or the deprecated Logger class.
+
+6 levels:
+  AppLogger.verbose('Tag', 'trace')                        // dev only
+  AppLogger.debug('Tag', 'debug info')                     // dev only
+  AppLogger.info('Tag', 'event', params: {'k': 'v'})       // breadcrumb in release
+  AppLogger.warning('Tag', 'issue', error: e)              // Crashlytics breadcrumb
+  AppLogger.error('Tag', 'fail', error: e, stackTrace: s)  // Crashlytics non-fatal
+  AppLogger.fatal('Tag', 'crash', error: e, stackTrace: s) // Crashlytics fatal
+
+Firebase Analytics event (release only):
+  AppLogger.event(AnalyticsEvent.tabOpened, params: {AnalyticsParam.isIncognito: false})
+
+Tag = class/feature name: 'TabBloc', 'WebView', 'Download', 'Search', 'Storage'
+Event/param constants always from analytics_event.dart — never hardcode strings
+
+## Code Generation
+- Files ending in .freezed.dart or .g.dart are generated — never edit manually
+- After editing @freezed source: dart run build_runner build --delete-conflicting-outputs
+
+## Commands
+- flutter analyze → must pass before any commit
+- dart format lib/ → apply before any commit
+- flutter test → run all tests
+- dart run build_runner build --delete-conflicting-outputs → after Freezed changes
+
+## Critical Files
+- lib/main.dart — entry point, Firebase init, deep links
+- lib/presentation/pages/home/home_page.dart — main UI (1,248 lines, don't add to it)
+- lib/features/webview/widgets/webview_page.dart — WebView + ad blocking + JS injection
+- lib/features/tabs/bloc/tab_bloc.dart — master tab state
+
+## Never Commit
+- android/.key.properties
+- android/app/*.jks
+- android/app/google-services.json
+- ios/Runner/GoogleService-Info.plist
+- Any secrets or tokens
+
+## Never Do
+- Direct SharedPreferences calls — always use StorageService
+- Create bare Dio/http.Client instances — use ApiClient
+- Edit packages/flutter_inappwebview/ without explicit instruction
+- Add more local state to home_page.dart — it's already at 1,248 lines
+- Use print() — use AppLogger
+- Use Logger.show() / Logger.error() — deprecated, use AppLogger
+- Call FirebaseCrashlytics / FirebaseAnalytics directly — route through AppLogger

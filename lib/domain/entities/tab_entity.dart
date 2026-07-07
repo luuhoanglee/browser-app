@@ -12,6 +12,7 @@ class TabEntity extends Equatable {
   final int loadProgress;
   final DateTime? lastAccessedAt;
   final List<LoadedResource> loadedResources;
+  final bool isIncognito;
 
   const TabEntity({
     required this.id,
@@ -23,6 +24,7 @@ class TabEntity extends Equatable {
     this.loadProgress = 0,
     this.lastAccessedAt,
     this.loadedResources = const [],
+    this.isIncognito = false,
   });
 
   TabEntity copyWith({
@@ -35,6 +37,7 @@ class TabEntity extends Equatable {
     int? loadProgress,
     DateTime? lastAccessedAt,
     List<LoadedResource>? loadedResources,
+    bool? isIncognito,
   }) {
     return TabEntity(
       id: id ?? this.id,
@@ -46,9 +49,10 @@ class TabEntity extends Equatable {
       loadProgress: loadProgress ?? this.loadProgress,
       lastAccessedAt: lastAccessedAt ?? this.lastAccessedAt,
       loadedResources: loadedResources ?? this.loadedResources,
+      isIncognito: isIncognito ?? this.isIncognito,
     );
   }
 
   @override
-  List<Object?> get props => [id, url, title, index, isLoading, thumbnail, loadProgress, lastAccessedAt, loadedResources];
+  List<Object?> get props => [id, url, title, index, isLoading, thumbnail, loadProgress, lastAccessedAt, loadedResources, isIncognito];
 }

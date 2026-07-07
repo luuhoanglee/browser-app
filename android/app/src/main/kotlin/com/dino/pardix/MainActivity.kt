@@ -1,4 +1,4 @@
-package com.dino.blackdogbrowser.browser_app
+package com.dino.pardix
 
 import android.content.Intent
 import android.os.Bundle
@@ -8,8 +8,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val DEEPLINK_CHANNEL = "com.dino.blackdogbrowser.browser_app/deeplink"
-    private val ADBLOCK_CHANNEL = "com.dino.blackdogbrowser.browser_app/adblock"
+    private val DEEPLINK_CHANNEL = "com.dino.pardix/deeplink"
+    private val ADBLOCK_CHANNEL = "com.dino.pardix/adblock"
     private var deeplinkMethodChannel: MethodChannel? = null
     private var adblockMethodChannel: MethodChannel? = null
     private var pendingDeepLink: String? = null

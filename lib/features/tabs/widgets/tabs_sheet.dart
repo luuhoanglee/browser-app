@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../domain/entities/tab_entity.dart';
 import '../bloc/tab_bloc.dart';
 import '../bloc/tab_state.dart';
 import '../bloc/tab_event.dart';
@@ -27,33 +28,10 @@ class _TabsSheetState extends State<TabsSheet> {
   @override
   void initState() {
     super.initState();
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-      final tabState = context.read<TabBloc>().state;
-      final activeTabId = tabState.activeTab?.id;
-      if (activeTabId == null) return;
-
-      final activeIndex = tabState.tabs.indexWhere((tab) => tab.id == activeTabId);
-      if (activeIndex == -1) return;
-
-      final offset = _calculateInitialOffset(activeIndex);
-      
-      if (_scrollController.hasClients && offset > 0) {
-        _scrollController.jumpTo(offset);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveTab();
     });
   }
-
-   double _calculateInitialOffset(int activeIndex) {
-    const crossAxisCount = 2.5;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final itemHeight = (screenWidth - 32 - 8) / 2 / 0.75;
-    
-    final activeRow = activeIndex ~/ crossAxisCount;
-    final targetPosition = activeRow * (itemHeight + 8);
-    
-    return max(0.0, targetPosition);
-  }
-
 
   @override
   void dispose() {
@@ -61,80 +39,74 @@ class _TabsSheetState extends State<TabsSheet> {
     super.dispose();
   }
 
+  void _scrollToActiveTab() {
+    final tabState = context.read<TabBloc>().state;
+    final activeTabId = tabState.activeTab?.id;
+    if (activeTabId == null) return;
+
+    final activeIndex = tabState.filteredTabs.indexWhere((tab) => tab.id == activeTabId);
+    if (activeIndex == -1) return;
+
+    final itemHeight = (MediaQuery.of(context).size.width - 32 - 8) / 2 / 0.75;
+    final targetPosition = (activeIndex ~/ 2) * (itemHeight + 8);
+
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        max(0.0, targetPosition - 50),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<TabBloc, TabState>(
       builder: (context, tabState) {
+        final filteredTabs = tabState.filteredTabs;
+        final isIncognitoMode = tabState.isIncognitoMode;
+
         return Container(
           height: MediaQuery.of(context).size.height * 0.75,
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: isIncognitoMode ? Colors.grey[900] : Colors.grey[100],
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
           child: Column(
             children: [
               // Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${tabState.tabs.length} Tabs',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        context.read<TabBloc>().add(AddTabEvent());
-                        widget.onAddTab(); // Đóng sheet sau khi tạo tab mới
-                      },
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.add, size: 20, color: Colors.grey[700]),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildHeader(tabState, filteredTabs.length),
               // Tabs grid
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(8),
-                  child: GridView.builder(
-                    controller: _scrollController,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 0.75,
-                    ),
-                    itemCount: tabState.tabs.length,
-                    itemBuilder: (context, index) {
-                      final tab = tabState.tabs[index];
-                      final isActive = tab.id == tabState.activeTab?.id;
+                  child: filteredTabs.isEmpty
+                      ? _buildEmptyState(isIncognitoMode)
+                      : GridView.builder(
+                          controller: _scrollController,
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 0.75,
+                          ),
+                          itemCount: filteredTabs.length,
+                          itemBuilder: (context, index) {
+                            final tab = filteredTabs[index];
+                            final isActive = tab.id == tabState.activeTab?.id;
 
-                      // Wrap with RepaintBoundary to isolate repaints
-                      return RepaintBoundary(
-                        child: _TabCard(
-                          key: ValueKey(tab.id),
-                          tab: tab,
-                          isActive: isActive,
-                          onTap: () => widget.onSelectTab(tab.id),
-                          onClose: () => widget.onCloseTab(tab.id),
-                          canClose: tabState.tabs.isNotEmpty,
+                            return RepaintBoundary(
+                              child: _TabCard(
+                                key: ValueKey(tab.id),
+                                tab: tab,
+                                isActive: isActive,
+                                onTap: () => widget.onSelectTab(tab.id),
+                                onClose: () => widget.onCloseTab(tab.id),
+                                canClose: filteredTabs.isNotEmpty,
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
               ),
             ],
@@ -143,9 +115,149 @@ class _TabsSheetState extends State<TabsSheet> {
       },
     );
   }
+
+  Widget _buildHeader(TabState tabState, int tabCount) {
+    final isIncognitoMode = tabState.isIncognitoMode;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isIncognitoMode ? Colors.grey[850] : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Title
+          Row(
+            children: [
+              if (isIncognitoMode) ...[
+                Image.asset(
+                  'assets/logo/Incognito.png',
+                  width: 18,
+                  height: 18,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                isIncognitoMode ? 'Incognito Tabs' : 'Tabs',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isIncognitoMode ? Colors.grey[300] : Colors.grey[700],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isIncognitoMode ? Colors.grey[700] : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$tabCount',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isIncognitoMode ? Colors.grey[300] : Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Action buttons
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Toggle incognito mode button
+              GestureDetector(
+                onTap: () {
+                  context.read<TabBloc>().add(ToggleIncognitoModeEvent());
+                  // Scroll to active tab after mode change
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    _scrollToActiveTab();
+                  });
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: isIncognitoMode ? Colors.grey[700] : Colors.grey[800],
+                    shape: BoxShape.circle,
+                  ),
+                  child: isIncognitoMode
+                      ? Icon(Icons.public, size: 18, color: Colors.grey[300])
+                      : Image.asset(
+                          'assets/logo/Incognito.png',
+                          width: 18,
+                          height: 18,
+                          color: Colors.white,
+                        ),
+                ),
+              ),
+              // Add tab button
+              GestureDetector(
+                onTap: () {
+                  context.read<TabBloc>().add(AddTabEvent());
+                  widget.onAddTab();
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isIncognitoMode ? Colors.grey[700] : Colors.grey[300],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    size: 20,
+                    color: isIncognitoMode ? Colors.grey[300] : Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isIncognitoMode) {
+    return Container(
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isIncognitoMode ? Icons.lock_outline : Icons.tab_outlined,
+            size: 48,
+            color: isIncognitoMode ? Colors.grey[600] : Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            isIncognitoMode ? 'No incognito tabs' : 'No tabs open',
+            style: TextStyle(
+              fontSize: 14,
+              color: isIncognitoMode ? Colors.grey[500] : Colors.grey[500],
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            isIncognitoMode ? 'Tap + to create an incognito tab' : 'Tap + to open a new tab',
+            style: TextStyle(
+              fontSize: 12,
+              color: isIncognitoMode ? Colors.grey[600] : Colors.grey[400],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// Separate const widget for tab card to optimize rebuilds
+// Tab card widget
 class _TabCard extends StatelessWidget {
   final dynamic tab;
   final bool isActive;
@@ -164,11 +276,13 @@ class _TabCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isIncognito = tab.isIncognito ?? false;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isIncognito ? Colors.grey[800] : Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -178,7 +292,10 @@ class _TabCard extends StatelessWidget {
             ),
           ],
           border: isActive
-              ? Border.all(color: Colors.blue, width: 2)
+              ? Border.all(
+                  color: isIncognito ? Colors.grey[600]! : Colors.blue,
+                  width: 2,
+                )
               : null,
         ),
         child: Stack(
@@ -196,14 +313,16 @@ class _TabCard extends StatelessWidget {
                         child: Container(
                           width: double.infinity,
                           height: double.infinity,
-                          color: Colors.grey[100],
+                          color: isIncognito ? Colors.grey[700] : Colors.grey[100],
                           child: tab.thumbnail != null
                               ? Image.memory(
                                   tab.thumbnail!,
                                   fit: BoxFit.cover,
-                                  gaplessPlayback: true, // Prevent flicker
+                                  gaplessPlayback: true,
+                                  colorBlendMode: isIncognito ? BlendMode.modulate : null,
+                                  color: isIncognito ? Colors.grey[400]?.withOpacity(0.3) : null,
                                 )
-                              : _buildEmptyThumbnail(),
+                              : _buildEmptyThumbnail(isIncognito),
                         ),
                       ),
                       if (isActive)
@@ -213,7 +332,7 @@ class _TabCard extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.blue,
+                              color: isIncognito ? Colors.grey[600] : Colors.blue,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -242,10 +361,10 @@ class _TabCard extends StatelessWidget {
                           tab.title.isNotEmpty ? tab.title : 'New Tab',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: isIncognito ? Colors.white : Colors.black87,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -255,7 +374,7 @@ class _TabCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.grey[600],
+                            color: isIncognito ? Colors.grey[400] : Colors.grey[600],
                           ),
                         ),
                       ],
@@ -274,7 +393,9 @@ class _TabCard extends StatelessWidget {
                     width: 22,
                     height: 22,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: isIncognito
+                          ? Colors.grey[600]?.withOpacity(0.9)
+                          : Colors.white.withOpacity(0.9),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -284,7 +405,11 @@ class _TabCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(Icons.close, size: 14, color: Colors.grey[700]),
+                    child: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: isIncognito ? Colors.white : Colors.grey[700],
+                    ),
                   ),
                 ),
               ),
@@ -294,7 +419,7 @@ class _TabCard extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyThumbnail() {
+  Widget _buildEmptyThumbnail(bool isIncognito) {
     final color = _getColorFromUrl(tab.url);
 
     String firstLetter = 'N';
@@ -312,10 +437,15 @@ class _TabCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.8),
-            color.withOpacity(0.6),
-          ],
+          colors: isIncognito
+              ? [
+                  Colors.grey[700]!.withOpacity(0.8),
+                  Colors.grey[800]!.withOpacity(0.6),
+                ]
+              : [
+                  color.withOpacity(0.8),
+                  color.withOpacity(0.6),
+                ],
         ),
       ),
       child: Center(
@@ -325,15 +455,15 @@ class _TabCard extends StatelessWidget {
             Icon(
               tab.url.isEmpty ? Icons.add_circle_outline : Icons.web,
               size: 36,
-              color: Colors.white.withOpacity(0.9),
+              color: isIncognito ? Colors.grey[400] : Colors.white.withOpacity(0.9),
             ),
             const SizedBox(height: 8),
             Text(
               tab.url.isEmpty ? 'New Tab' : firstLetter,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isIncognito ? Colors.grey[400] : Colors.white,
               ),
             ),
           ],

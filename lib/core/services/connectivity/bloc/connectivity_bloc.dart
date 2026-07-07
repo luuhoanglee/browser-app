@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 import 'package:browser_app/core/services/connectivity/bloc/connectivity_event.dart';
 import 'package:browser_app/core/services/connectivity/bloc/connectivity_state.dart';
 
@@ -16,7 +16,7 @@ class ConnectivityBloc extends Bloc<ConnectivityEvent, ConnectivityState> {
       orElse: () => false,
     );
 
-    Logger.show('isDisconnect: $isDisconnect');
+    AppLogger.debug('ConnectivityBloc', 'isDisconnect: $isDisconnect');
 
     emit(Loaded(isDisconnect));
   }

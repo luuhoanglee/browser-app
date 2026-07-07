@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../../data/repositories/tab_repository_impl.dart';
@@ -10,7 +11,8 @@ import '../../../data/services/storage_service.dart';
 import '../../../features/tabs/bloc/tab_bloc.dart';
 import '../../../features/tabs/bloc/tab_event.dart';
 import '../../../features/tabs/bloc/tab_state.dart';
-import 'models/quick_access_item.dart';
+import '../../../features/quick_access/bloc/quick_access_bloc.dart';
+import '../../../features/quick_access/bloc/quick_access_event.dart';
 import 'widgets/mini_url_bar.dart';
 import 'widgets/bottom_bar.dart';
 import 'widgets/history_sheet.dart';
@@ -36,6 +38,10 @@ class HomePage extends StatelessWidget {
         BlocProvider(create: (context) => TabBloc(TabRepositoryImpl())),
         BlocProvider(create: (context) => SearchBloc()),
         BlocProvider(create: (context) => DownloadBloc()),
+        BlocProvider(
+          create: (context) =>
+              QuickAccessBloc()..add(const QuickAccessLoadEvent()),
+        ),
       ],
       child: HomeViewWrapper(initialUrl: initialUrl),
     );
@@ -56,10 +62,7 @@ class HomeViewWrapperState extends State<HomeViewWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return HomeView(
-      key: _homeViewKey,
-      initialUrl: widget.initialUrl,
-    );
+    return HomeView(key: _homeViewKey, initialUrl: widget.initialUrl);
   }
 
   // Method để load deep link từ bên ngoài
@@ -76,9 +79,11 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin {
+class _HomeViewState extends State<HomeView>
+    with AutomaticKeepAliveClientMixin {
   final Map<String, InAppWebViewController> _controllers = {};
   final Map<String, GlobalKey> _emptyPageKeys = {};
+  final Map<String, Color> _tabThemeColors = {};
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearching = false;
@@ -95,58 +100,6 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
   @override
   bool get wantKeepAlive => true; // Keep WebView alive when switching tabs
-
-  // Quick Access Items
-  static const List<QuickAccessItem> _quickAccessItems = [
-    QuickAccessItem(
-      title: 'Google',
-      url: 'google.com',
-      icon: Icons.search,
-      color: Colors.blue,
-    ),
-    QuickAccessItem(
-      title: 'YouTube',
-      url: 'youtube.com',
-      icon: Icons.play_circle_filled,
-      color: Colors.red,
-    ),
-    QuickAccessItem(
-      title: 'Facebook',
-      url: 'facebook.com',
-      icon: Icons.facebook,
-      color: Colors.blue,
-    ),
-    QuickAccessItem(
-      title: 'GitHub',
-      url: 'github.com',
-      icon: Icons.code,
-      color: Colors.grey,
-    ),
-    QuickAccessItem(
-      title: 'Twitter',
-      url: 'twitter.com',
-      icon: Icons.alternate_email,
-      color: Colors.lightBlue,
-    ),
-    QuickAccessItem(
-      title: 'Reddit',
-      url: 'reddit.com',
-      icon: Icons.forum,
-      color: Colors.orange,
-    ),
-    QuickAccessItem(
-      title: 'Wikipedia',
-      url: 'wikipedia.org',
-      icon: Icons.menu_book,
-      color: Colors.grey,
-    ),
-    QuickAccessItem(
-      title: 'Amazon',
-      url: 'amazon.com',
-      icon: Icons.shopping_cart,
-      color: Colors.orange,
-    ),
-  ];
 
   InAppWebViewController? _getController(String? tabId) {
     if (tabId == null) return null;
@@ -169,6 +122,16 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     super.initState();
     _loadHistory();
     _initPullToRefresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final tab = context.read<TabBloc>().state.activeTab;
+      if (tab == null) return;
+      final isEmptyTab = tab.url.isEmpty;
+      _updateStatusBar(
+        themeColor: isEmptyTab ? null : _tabThemeColors[tab.id],
+        isIncognito: tab.isIncognito,
+      );
+    });
     // Handle deep link if exists
     if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
       // Delay a bit for TabBloc to finish initializing
@@ -180,11 +143,11 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
   void _initPullToRefresh() {
     _pullToRefreshController = PullToRefreshController(
-      settings: PullToRefreshSettings(
-        color: Colors.blue,
-      ),
+      settings: PullToRefreshSettings(color: Colors.blue),
       onRefresh: () async {
-        final controller = _getController(context.read<TabBloc>().state.activeTab?.id);
+        final controller = _getController(
+          context.read<TabBloc>().state.activeTab?.id,
+        );
         if (controller != null) {
           await controller.reload();
         }
@@ -224,6 +187,12 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
   }
 
   Future<void> _addToHistory(String url) async {
+    final bloc = context.read<TabBloc>();
+    final tab = bloc.state.activeTab;
+    if (tab != null && tab.isIncognito) {
+      return;
+    }
+
     _history.remove(url);
     _history.insert(0, url);
     if (_history.length > 100) {
@@ -258,7 +227,11 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     return currentIndex < history.length - 1;
   }
 
-  void _handleNavigation(BuildContext context, String tabId, bool isForward) async {
+  void _handleNavigation(
+    BuildContext context,
+    String tabId,
+    bool isForward,
+  ) async {
     final controller = _getController(tabId);
     final bloc = context.read<TabBloc>();
     final activeTab = bloc.state.activeTab;
@@ -337,8 +310,16 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
           if (screenshot != null && mounted) {
             final bloc = context.read<TabBloc>();
-            final tab = bloc.state.tabs.firstWhere((t) => t.id == tabId, orElse: () => bloc.state.activeTab!);
-            bloc.add(UpdateTabEvent(tab.copyWith(thumbnail: screenshot), skipCache: true));
+            final tab = bloc.state.tabs.firstWhere(
+              (t) => t.id == tabId,
+              orElse: () => bloc.state.activeTab!,
+            );
+            bloc.add(
+              UpdateTabEvent(
+                tab.copyWith(thumbnail: screenshot),
+                skipCache: true,
+              ),
+            );
           }
         });
         return;
@@ -365,15 +346,25 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         try {
           // Tăng pixelRatio để ảnh sắc nét hơn
           ui.Image image = await boundary.toImage(pixelRatio: 1.0);
-          ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+          ByteData? byteData = await image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
           if (byteData == null) return;
 
           Uint8List pngBytes = byteData.buffer.asUint8List();
 
           if (mounted) {
             final bloc = context.read<TabBloc>();
-            final tab = bloc.state.tabs.firstWhere((t) => t.id == tabId, orElse: () => bloc.state.activeTab!);
-            bloc.add(UpdateTabEvent(tab.copyWith(thumbnail: pngBytes), skipCache: true));
+            final tab = bloc.state.tabs.firstWhere(
+              (t) => t.id == tabId,
+              orElse: () => bloc.state.activeTab!,
+            );
+            bloc.add(
+              UpdateTabEvent(
+                tab.copyWith(thumbnail: pngBytes),
+                skipCache: true,
+              ),
+            );
           }
         } catch (e) {
           // Silent fail
@@ -386,7 +377,9 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
   void _performSearch(dynamic activeTab) {
     final query = _searchController.text.trim();
-    print('🔍 _performSearch: query="$query", activeTab.url="${activeTab.url}"');
+    print(
+      '🔍 _performSearch: query="$query", activeTab.url="${activeTab.url}"',
+    );
 
     if (query.isNotEmpty) {
       final url = _formatUrl(query);
@@ -419,7 +412,8 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
     _scrollDebounce?.cancel();
     _scrollDebounce = Timer(const Duration(milliseconds: 100), () {
-      final shouldHide = scrollY > _lastScrollY && scrollY > 100 && _isToolbarVisible;
+      final shouldHide =
+          scrollY > _lastScrollY && scrollY > 100 && _isToolbarVisible;
       final shouldShow = scrollY < _lastScrollY && !_isToolbarVisible;
 
       if (shouldHide || shouldShow) {
@@ -438,36 +432,188 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     });
   }
 
+  // ── Status bar ──────────────────────────────────────────────────────────────
+
+  void _updateStatusBar({Color? themeColor, required bool isIncognito}) {
+    print('_updateStatusBar: $themeColor');
+    final SystemUiOverlayStyle style;
+    if (isIncognito) {
+      style = const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false,
+      );
+    } else if (themeColor != null) {
+      final isDark = themeColor.computeLuminance() < 0.179;
+      style = SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      );
+    } else {
+      style = const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      );
+    }
+    SystemChrome.setSystemUIOverlayStyle(style);
+  }
+
+  Future<void> _syncSystemUiFromWebPage({
+    required InAppWebViewController controller,
+    required String tabId,
+    required bool isIncognito,
+  }) async {
+    print('_syncSystemUiFromWebPage');
+    if (isIncognito) {
+      _tabThemeColors.remove(tabId);
+      _updateStatusBar(themeColor: null, isIncognito: true);
+      return;
+    }
+
+    try {
+      final jsResult = await controller.evaluateJavascript(
+        source: '''
+        (function() {
+          function pickColor(el) {
+            if (!el) return '';
+            var bg = window.getComputedStyle(el).backgroundColor || '';
+            if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return '';
+            return bg;
+          }
+          return pickColor(document.body) || pickColor(document.documentElement) || '';
+        })();
+      ''',
+      );
+
+      String cssColor = '';
+      if (jsResult is String) {
+        cssColor = jsResult;
+      } else if (jsResult != null) {
+        cssColor = jsResult.toString();
+      }
+
+      final color = _parseCssColor(cssColor);
+      if (color != null) {
+        _tabThemeColors[tabId] = color;
+      } else {
+        _tabThemeColors.remove(tabId);
+      }
+
+      _updateStatusBar(
+        themeColor: _tabThemeColors[tabId],
+        isIncognito: isIncognito,
+      );
+    } catch (_) {
+      _updateStatusBar(
+        themeColor: _tabThemeColors[tabId],
+        isIncognito: isIncognito,
+      );
+    }
+  }
+
+  Color? _parseCssColor(String css) {
+    css = css.trim();
+    if (css.startsWith('"') && css.endsWith('"') && css.length >= 2) {
+      css = css.substring(1, css.length - 1);
+    }
+    if (css.startsWith('#')) {
+      final hex = css.substring(1);
+      if (hex.length == 3) {
+        final r = int.parse('${hex[0]}${hex[0]}', radix: 16);
+        final g = int.parse('${hex[1]}${hex[1]}', radix: 16);
+        final b = int.parse('${hex[2]}${hex[2]}', radix: 16);
+        return Color.fromARGB(255, r, g, b);
+      } else if (hex.length == 6) {
+        final v = int.tryParse(hex, radix: 16);
+        if (v != null) return Color(0xFF000000 | v);
+      }
+    }
+    final rgb = RegExp(r'rgb\((\d+),\s*(\d+),\s*(\d+)\)').firstMatch(css);
+    if (rgb != null) {
+      return Color.fromARGB(
+        255,
+        int.parse(rgb.group(1)!),
+        int.parse(rgb.group(2)!),
+        int.parse(rgb.group(3)!),
+      );
+    }
+    final rgba = RegExp(
+      r'rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9]*\.?[0-9]+)\)',
+    ).firstMatch(css);
+    if (rgba != null) {
+      final alpha = double.tryParse(rgba.group(4)!) ?? 1.0;
+      if (alpha <= 0) return null;
+      return Color.fromARGB(
+        (alpha * 255).round().clamp(0, 255),
+        int.parse(rgba.group(1)!),
+        int.parse(rgba.group(2)!),
+        int.parse(rgba.group(3)!),
+      );
+    }
+    return null;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return BlocBuilder<TabBloc, TabState>(
-      buildWhen: (previous, current) {
-        final prevTab = previous.activeTab;
-        final currTab = current.activeTab;
-
-        if (prevTab?.id != currTab?.id) return true; 
-        if (previous.tabs.length != current.tabs.length) return true; 
-        final prevUrlEmpty = prevTab?.url.isEmpty ?? true;
-        final currUrlEmpty = currTab?.url.isEmpty ?? true;
-        if (prevUrlEmpty != currUrlEmpty) return true;
-        return false;
+    return BlocListener<TabBloc, TabState>(
+      listenWhen: (prev, curr) =>
+          prev.activeTab?.id != curr.activeTab?.id ||
+          prev.isIncognitoMode != curr.isIncognitoMode ||
+          (prev.activeTab?.url.isEmpty ?? true) !=
+              (curr.activeTab?.url.isEmpty ?? true),
+      listener: (context, state) {
+        final tab = state.activeTab;
+        if (tab == null) return;
+        // Khi đổi tab hoặc về empty page → reset status bar style
+        final isEmptyTab = tab.url.isEmpty;
+        _updateStatusBar(
+          themeColor: isEmptyTab ? null : _tabThemeColors[tab.id],
+          isIncognito: tab.isIncognito,
+        );
       },
-      builder: (context, tabState) {
-        final activeTab = tabState.activeTab;
-        if (activeTab == null) {
-          return const Scaffold(
-            body: SizedBox.shrink(),
-          );
-        }
+      child: BlocBuilder<TabBloc, TabState>(
+        buildWhen: (previous, current) {
+          final prevTab = previous.activeTab;
+          final currTab = current.activeTab;
 
-        return Scaffold(
-          backgroundColor: Colors.white,
-          body: SafeArea(
-            bottom: false,
-            child: Column(
+          if (prevTab?.id != currTab?.id) return true;
+          if (previous.tabs.length != current.tabs.length) return true;
+          final prevUrlEmpty = prevTab?.url.isEmpty ?? true;
+          final currUrlEmpty = currTab?.url.isEmpty ?? true;
+          if (prevUrlEmpty != currUrlEmpty) return true;
+          return false;
+        },
+        builder: (context, tabState) {
+          final activeTab = tabState.activeTab;
+          if (activeTab == null) {
+            return const Scaffold(body: SizedBox.shrink());
+          }
+
+          final isIncognito = activeTab.isIncognito ?? false;
+
+          return Scaffold(
+            // Scaffold trong suốt để content vẽ dưới system bars
+            backgroundColor: isIncognito
+                ? const Color(0xFF1A1A2E)
+                : Colors.white,
+            body: Column(
               children: [
-                // Page content (WebView/EmptyPage)
+                // Page content — full screen, không SafeArea ở đây
+                // EmptyPage tự xử lý SafeArea bên trong
                 Expanded(
                   child: _PageContentWrapper(
                     activeTab: activeTab,
@@ -476,7 +622,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                     buildPageContent: _buildPageContent,
                   ),
                 ),
-                // Bottom bar - Address bar and navigation
+                // Bottom bar — bao gồm padding cho navigation bar
                 AnimatedSize(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
@@ -484,11 +630,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                       ? Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Progress bar - tách riêng để update độc lập
-                            _ProgressBarWrapper(
-                              activeTabId: activeTab.id,
-                            ),
-                            // Bottom bar
+                            _ProgressBarWrapper(activeTabId: activeTab.id),
                             RepaintBoundary(
                               child: _BottomBarWrapper(
                                 activeTabId: activeTab.id,
@@ -496,7 +638,8 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                                 onShowTabs: () => _showTabsSheet(context),
                                 onAddressBarTap: () => _showSearchPage(context),
                                 onShowHistory: () => _showHistorySheet(context),
-                                onShowDownload: () => _showDownloadSheet(context),
+                                onShowDownload: () =>
+                                    _showDownloadSheet(context),
                                 onShowMedia: () => _showMediaSheet(context),
                                 isSearching: _isSearching,
                                 isMediaSheetOpen: _isMediaSheetOpen,
@@ -504,18 +647,28 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                                 searchFocusNode: _searchFocusNode,
                                 onSearch: (query) {
                                   _searchController.text = query;
-                                  // Lưu vào search history
-                                  context.read<SearchBloc>().add(PerformSearchEvent(query));
+                                  context.read<SearchBloc>().add(
+                                    PerformSearchEvent(query),
+                                  );
                                   final bloc = context.read<TabBloc>();
                                   final currentTab = bloc.state.activeTab;
                                   if (currentTab != null) {
                                     _performSearch(currentTab);
                                   }
                                 },
-                                onBack: () => _handleNavigation(context, activeTab.id, false),
-                                onForward: () => _handleNavigation(context, activeTab.id, true),
+                                onBack: () => _handleNavigation(
+                                  context,
+                                  activeTab.id,
+                                  false,
+                                ),
+                                onForward: () => _handleNavigation(
+                                  context,
+                                  activeTab.id,
+                                  true,
+                                ),
                                 canGoBack: () => _canNavigateBack(activeTab.id),
-                                canGoForward: () => _canNavigateForward(activeTab.id),
+                                canGoForward: () =>
+                                    _canNavigateForward(activeTab.id),
                               ),
                             ),
                           ],
@@ -528,153 +681,229 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                 ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildPageContent(BuildContext context, dynamic activeTab, TabState tabState) {
-    if (activeTab.url.isEmpty) {
-      return RepaintBoundary(
-        key: _getEmptyPageKey(activeTab.id),
-        child: EmptyPage(
-          key: ValueKey('empty_${activeTab.id}'),
-          activeTab: activeTab,
-          quickAccessItems: _quickAccessItems,
-          onQuickAccessTap: (item) {
-            _resetScrollState();
-            final url = _formatUrl(item.url);
+  Widget _buildPageContent(
+    BuildContext context,
+    dynamic activeTab,
+    TabState tabState,
+  ) {
+    return Stack(
+      children: tabState.tabs.map((tab) {
+        final isActive = tab.id == activeTab.id;
 
-            // Add to navigation history
-            _addToNavHistory(activeTab.id, url);
+        if (tab.url.isEmpty) {
+          return Offstage(
+            offstage: !isActive,
+            child: RepaintBoundary(
+              key: ValueKey('empty_boundary_${tab.id}'),
+              child: EmptyPage(
+                key: ValueKey('empty_${tab.id}'),
+                activeTab: tab,
+                onSearchBarTap: () => _showSearchPage(context),
+                onQuickAccessTap: (url) {
+                  _resetScrollState();
+                  final formatted = _formatUrl(url);
+                  _addToNavHistory(tab.id, formatted);
+                  final bloc = context.read<TabBloc>();
+                  bloc.add(UpdateTabEvent(tab.copyWith(url: formatted)));
+                  final controller = _getController(tab.id);
+                  if (controller != null) {
+                    controller.loadUrl(
+                      urlRequest: URLRequest(url: WebUri(formatted)),
+                    );
+                  }
+                },
+              ),
+            ),
+          );
+        }
 
-            final bloc = context.read<TabBloc>();
-            bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
-
-            final controller = _getController(activeTab.id);
-            if (controller != null) {
-              controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
-            }
-          },
-        ),
-      );
-    }
-
-    return RepaintBoundary(
-      key: ValueKey('webview_${activeTab.id}'), // Add key for proper widget identity
-      child: WebViewPage(
-        activeTab: activeTab,
-        controller: _getController(activeTab.id),
-        pullToRefreshController: _pullToRefreshController,
-        onWebViewCreated: (controller) => _setController(activeTab.id, controller),
-        onUpdateVisitedHistory: (controller, url, isReload) {
-          final bloc = context.read<TabBloc>();
-          final tab = bloc.state.activeTab;
-          if (tab != null) {
-            final urlStr = url?.toString() ?? '';
-            if (urlStr.isNotEmpty && !urlStr.startsWith('intent://') && !_isExternalUrl(urlStr)) {
-              if (tab.url != urlStr) {
-                print('[onUpdateVisitedHistory] URL changed: $urlStr');
-                bloc.add(UpdateTabEvent(tab.copyWith(url: urlStr), skipCache: true));
-              }
-            }
-          }
-        },
-        onUrlUpdated: (newUrl) {
-          final bloc = context.read<TabBloc>();
-          final tab = bloc.state.activeTab;
-          if (tab != null && newUrl.isNotEmpty) {
-            bloc.add(UpdateTabEvent(tab.copyWith(url: newUrl), skipCache: false));
-          }
-        },
-        onLoadStart: (controller, url) {
-          _resetScrollState();
-          final bloc = context.read<TabBloc>();
-          final tab = bloc.state.activeTab;
-          if (tab != null) {
-            final urlStr = url?.toString() ?? '';
-            if (!urlStr.startsWith('intent://') && !_isExternalUrl(urlStr)) {
-              if (tab.url != urlStr) {
-                bloc.add(UpdateTabEvent(tab.copyWith(url: urlStr), skipCache: true));
-              }
-            }
-          }
-        },
-        onLoadStop: (controller, url) async {
-          final bloc = context.read<TabBloc>();
-          final tab = bloc.state.activeTab;
-          if (tab != null) {
-            final urlStr = url?.toString() ?? '';
-            if (url != null && urlStr.isNotEmpty && !urlStr.startsWith('intent://') && !_isExternalUrl(urlStr)) {
-              final title = await controller.getTitle();
-              if (title != null && title.isNotEmpty && tab.title == 'New Tab') {
-                bloc.add(UpdateTabEvent(
-                  tab.copyWith(title: title),
-                  skipCache: true,
-                ));
-              } else if (tab.title == 'New Tab' || tab.title.isEmpty) {
-                final uri = Uri.tryParse(urlStr);
-                final fallbackTitle = uri?.host ?? _formatUrlTitle(urlStr);
-                if (fallbackTitle.isNotEmpty) {
-                  bloc.add(UpdateTabEvent(
-                    tab.copyWith(title: fallbackTitle),
-                    skipCache: true,
-                  ));
+        return Offstage(
+          offstage: !isActive,
+          child: WebViewPage(
+            key: ValueKey('webview_${tab.id}'),
+            activeTab: tab,
+            controller: _getController(tab.id),
+            pullToRefreshController: _pullToRefreshController,
+            onWebViewCreated: (controller) =>
+                _setController(tab.id, controller),
+            onUpdateVisitedHistory: (controller, url, isReload) {
+              final bloc = context.read<TabBloc>();
+              final currentTab = bloc.state.tabs.firstWhere(
+                (t) => t.id == tab.id,
+                orElse: () => tab,
+              );
+              if (currentTab != null) {
+                final urlStr = url?.toString() ?? '';
+                if (urlStr.isNotEmpty &&
+                    !urlStr.startsWith('intent://') &&
+                    !_isExternalUrl(urlStr)) {
+                  if (currentTab.url != urlStr) {
+                    bloc.add(
+                      UpdateTabEvent(
+                        currentTab.copyWith(url: urlStr),
+                        skipCache: true,
+                      ),
+                    );
+                  }
                 }
               }
+            },
+            onUrlUpdated: (newUrl) {
+              final bloc = context.read<TabBloc>();
+              final currentTab = bloc.state.tabs.firstWhere(
+                (t) => t.id == tab.id,
+                orElse: () => tab,
+              );
+              if (currentTab != null && newUrl.isNotEmpty) {
+                bloc.add(
+                  UpdateTabEvent(
+                    currentTab.copyWith(url: newUrl),
+                    skipCache: false,
+                  ),
+                );
+              }
+            },
+            onLoadStart: (controller, url) {
+              _resetScrollState();
+              final bloc = context.read<TabBloc>();
+              final currentTab = bloc.state.tabs.firstWhere(
+                (t) => t.id == tab.id,
+                orElse: () => tab,
+              );
+              if (currentTab != null) {
+                final urlStr = url?.toString() ?? '';
+                if (!urlStr.startsWith('intent://') &&
+                    !_isExternalUrl(urlStr)) {
+                  if (currentTab.url != urlStr) {
+                    bloc.add(
+                      UpdateTabEvent(
+                        currentTab.copyWith(url: urlStr),
+                        skipCache: true,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            onLoadStop: (controller, url) async {
+              final bloc = context.read<TabBloc>();
+              final currentTab = bloc.state.tabs.firstWhere(
+                (t) => t.id == tab.id,
+                orElse: () => tab,
+              );
+              if (currentTab != null) {
+                final urlStr = url?.toString() ?? '';
+                if (url != null &&
+                    urlStr.isNotEmpty &&
+                    !urlStr.startsWith('intent://') &&
+                    !_isExternalUrl(urlStr)) {
+                  if (tab.url.isNotEmpty && isActive) {
+                    await _syncSystemUiFromWebPage(
+                      controller: controller,
+                      tabId: tab.id,
+                      isIncognito: currentTab.isIncognito,
+                    );
+                  }
+                  final title = await controller.getTitle();
+                  if (title != null &&
+                      title.isNotEmpty &&
+                      currentTab.title == 'New Tab') {
+                    bloc.add(
+                      UpdateTabEvent(
+                        currentTab.copyWith(title: title),
+                        skipCache: true,
+                      ),
+                    );
+                  } else if (currentTab.title == 'New Tab' ||
+                      currentTab.title.isEmpty) {
+                    final uri = Uri.tryParse(urlStr);
+                    final fallbackTitle = uri?.host ?? _formatUrlTitle(urlStr);
+                    if (fallbackTitle.isNotEmpty) {
+                      bloc.add(
+                        UpdateTabEvent(
+                          currentTab.copyWith(title: fallbackTitle),
+                          skipCache: true,
+                        ),
+                      );
+                    }
+                  }
 
-              Future.delayed(const Duration(milliseconds: 500), () {
-                _captureThumbnail(activeTab.id);
-                _addToHistory(urlStr);
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    _captureThumbnail(tab.id);
+                    _addToHistory(urlStr);
+                  });
+                }
+              }
+            },
+            onTitleChanged: (controller, title) {
+              final bloc = context.read<TabBloc>();
+              final currentTab = bloc.state.tabs.firstWhere(
+                (t) => t.id == tab.id,
+                orElse: () => tab,
+              );
+              if (currentTab != null &&
+                  title != null &&
+                  title.isNotEmpty &&
+                  currentTab.title != title) {
+                bloc.add(
+                  UpdateTabEvent(
+                    currentTab.copyWith(title: title),
+                    skipCache: true,
+                  ),
+                );
+              }
+            },
+            onProgressChanged: (controller, progress) {
+              // Tăng threshold để giảm số lần update - chỉ update khi thay đổi 20%+
+              final shouldUpdate =
+                  (progress - _lastProgress).abs() >= 20 ||
+                  progress == 100 ||
+                  (progress == 0 && _lastProgress != 0);
+
+              if (!shouldUpdate) return;
+
+              _lastProgress = progress;
+
+              _progressDebounce?.cancel();
+              _progressDebounce = Timer(const Duration(milliseconds: 100), () {
+                if (!mounted) return;
+
+                final bloc = context.read<TabBloc>();
+                final currentTab = bloc.state.tabs.firstWhere(
+                  (t) => t.id == tab.id,
+                  orElse: () => tab,
+                );
+                if (currentTab != null) {
+                  bloc.add(
+                    UpdateTabEvent(
+                      currentTab.copyWith(
+                        loadProgress: progress,
+                        isLoading: progress < 100,
+                      ),
+                      skipCache: true,
+                    ),
+                  );
+                }
               });
-            }
-          }
-        },
-        onTitleChanged: (controller, title) {
-          final bloc = context.read<TabBloc>();
-          final tab = bloc.state.activeTab;
-          if (tab != null && title != null && title.isNotEmpty && tab.title != title) {
-            bloc.add(UpdateTabEvent(
-              tab.copyWith(title: title),
-              skipCache: true,
-            ));
-          }
-        },
-        onProgressChanged: (controller, progress) {
-          // Tăng threshold để giảm số lần update - chỉ update khi thay đổi 20%+
-          final shouldUpdate = (progress - _lastProgress).abs() >= 20 ||
-              progress == 100 ||
-              (progress == 0 && _lastProgress != 0);
-
-          if (!shouldUpdate) return;
-
-          _lastProgress = progress;
-
-          _progressDebounce?.cancel();
-          _progressDebounce = Timer(const Duration(milliseconds: 100), () {
-            if (!mounted) return;
-
-            final bloc = context.read<TabBloc>();
-            final tab = bloc.state.activeTab;
-            if (tab != null) {
-              bloc.add(UpdateTabEvent(
-                tab.copyWith(loadProgress: progress, isLoading: progress < 100),
-                skipCache: true,
-              ));
-            }
-          });
-        },
-        onScrollChanged: (y) {
-          _handleScrollChange(y);
-        },
-        onSwipeBack: () {
-          _handleNavigation(context, activeTab.id, false);
-        },
-        onSwipeForward: () {
-          _handleNavigation(context, activeTab.id, true);
-        },
-      ),
+            },
+            onScrollChanged: (y) {
+              _handleScrollChange(y);
+            },
+            onSwipeBack: () {
+              _handleNavigation(context, tab.id, false);
+            },
+            onSwipeForward: () {
+              _handleNavigation(context, tab.id, true);
+            },
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -702,8 +931,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
           onCloseTab: (tabId) {
             context.read<TabBloc>().add(RemoveTabEvent(tabId));
             final controller = _controllers.remove(tabId);
-            if (controller != null) {
-            }
+            if (controller != null) {}
             // Clear search khi đóng tab
             if (_isSearching) {
               _searchController.clear();
@@ -722,14 +950,16 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
             bloc.add(SelectTabEvent(tabId));
 
-            final selectedTab = bloc.state.tabs.firstWhere((t) => t.id == tabId);
+            final selectedTab = bloc.state.tabs.firstWhere(
+              (t) => t.id == tabId,
+            );
             if (selectedTab.thumbnail == null) {
               Future.delayed(const Duration(milliseconds: 100), () {
                 _captureThumbnail(tabId);
               });
             }
 
-            Navigator.pop(sheetContext);            
+            Navigator.pop(sheetContext);
           },
           onAddTab: () {
             Navigator.pop(sheetContext);
@@ -741,9 +971,7 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     });
   }
 
-  void _refreshWebViewForInteraction() {
-
-  }
+  void _refreshWebViewForInteraction() {}
 
   void _showHistorySheet(BuildContext context) {
     if (_isSearching) {
@@ -787,12 +1015,13 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     ).then((_) => _refreshWebViewForInteraction());
   }
 
-    void _showDownloadSheet(BuildContext context) {
+  void _showDownloadSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _buildDownloadSheet(sheetContext, context, 0.6),
+      builder: (sheetContext) =>
+          _buildDownloadSheet(sheetContext, context, 0.6),
     ).then((_) => _refreshWebViewForInteraction());
   }
 
@@ -801,18 +1030,24 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _buildDownloadSheet(sheetContext, context, 0.9),
+      builder: (sheetContext) =>
+          _buildDownloadSheet(sheetContext, context, 0.9),
     ).then((_) => _refreshWebViewForInteraction());
   }
 
-  Widget _buildDownloadSheet(BuildContext sheetContext, BuildContext parentContext, double heightFactor) {
+  Widget _buildDownloadSheet(
+    BuildContext sheetContext,
+    BuildContext parentContext,
+    double heightFactor,
+  ) {
     final isExpanded = heightFactor > 0.7;
     return BlocProvider.value(
       value: parentContext.read<DownloadBloc>(),
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onVerticalDragEnd: (details) {
-          if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
+          if (details.primaryVelocity != null &&
+              details.primaryVelocity!.abs() > 300) {
             Navigator.pop(sheetContext);
             if (details.primaryVelocity! < 0 && !isExpanded) {
               _showDownloadSheetExpanded(parentContext);
@@ -821,7 +1056,8 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
                 context: parentContext,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (sheetContext) => _buildDownloadSheet(sheetContext, parentContext, 0.6),
+                builder: (sheetContext) =>
+                    _buildDownloadSheet(sheetContext, parentContext, 0.6),
               );
             }
           }
@@ -842,76 +1078,109 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
     );
   }
 
-    void _showMediaSheet(BuildContext context) {
-      final bloc = context.read<TabBloc>();
-      final activeTab = bloc.state.activeTab;
+  void _showMediaSheet(BuildContext context) {
+    final bloc = context.read<TabBloc>();
+    final activeTab = bloc.state.activeTab;
 
-      final controller = _getController(activeTab?.id);
+    final controller = _getController(activeTab?.id);
 
-      if (controller == null) {
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   const SnackBar(content: Text('No active tab')),
-        // );
-        return;
-      }
-
-      // Get loaded resources from active tab
-      final loadedResources = activeTab?.loadedResources ?? [];
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (sheetContext) => _buildMediaSheet(sheetContext, context, controller, loadedResources, 0.6),
-      ).then((_) => _refreshWebViewForInteraction());
+    if (controller == null) {
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text('No active tab')),
+      // );
+      return;
     }
 
-    void _showMediaSheetExpanded(BuildContext context, InAppWebViewController controller, List<LoadedResource> loadedResources) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (sheetContext) => _buildMediaSheet(sheetContext, context, controller, loadedResources, 0.9),
-      ).then((_) => _refreshWebViewForInteraction());
-    }
+    // Get loaded resources from active tab
+    final loadedResources = activeTab?.loadedResources ?? [];
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _buildMediaSheet(
+        sheetContext,
+        context,
+        controller,
+        loadedResources,
+        0.6,
+      ),
+    ).then((_) => _refreshWebViewForInteraction());
+  }
 
-    Widget _buildMediaSheet(BuildContext sheetContext, BuildContext parentContext, InAppWebViewController controller, List<LoadedResource> loadedResources, double heightFactor) {
-      final isExpanded = heightFactor > 0.7;
-      return BlocProvider.value(
-        value: parentContext.read<DownloadBloc>(),
-        child: Container(
-          height: MediaQuery.of(parentContext).size.height * heightFactor,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FF),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-          ),
-          child: Column(
-            children: [
-              // Drag handle
-              GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onVerticalDragEnd: (details) {
-                  if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 300) {
-                    Navigator.pop(sheetContext);
-                    if (details.primaryVelocity! < 0 && !isExpanded) {
-                      _showMediaSheetExpanded(parentContext, controller, loadedResources);
-                    } else if (details.primaryVelocity! > 0 && isExpanded) {
-                      showModalBottomSheet(
-                        context: parentContext,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (sheetContext) => _buildMediaSheet(sheetContext, parentContext, controller, loadedResources, 0.6),
-                      );
-                    }
+  void _showMediaSheetExpanded(
+    BuildContext context,
+    InAppWebViewController controller,
+    List<LoadedResource> loadedResources,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _buildMediaSheet(
+        sheetContext,
+        context,
+        controller,
+        loadedResources,
+        0.9,
+      ),
+    ).then((_) => _refreshWebViewForInteraction());
+  }
+
+  Widget _buildMediaSheet(
+    BuildContext sheetContext,
+    BuildContext parentContext,
+    InAppWebViewController controller,
+    List<LoadedResource> loadedResources,
+    double heightFactor,
+  ) {
+    final isExpanded = heightFactor > 0.7;
+    return BlocProvider.value(
+      value: parentContext.read<DownloadBloc>(),
+      child: Container(
+        height: MediaQuery.of(parentContext).size.height * heightFactor,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FF),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        child: Column(
+          children: [
+            // Drag handle
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity != null &&
+                    details.primaryVelocity!.abs() > 300) {
+                  Navigator.pop(sheetContext);
+                  if (details.primaryVelocity! < 0 && !isExpanded) {
+                    _showMediaSheetExpanded(
+                      parentContext,
+                      controller,
+                      loadedResources,
+                    );
+                  } else if (details.primaryVelocity! > 0 && isExpanded) {
+                    showModalBottomSheet(
+                      context: parentContext,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (sheetContext) => _buildMediaSheet(
+                        sheetContext,
+                        parentContext,
+                        controller,
+                        loadedResources,
+                        0.6,
+                      ),
+                    );
                   }
-                },
+                }
+              },
+              child: Container(
+                height: 30,
+                alignment: Alignment.center,
                 child: Container(
-                  height: 30,
-                  alignment: Alignment.center,
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[400],
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -961,12 +1230,15 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
         value: searchBloc,
         child: GestureDetector(
           onVerticalDragEnd: (details) {
-            if (details.primaryVelocity != null && details.primaryVelocity! > 300) {
+            if (details.primaryVelocity != null &&
+                details.primaryVelocity! > 300) {
               Navigator.pop(sheetContext);
             }
           },
           child: SearchPage(
             initialUrl: currentTab.url.isNotEmpty ? currentTab.url : null,
+            skipHistory: currentTab
+                .isIncognito, // Skip saving search history for incognito tabs
             onSearch: (query) {
               final url = SearchService.formatInput(query);
               _addToNavHistory(currentTab.id, url);
@@ -1014,7 +1286,13 @@ class _HomeViewState extends State<HomeView> with AutomaticKeepAliveClientMixin 
 
   static bool _isExternalUrl(String url) {
     final scheme = _scheme(url.toLowerCase());
-    const externalSchemes = {'googlechrome', 'chrome', 'firefox', 'edge', 'opera'};
+    const externalSchemes = {
+      'googlechrome',
+      'chrome',
+      'firefox',
+      'edge',
+      'opera',
+    };
     return scheme != null && externalSchemes.contains(scheme);
   }
 }
@@ -1063,24 +1341,37 @@ class _BottomBarWrapper extends StatelessWidget {
       buildWhen: (previous, current) {
         final prevActiveTab = previous.activeTab;
         final currActiveTab = current.activeTab;
+        if (previous.isIncognitoMode != current.isIncognitoMode) {
+          return true;
+        }
 
         // Nếu activeTabId khác với activeTab hiện tại, tìm trong list tabs
-        if (prevActiveTab?.id != activeTabId || currActiveTab?.id != activeTabId) {
-          final prevTab = previous.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => previous.activeTab!);
-          final currTab = current.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => current.activeTab!);
+        if (prevActiveTab?.id != activeTabId ||
+            currActiveTab?.id != activeTabId) {
+          final prevTab = previous.tabs.firstWhere(
+            (t) => t.id == activeTabId,
+            orElse: () => previous.activeTab!,
+          );
+          final currTab = current.tabs.firstWhere(
+            (t) => t.id == activeTabId,
+            orElse: () => current.activeTab!,
+          );
           return prevTab.url != currTab.url ||
-                 prevTab.title != currTab.title ||
-                 prevTab.isLoading != currTab.isLoading ||
-                 previous.tabs.length != current.tabs.length;
+              prevTab.title != currTab.title ||
+              prevTab.isLoading != currTab.isLoading ||
+              previous.tabs.length != current.tabs.length;
         }
 
         return prevActiveTab?.url != currActiveTab?.url ||
-               prevActiveTab?.title != currActiveTab?.title ||
-               prevActiveTab?.isLoading != currActiveTab?.isLoading ||
-               previous.tabs.length != current.tabs.length;
+            prevActiveTab?.title != currActiveTab?.title ||
+            prevActiveTab?.isLoading != currActiveTab?.isLoading ||
+            previous.tabs.length != current.tabs.length;
       },
       builder: (context, tabState) {
-        final activeTab = tabState.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => tabState.activeTab!);
+        final activeTab = tabState.tabs.firstWhere(
+          (t) => t.id == activeTabId,
+          orElse: () => tabState.activeTab!,
+        );
         return BottomBar(
           activeTab: activeTab,
           tabState: tabState,
@@ -1120,12 +1411,21 @@ class _MiniUrlBarWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<TabBloc, TabState>(
       buildWhen: (previous, current) {
-        final prevTab = previous.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => previous.activeTab!);
-        final currTab = current.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => current.activeTab!);
+        final prevTab = previous.tabs.firstWhere(
+          (t) => t.id == activeTabId,
+          orElse: () => previous.activeTab!,
+        );
+        final currTab = current.tabs.firstWhere(
+          (t) => t.id == activeTabId,
+          orElse: () => current.activeTab!,
+        );
         return prevTab.url != currTab.url;
       },
       builder: (context, tabState) {
-        final activeTab = tabState.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => tabState.activeTab!);
+        final activeTab = tabState.tabs.firstWhere(
+          (t) => t.id == activeTabId,
+          orElse: () => tabState.activeTab!,
+        );
         return MiniUrlBar(
           activeTab: activeTab,
           controller: controller,
@@ -1139,32 +1439,44 @@ class _MiniUrlBarWrapper extends StatelessWidget {
 class _ProgressBarWrapper extends StatelessWidget {
   final String activeTabId;
 
-  const _ProgressBarWrapper({
-    required this.activeTabId,
-  });
+  const _ProgressBarWrapper({required this.activeTabId});
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<TabBloc, TabState>(
       buildWhen: (previous, current) {
-        final prevTab = previous.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => previous.activeTab!);
-        final currTab = current.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => current.activeTab!);
+        final prevTab = previous.tabs.firstWhere(
+          (t) => t.id == activeTabId,
+          orElse: () => previous.activeTab!,
+        );
+        final currTab = current.tabs.firstWhere(
+          (t) => t.id == activeTabId,
+          orElse: () => current.activeTab!,
+        );
 
         if (prevTab.isLoading != currTab.isLoading) return true;
 
         if (currTab.isLoading) {
-          final progressDelta = (currTab.loadProgress - prevTab.loadProgress).abs();
-          return progressDelta >= 10 || currTab.loadProgress == 100 || currTab.loadProgress == 0;
+          final progressDelta = (currTab.loadProgress - prevTab.loadProgress)
+              .abs();
+          return progressDelta >= 10 ||
+              currTab.loadProgress == 100 ||
+              currTab.loadProgress == 0;
         }
 
         return false;
       },
       builder: (context, tabState) {
-        final activeTab = tabState.tabs.firstWhere((t) => t.id == activeTabId, orElse: () => tabState.activeTab!);
+        final activeTab = tabState.tabs.firstWhere(
+          (t) => t.id == activeTabId,
+          orElse: () => tabState.activeTab!,
+        );
 
         if (!activeTab.isLoading) {
           return const SizedBox.shrink();
         }
+        final isIncognito = activeTab.isIncognito ?? false;
+
         return TweenAnimationBuilder<double>(
           key: ValueKey(activeTab.loadProgress),
           tween: Tween(begin: 0, end: activeTab.loadProgress / 100),
@@ -1175,8 +1487,8 @@ class _ProgressBarWrapper extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: value,
                 backgroundColor: Colors.transparent,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF2196F3),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isIncognito ? Colors.white70 : const Color(0xFF2196F3),
                 ),
                 minHeight: 2,
               ),
@@ -1212,16 +1524,6 @@ class _PageContentWrapper extends StatelessWidget {
   }
 
   EdgeInsets _buildBottomPadding(BuildContext context) {
-    const bottomBarHeight = 98.0;
-    const miniUrlBarHeight = 0.0;
-    final safeAreaBottom = MediaQuery.of(context).padding.bottom;
-    final safeAreaTop = MediaQuery.of(context).padding.top;
-
-
-    final bottomPadding = isToolbarVisible
-        ? bottomBarHeight + safeAreaBottom
-        : miniUrlBarHeight + safeAreaBottom;
-
-    return EdgeInsets.only(top: safeAreaTop);
+    return EdgeInsets.zero;
   }
 }

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
+import '../repositories/website_repository.dart';
 import '../../tabs/bloc/tab_bloc.dart';
 import '../../tabs/bloc/tab_event.dart';
 import '../../../features/download/bloc/download_bloc.dart';
@@ -65,15 +66,18 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   bool get wantKeepAlive => true;
 
   static InAppWebViewSettings? _cachedSettings;
+  static InAppWebViewSettings? _incognitoSettings;
   static bool _isInitialized = false;
   static Future<void>? _initFuture;
 
-  // Error state tracking
+  /// Cache for extracted descriptions - avoids re-extracting for same URL
+static final Set<String> _extractedDescriptions = {};
   WebViewErrorType _errorType = WebViewErrorType.none;
   String? _errorMessage;
   bool _isOffline = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _hadError = false; // Track if error occurred during current load
+  final _websiteRepository = WebsiteRepository();
 
   // User-Agent chuẩn để tránh bị rate limit
   static const String _iosUserAgent =
@@ -89,7 +93,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     if (_isInitialized) return;
 
     if (Platform.isIOS) {
-      final blockers = IOSContentBlockerService.getContentBlockers();   
+      final blockers = IOSContentBlockerService.getContentBlockers();
+
+      // Normal mode settings
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -112,7 +118,33 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         applicationNameForUserAgent: '',
         contentBlockers: blockers,
       );
-      print('[iOS] Settings initialized with ${blockers.length} content blockers');
+
+      // Incognito mode settings - no cache, no storage
+      _incognitoSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: false,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: false,
+        hardwareAcceleration: true,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        allowsLinkPreview: false,
+        cacheEnabled: false, // Disable cache for incognito
+        clearCache: true, // Clear cache on start
+        clearSessionCache: true, // Clear session cache (cookies) for incognito
+        databaseEnabled: false, // Disable database for incognito
+        domStorageEnabled: false, // Disable DOM storage for incognito
+        userAgent: _iosUserAgent,
+        applicationNameForUserAgent: '',
+        contentBlockers: blockers,
+      );
+      print('[iOS] Settings initialized with ${blockers.length} content blockers (including incognito mode)');
     } else {
       try {
         await ContentBlockerService.initialize();
@@ -121,6 +153,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         debugPrint('[Android] Failed to initialize ContentBlocker: $e');
       }
 
+      // Normal mode settings
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -143,10 +176,42 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         domStorageEnabled: true,
         contentBlockers: ContentBlockerService.createAdBlockers(),
       );
-      debugPrint('[Android] Settings initialized');
+
+      // Incognito mode settings - no cache, no storage
+      _incognitoSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: true,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: false,
+        hardwareAcceleration: true,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        userAgent: _androidUserAgent,
+        applicationNameForUserAgent: '',
+        cacheEnabled: false, // Disable cache for incognito
+        clearCache: true, // Clear cache on start
+        clearSessionCache: true, // Clear session cache (cookies) for incognito
+        databaseEnabled: false, // Disable database for incognito
+        domStorageEnabled: false, // Disable DOM storage for incognito
+        contentBlockers: ContentBlockerService.createAdBlockers(),
+      );
+      debugPrint('[Android] Settings initialized (including incognito mode)');
     }
 
     _isInitialized = true;
+  }
+
+  static InAppWebViewSettings _getSettingsForTab(dynamic tab) {
+    if (tab != null && tab.isIncognito == true) {
+      return _incognitoSettings ?? _cachedSettings ?? InAppWebViewSettings();
+    }
+    return _cachedSettings ?? InAppWebViewSettings();
   }
 
   /// Parse intent:// URL thành https:// URL
@@ -810,6 +875,11 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     // Clear error when page loads successfully
     _clearError();
 
+    // Call Oxodb API when website loads successfully
+    if (urlStr.isNotEmpty && _errorType == WebViewErrorType.none) {
+      _websiteRepository.analyzeWebsite(controller, urlStr);
+    }
+
     widget.onLoadStop(controller, url);
   }
 
@@ -1164,6 +1234,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     super.build(context);
 
     final initialUrl = _getInitialUrl();
+    final isIncognito = widget.activeTab.isIncognito ?? false;
 
     return RepaintBoundary(
       child: FutureBuilder<void>(
@@ -1178,7 +1249,9 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: InAppWebView(
+                        child: Container(
+                          color: isIncognito ? Colors.black : Colors.transparent,
+                          child: InAppWebView(
                       key: ValueKey(widget.activeTab.id),
                       initialUrlRequest: initialUrl.isEmpty
                           ? null
@@ -1186,7 +1259,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                               url: WebUri(initialUrl),
                               headers: _getHeaders(initialUrl),
                             ),
-                      initialSettings: _cachedSettings,
+                      initialSettings: _getSettingsForTab(widget.activeTab),
                       pullToRefreshController: widget.pullToRefreshController,
                       onWebViewCreated: _onWebViewCreated,
                       onLoadStart: _onLoadStart,
@@ -1209,6 +1282,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                       onReceivedHttpError: _onReceivedHttpError,
                       onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
                     ),
+                        ),
                       ),
                     ],
                   ),

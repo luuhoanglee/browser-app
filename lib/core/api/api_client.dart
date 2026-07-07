@@ -6,7 +6,7 @@ import 'package:browser_app/core/api/api_route.dart' show APIRouteConfigurable;
 import 'package:browser_app/core/config/constants.dart' show AppConstants;
 import 'package:browser_app/core/config/flavor_config.dart' show FlavorConfig;
 import 'package:browser_app/core/enum/api/api.dart' show SatrepsErrorType;
-import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 
 abstract class BaseAPIClient {
   Future<T> request<T>(
@@ -79,7 +79,7 @@ class APIClient implements BaseAPIClient {
           }
           return MapEntry(key, value);
         });
-        Logger.show('requestOptions.queryParameters: ${requestOptions.queryParameters}' );
+        AppLogger.verbose('ApiClient', 'queryParameters: ${requestOptions.queryParameters}');
       }
       if (extraPath != null) requestOptions.path += extraPath;
       requestOptions.extra[AppConstants.ignoreNavigateWhenUnAuthorize] =
@@ -130,7 +130,7 @@ class APIClient implements BaseAPIClient {
       } on DioException catch (e) {
         throw ErrorResponse.fromDefault(e.response, dioError: e);
       } catch (e, st) {
-        Logger.show('$e, $st');
+        AppLogger.error('ApiClient', 'Unexpected error during request', error: e, stackTrace: st);
         if (e is ErrorResponse) {
           rethrow;
         } else {
