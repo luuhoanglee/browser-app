@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:browser_app/core/services/foreground_download_service.dart';
 
@@ -237,60 +236,23 @@ class DownloadService {
   }
 
   Future<String> _getDownloadDirectory() async {
+    // Downloads are kept in app-specific storage (no MANAGE_EXTERNAL_STORAGE /
+    // WRITE_EXTERNAL_STORAGE permission required on any Android version, and no
+    // public Downloads folder access needed on iOS). Requesting All Files Access
+    // is against Google Play policy for a browser's core download feature.
+    Directory directory;
     if (Platform.isAndroid) {
-
-      // Android 13+ (API 33+) uses media permissions instead of storage
-      // Android 11+ (API 30+) uses scoped storage
-      // For Downloads folder, we need MANAGE_EXTERNAL_STORAGE or use Download Manager
-
-      final status = await Permission.storage.request();
-
-      if (!status.isGranted) {
-        // Try manage external storage for Android 11+
-        final status28 = await Permission.manageExternalStorage.request();
-
-        if (!status28.isGranted) {
-          // Fallback to app-specific directory
-          final directory = await getApplicationDocumentsDirectory();
-          final downloadsPath = '${directory.path}/downloads';
-          final downloadsDir = Directory(downloadsPath);
-          if (!await downloadsDir.exists()) {
-            await downloadsDir.create(recursive: true);
-          }
-          return downloadsPath;
-        }
-      }
-
-      // Use public Downloads directory: /storage/emulated/0/Download/
-      final downloadsPath = '/storage/emulated/0/Download';
-      final downloadsDir = Directory(downloadsPath);
-
-      if (!await downloadsDir.exists()) {
-        final directory = await getExternalStorageDirectory();
-        if (directory != null) {
-          final appDownloadsPath = '${directory.path}/downloads';
-          final appDownloadsDir = Directory(appDownloadsPath);
-          if (!await appDownloadsDir.exists()) {
-            await appDownloadsDir.create(recursive: true);
-          }
-          return appDownloadsPath;
-        }
-      }
-
-      return downloadsPath;
-    } else if (Platform.isIOS) {
-      // iOS doesn't have public Downloads folder, use app-specific
-      final directory = await getApplicationDocumentsDirectory();
-      final downloadsPath = '${directory.path}/downloads';
-      final downloadsDir = Directory(downloadsPath);
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-      return downloadsPath;
+      directory = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+    } else {
+      directory = await getApplicationDocumentsDirectory();
     }
 
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
+    final downloadsPath = '${directory.path}/downloads';
+    final downloadsDir = Directory(downloadsPath);
+    if (!await downloadsDir.exists()) {
+      await downloadsDir.create(recursive: true);
+    }
+    return downloadsPath;
   }
 
   Future<String> _getUniqueFilePath(String directory, String fileName) async {
