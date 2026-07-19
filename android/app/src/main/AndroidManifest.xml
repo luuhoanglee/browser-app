@@ -1,16 +1,22 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
-    <!-- Storage permissions for downloads -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+
+    <!-- Downloads are saved to app-specific external storage (no permission required on
+         any Android version) — see DownloadService._getDownloadDirectory(). Do not add
+         WRITE_EXTERNAL_STORAGE / MANAGE_EXTERNAL_STORAGE back; Google Play rejects apps
+         that request All Files Access without a qualifying core use case. -->
+
+    <!-- Remove photo/video permissions injected by plugins (file_picker, video_thumbnail).
+         Browser only needs one-time file selection via system picker — no persistent media access.
+         Google Play policy requires migrating to Android Photo Picker for this use case. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
 
     <!-- Network access for downloads -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
@@ -25,7 +31,6 @@
         android:label="Pardix"
        
         android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
