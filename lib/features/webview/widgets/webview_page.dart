@@ -5,6 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/logger/analytics_event.dart';
+import '../../../../core/logger/analytics_utils.dart';
+import '../../../../core/logger/app_logger.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
@@ -36,7 +39,8 @@ class WebViewPage extends StatefulWidget {
   final Function(InAppWebViewController, int) onProgressChanged;
   final Function(int) onScrollChanged;
   final Function(String)? onUrlUpdated;
-  final Function(InAppWebViewController, WebUri?, bool?)? onUpdateVisitedHistory;
+  final Function(InAppWebViewController, WebUri?, bool?)?
+  onUpdateVisitedHistory;
   final Function()? onSwipeBack;
   final Function()? onSwipeForward;
 
@@ -61,7 +65,8 @@ class WebViewPage extends StatefulWidget {
   State<WebViewPage> createState() => _WebViewPageState();
 }
 
-class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClientMixin {
+class _WebViewPageState extends State<WebViewPage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -71,7 +76,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   static Future<void>? _initFuture;
 
   /// Cache for extracted descriptions - avoids re-extracting for same URL
-static final Set<String> _extractedDescriptions = {};
+  static final Set<String> _extractedDescriptions = {};
   WebViewErrorType _errorType = WebViewErrorType.none;
   String? _errorMessage;
   bool _isOffline = false;
@@ -144,7 +149,9 @@ static final Set<String> _extractedDescriptions = {};
         applicationNameForUserAgent: '',
         contentBlockers: blockers,
       );
-      print('[iOS] Settings initialized with ${blockers.length} content blockers (including incognito mode)');
+      print(
+        '[iOS] Settings initialized with ${blockers.length} content blockers (including incognito mode)',
+      );
     } else {
       try {
         await ContentBlockerService.initialize();
@@ -311,51 +318,52 @@ static final Set<String> _extractedDescriptions = {};
     return url;
   }
 
-bool _isDialogShowing = false;
+  bool _isDialogShowing = false;
 
-/// Show confirmation dialog before opening external app
-Future<bool> _showOpenExternalAppDialog(String url) async {
-  setState(() => _isDialogShowing = true);
+  /// Show confirmation dialog before opening external app
+  Future<bool> _showOpenExternalAppDialog(String url) async {
+    setState(() => _isDialogShowing = true);
 
-  final result = await showDialog<bool>(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Open external app?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Open'),
-        ),
-      ],
-    ),
-  );
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Open external app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Open'),
+          ),
+        ],
+      ),
+    );
 
-  setState(() => _isDialogShowing = false);
-  
-  final controller = widget.controller;
-  if (controller != null) {
-    controller.canGoBack().then((canGoBack) {
-      if (canGoBack) {
-        controller.goBack();
-        Future.delayed(const Duration(milliseconds: 50), () {
-          controller.goForward();
-        });
-      }
-    });
+    setState(() => _isDialogShowing = false);
+
+    final controller = widget.controller;
+    if (controller != null) {
+      controller.canGoBack().then((canGoBack) {
+        if (canGoBack) {
+          controller.goBack();
+          Future.delayed(const Duration(milliseconds: 50), () {
+            controller.goForward();
+          });
+        }
+      });
+    }
+    return result ?? false;
   }
-  return result ?? false;
-}
 
   Map<String, String> _getHeaders(String url) {
     final uri = Uri.parse(url);
 
     return {
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,'
+      'Accept':
+          'text/html,application/xhtml+xml,application/xml;q=0.9,'
           'image/avif,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
@@ -370,7 +378,9 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     };
   }
 
-  Future<void> _injectBlockIntentScript(InAppWebViewController controller) async {
+  Future<void> _injectBlockIntentScript(
+    InAppWebViewController controller,
+  ) async {
     const blockIntentScript = '''
       (function() {
         const originalLocation = window.location;
@@ -402,8 +412,9 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     );
   }
 
-  
-  Future<void> _injectAntiDetectScript(InAppWebViewController controller) async {
+  Future<void> _injectAntiDetectScript(
+    InAppWebViewController controller,
+  ) async {
     final antiDetectScript = r"""
 (function() {
   try {
@@ -443,7 +454,9 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     );
   }
 
-  Future<void> _injectYouTubeAdBlocker(InAppWebViewController controller) async {
+  Future<void> _injectYouTubeAdBlocker(
+    InAppWebViewController controller,
+  ) async {
     const youtubeAdScript = r'''
       (function() {
         if (!window.location.hostname.includes('youtube.com')) {
@@ -771,10 +784,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     }
   }
 
-  void _onDownloadStart(
-    InAppWebViewController controller,
-    Uri url,
-  ) {
+  void _onDownloadStart(InAppWebViewController controller, Uri url) {
     final urlStr = url.toString();
     final fileName = urlStr.split('/').last;
 
@@ -792,7 +802,12 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     if (mounted) {
       try {
         final downloadBloc = context.read<DownloadBloc>();
-        downloadBloc.add(DownloadStartEvent(urlStr, customFileName: fileName.isNotEmpty ? fileName : null));
+        downloadBloc.add(
+          DownloadStartEvent(
+            urlStr,
+            customFileName: fileName.isNotEmpty ? fileName : null,
+          ),
+        );
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -904,7 +919,6 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
       return NavigationActionPolicy.CANCEL;
     }
 
-  
     if (_isCustomScheme(url)) {
       final shouldOpen = await _showOpenExternalAppDialog(url);
       if (shouldOpen) {
@@ -913,6 +927,12 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
             Uri.parse(url),
             mode: LaunchMode.externalApplication,
           );
+          if (launched) {
+            AppLogger.event(
+              AnalyticsEvent.externalAppOpened,
+              params: AnalyticsUtils.navigationParams(url),
+            );
+          }
           if (!launched) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -951,7 +971,10 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     }
 
     // Android: Use interceptor
-    return WebViewInterceptor.shouldOverrideUrlLoading(controller, navigationAction);
+    return WebViewInterceptor.shouldOverrideUrlLoading(
+      controller,
+      navigationAction,
+    );
   }
 
   Future<bool> _onCreateWindow(
@@ -961,7 +984,10 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     if (Platform.isIOS) {
       return true;
     }
-    return await WebViewInterceptor.handleCreateWindow(controller, createWindowAction);
+    return await WebViewInterceptor.handleCreateWindow(
+      controller,
+      createWindowAction,
+    );
   }
 
   WebResourceResponse? _shouldInterceptRequest(
@@ -1022,7 +1048,10 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     } else if (response.statusCode != null && response.statusCode! >= 500) {
       _setError(WebViewErrorType.connectionRefused, 'Server error');
     } else {
-      _setError(WebViewErrorType.genericError, 'Failed to load page (code ${response.statusCode})');
+      _setError(
+        WebViewErrorType.genericError,
+        'Failed to load page (code ${response.statusCode})',
+      );
     }
   }
 
@@ -1052,10 +1081,13 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     } else if (error.type == WebResourceErrorType.TIMEOUT) {
       errorType = WebViewErrorType.timeout;
       message = 'Connection timeout';
-    } else if (error.type == WebResourceErrorType.NETWORK_CONNECTION_LOST || error.description.toString().contains('connection was lost')) {
+    } else if (error.type == WebResourceErrorType.NETWORK_CONNECTION_LOST ||
+        error.description.toString().contains('connection was lost')) {
       errorType = WebViewErrorType.noInternet;
       message = 'Network connection lost';
-    } else if (_isOffline && (error.description.toString().contains('INTERNET') || error.description.toString().contains('network'))) {
+    } else if (_isOffline &&
+        (error.description.toString().contains('INTERNET') ||
+            error.description.toString().contains('network'))) {
       errorType = WebViewErrorType.noInternet;
       message = 'No internet connection';
     } else {
@@ -1064,11 +1096,20 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     }
 
     _setError(errorType, message);
+    AppLogger.event(
+      AnalyticsEvent.pageLoadError,
+      params: {
+        ...AnalyticsUtils.navigationParams(url),
+        AnalyticsParam.errorType: errorType.name,
+      },
+    );
   }
 
   Future<void> _checkConnectivity() async {
     final results = await Connectivity().checkConnectivity();
-    final isOffline = results.every((result) => result == ConnectivityResult.none);
+    final isOffline = results.every(
+      (result) => result == ConnectivityResult.none,
+    );
     if (_isOffline != isOffline) {
       setState(() {
         _isOffline = isOffline;
@@ -1106,10 +1147,12 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
     super.initState();
     _initFuture ??= _initializeCache();
     _checkConnectivity();
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      final isOffline = results.every((result) => result == ConnectivityResult.none);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
+      final isOffline = results.every(
+        (result) => result == ConnectivityResult.none,
+      );
       setState(() {
         _isOffline = isOffline;
         if (isOffline) {
@@ -1196,10 +1239,7 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
               const SizedBox(height: 12),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -1219,7 +1259,10 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -1250,38 +1293,48 @@ Future<bool> _showOpenExternalAppDialog(String url) async {
                     children: [
                       Positioned.fill(
                         child: Container(
-                          color: isIncognito ? Colors.black : Colors.transparent,
+                          color: isIncognito
+                              ? Colors.black
+                              : Colors.transparent,
                           child: InAppWebView(
-                      key: ValueKey(widget.activeTab.id),
-                      initialUrlRequest: initialUrl.isEmpty
-                          ? null
-                          : URLRequest(
-                              url: WebUri(initialUrl),
-                              headers: _getHeaders(initialUrl),
+                            key: ValueKey(widget.activeTab.id),
+                            initialUrlRequest: initialUrl.isEmpty
+                                ? null
+                                : URLRequest(
+                                    url: WebUri(initialUrl),
+                                    headers: _getHeaders(initialUrl),
+                                  ),
+                            initialSettings: _getSettingsForTab(
+                              widget.activeTab,
                             ),
-                      initialSettings: _getSettingsForTab(widget.activeTab),
-                      pullToRefreshController: widget.pullToRefreshController,
-                      onWebViewCreated: _onWebViewCreated,
-                      onLoadStart: _onLoadStart,
-                      onLoadStop: _onLoadStop,
-                      onLoadResource: _onLoadResourceWithResponse,
-                      onDownloadStart: _onDownloadStart,
-                      onDownloadStartRequest: (controller, request) {
-                        _onDownloadStart(controller, request.url);
-                      },
-                      onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
-                      onProgressChanged: (controller, progress) =>
-                          widget.onProgressChanged(controller, progress),
-                      onScrollChanged: (controller, x, y) => widget.onScrollChanged(y),
-                      shouldInterceptRequest: _shouldInterceptRequest,
-                      shouldInterceptAjaxRequest: _shouldInterceptAjaxRequest,
-                      shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
-                      shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
-                      onCreateWindow: _onCreateWindow,
-                      onReceivedError: _onReceivedError,
-                      onReceivedHttpError: _onReceivedHttpError,
-                      onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
-                    ),
+                            pullToRefreshController:
+                                widget.pullToRefreshController,
+                            onWebViewCreated: _onWebViewCreated,
+                            onLoadStart: _onLoadStart,
+                            onLoadStop: _onLoadStop,
+                            onLoadResource: _onLoadResourceWithResponse,
+                            onDownloadStart: _onDownloadStart,
+                            onDownloadStartRequest: (controller, request) {
+                              _onDownloadStart(controller, request.url);
+                            },
+                            onTitleChanged: (controller, title) =>
+                                widget.onTitleChanged(controller, title),
+                            onProgressChanged: (controller, progress) =>
+                                widget.onProgressChanged(controller, progress),
+                            onScrollChanged: (controller, x, y) =>
+                                widget.onScrollChanged(y),
+                            shouldInterceptRequest: _shouldInterceptRequest,
+                            shouldInterceptAjaxRequest:
+                                _shouldInterceptAjaxRequest,
+                            shouldInterceptFetchRequest:
+                                _shouldInterceptFetchRequest,
+                            shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
+                            onCreateWindow: _onCreateWindow,
+                            onReceivedError: _onReceivedError,
+                            onReceivedHttpError: _onReceivedHttpError,
+                            onUpdateVisitedHistory:
+                                widget.onUpdateVisitedHistory,
+                          ),
                         ),
                       ),
                     ],
@@ -1311,10 +1364,7 @@ class _FullScreenSwipeZone extends StatefulWidget {
   final VoidCallback? onSwipeBack;
   final VoidCallback? onSwipeForward;
 
-  const _FullScreenSwipeZone({
-    this.onSwipeBack,
-    this.onSwipeForward,
-  });
+  const _FullScreenSwipeZone({this.onSwipeBack, this.onSwipeForward});
 
   @override
   State<_FullScreenSwipeZone> createState() => _FullScreenSwipeZoneState();

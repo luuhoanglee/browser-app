@@ -46,6 +46,11 @@ abstract final class AnalyticsEvent {
   // ── Ad block events ────────────────────────────────────
   static const String adBlocked = 'ad_blocked';
 
+  // ── WARP / DNS events ──────────────────────────────────
+  static const String warpOpened = 'warp_opened';
+  static const String warpStoreOpened = 'warp_store_opened';
+  static const String warpSiteOpened = 'warp_site_opened';
+
   // ── App lifecycle events ───────────────────────────────
   static const String appForegrounded = 'app_foregrounded';
   static const String notificationReceived = 'notification_received';
@@ -78,7 +83,8 @@ abstract final class AnalyticsParam {
 
   // Ad block
   static const String blockedCount = 'blocked_count';
-  static const String blockReason = 'block_reason'; // domain | pattern | youtube
+  static const String blockReason =
+      'block_reason'; // domain | pattern | youtube
 
   // General
   static const String success = 'success';
