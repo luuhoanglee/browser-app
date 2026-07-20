@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:browser_app/core/logger/analytics_event.dart';
 import 'package:browser_app/core/logger/app_logger.dart';
+import 'package:browser_app/core/logger/analytics_utils.dart';
 import 'package:browser_app/core/utils/url_utils.dart';
 import '../../../data/repositories/tab_repository_impl.dart';
 import '../../../data/services/storage_service.dart';
@@ -29,6 +31,7 @@ import 'package:browser_app/features/search/search_service.dart';
 import '../../../features/media/widgets/media_gallery_sheet.dart';
 import '../../../features/download/bloc/download_bloc.dart';
 import '../../../features/download/widgets/download_sheet.dart';
+import '../../../features/warp/widgets/warp_support_sheet.dart';
 import 'bloc/home_ui_cubit.dart';
 import 'mixins/status_bar_mixin.dart';
 import 'services/nav_history_manager.dart';
@@ -162,6 +165,10 @@ class _HomeViewState extends State<HomeView>
     final activeTab = bloc.state.activeTab;
     if (activeTab != null) {
       AppLogger.info('HomePage', 'Loading deep link URL: $url');
+      AppLogger.event(
+        AnalyticsEvent.deepLinkOpened,
+        params: AnalyticsUtils.navigationParams(url),
+      );
       _navManager.addUrl(activeTab.id, url);
       bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
       final controller = _getController(activeTab.id);
@@ -447,6 +454,8 @@ class _HomeViewState extends State<HomeView>
                                     onShowDownload: () =>
                                         _showDownloadSheet(context),
                                     onShowMedia: () => _showMediaSheet(context),
+                                    onShowWarp: () =>
+                                        WarpSupportSheet.show(context),
                                     isSearching: _isSearching,
                                     isMediaSheetOpen: _isMediaSheetOpen,
                                     searchController: _searchController,
@@ -641,6 +650,10 @@ class _HomeViewState extends State<HomeView>
                 }
 
                 Future.delayed(const Duration(milliseconds: 500), () {
+                  AppLogger.event(
+                    AnalyticsEvent.pageLoaded,
+                    params: AnalyticsUtils.navigationParams(urlStr),
+                  );
                   _captureThumbnail(tab.id);
                   _addToHistory(urlStr);
                 });
@@ -868,6 +881,10 @@ class _HomeViewState extends State<HomeView>
     if (controller == null) return;
 
     final loadedResources = activeTab?.loadedResources ?? [];
+    AppLogger.event(
+      AnalyticsEvent.mediaGalleryOpened,
+      params: {AnalyticsParam.resourceCount: loadedResources.length},
+    );
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

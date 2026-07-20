@@ -15,6 +15,7 @@ class BottomBarWrapper extends StatelessWidget {
   final VoidCallback onShowHistory;
   final VoidCallback onShowDownload;
   final VoidCallback onShowMedia;
+  final VoidCallback onShowWarp;
   final bool isSearching;
   final bool isMediaSheetOpen;
   final TextEditingController searchController;
@@ -34,6 +35,7 @@ class BottomBarWrapper extends StatelessWidget {
     required this.onShowHistory,
     required this.onShowDownload,
     required this.onShowMedia,
+    required this.onShowWarp,
     required this.isSearching,
     required this.isMediaSheetOpen,
     required this.searchController,
@@ -89,6 +91,7 @@ class BottomBarWrapper extends StatelessWidget {
           onShowHistory: onShowHistory,
           onShowDownload: onShowDownload,
           onShowMedia: onShowMedia,
+          onShowWarp: onShowWarp,
           isSearching: isSearching,
           isMediaSheetOpen: isMediaSheetOpen,
           searchController: searchController,
