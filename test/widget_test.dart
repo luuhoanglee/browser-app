@@ -1,30 +1,32 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:browser_app/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const BrowserApp());
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  test('logo assets are bundled as PNG files', () async {
+    final appIcon = await rootBundle.load('assets/logo/app_icon.png');
+    final playStoreIcon = await rootBundle.load(
+      'assets/logo/play_store_icon.png',
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(_isPng(appIcon), isTrue);
+    expect(_isPng(playStoreIcon), isTrue);
+    expect(playStoreIcon.lengthInBytes, greaterThan(0));
   });
+}
+
+bool _isPng(ByteData data) {
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47];
+  final bytes = data.buffer.asUint8List(0, pngSignature.length);
+
+  for (var index = 0; index < pngSignature.length; index++) {
+    if (bytes[index] != pngSignature[index]) {
+      return false;
+    }
+  }
+
+  return true;
 }
