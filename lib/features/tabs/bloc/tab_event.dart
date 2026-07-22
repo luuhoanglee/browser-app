@@ -39,3 +39,23 @@ class ClearLoadedResourcesEvent extends TabEvent {
 }
 
 class ToggleIncognitoModeEvent extends TabEvent {}
+
+class EnableSplitViewEvent extends TabEvent {
+  final String secondaryTabId;
+
+  EnableSplitViewEvent(this.secondaryTabId);
+}
+
+class DisableSplitViewEvent extends TabEvent {}
+
+class SetSplitSecondaryTabEvent extends TabEvent {
+  final String secondaryTabId;
+
+  SetSplitSecondaryTabEvent(this.secondaryTabId);
+}
+
+class UpdateSplitRatioEvent extends TabEvent {
+  final double ratio;
+
+  UpdateSplitRatioEvent(this.ratio);
+}

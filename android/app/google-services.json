@@ -1,33 +1,13 @@
 {
   "project_info": {
-    "project_number": "521024674260",
-    "firebase_url": "https://browserapp-1b074-default-rtdb.firebaseio.com",
-    "project_id": "browserapp-1b074",
-    "storage_bucket": "browserapp-1b074.firebasestorage.app"
+    "project_number": "19884595682",
+    "project_id": "browser---flutter",
+    "storage_bucket": "browser---flutter.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:521024674260:android:ecd37588bce6df776bde41",
-        "android_client_info": {
-          "package_name": "com.dino.blackdogbrowser.browser_app"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDY-QYZzwjK5hzrH3OgF1mrRPjek51Gpz4"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:521024674260:android:e578eed1c6a972156bde41",
+        "mobilesdk_app_id": "1:19884595682:android:25cfc644bcbde45c6c1bb",
         "android_client_info": {
           "package_name": "com.dino.pardix"
         }
@@ -35,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDY-QYZzwjK5hzrH3OgF1mrRPjek51Gpz4"
+          "current_key": "AIzaSyALN8-xoqyH0Ct-piYwpFp6Qmj2B5ja8cs"
         }
       ],
       "services": {

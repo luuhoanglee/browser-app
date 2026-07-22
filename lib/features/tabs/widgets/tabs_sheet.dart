@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../domain/entities/tab_entity.dart';
 import '../bloc/tab_bloc.dart';
 import '../bloc/tab_state.dart';
 import '../bloc/tab_event.dart';
@@ -44,7 +43,9 @@ class _TabsSheetState extends State<TabsSheet> {
     final activeTabId = tabState.activeTab?.id;
     if (activeTabId == null) return;
 
-    final activeIndex = tabState.filteredTabs.indexWhere((tab) => tab.id == activeTabId);
+    final activeIndex = tabState.filteredTabs.indexWhere(
+      (tab) => tab.id == activeTabId,
+    );
     if (activeIndex == -1) return;
 
     final itemHeight = (MediaQuery.of(context).size.width - 32 - 8) / 2 / 0.75;
@@ -84,23 +85,38 @@ class _TabsSheetState extends State<TabsSheet> {
                       ? _buildEmptyState(isIncognitoMode)
                       : GridView.builder(
                           controller: _scrollController,
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 0.75,
-                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 8,
+                                crossAxisSpacing: 8,
+                                childAspectRatio: 0.75,
+                              ),
                           itemCount: filteredTabs.length,
                           itemBuilder: (context, index) {
                             final tab = filteredTabs[index];
                             final isActive = tab.id == tabState.activeTab?.id;
+                            final isSplitSecondary =
+                                tab.id == tabState.splitSecondaryTabId;
 
                             return RepaintBoundary(
                               child: _TabCard(
                                 key: ValueKey(tab.id),
                                 tab: tab,
                                 isActive: isActive,
+                                isSplitSecondary: isSplitSecondary,
                                 onTap: () => widget.onSelectTab(tab.id),
+                                onSplit: isActive
+                                    ? null
+                                    : () {
+                                        context.read<TabBloc>().add(
+                                          tabState.isSplitViewEnabled
+                                              ? SetSplitSecondaryTabEvent(
+                                                  tab.id,
+                                                )
+                                              : EnableSplitViewEvent(tab.id),
+                                        );
+                                      },
                                 onClose: () => widget.onCloseTab(tab.id),
                                 canClose: filteredTabs.isNotEmpty,
                               ),
@@ -160,7 +176,9 @@ class _TabsSheetState extends State<TabsSheet> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isIncognitoMode ? Colors.grey[300] : Colors.grey[700],
+                    color: isIncognitoMode
+                        ? Colors.grey[300]
+                        : Colors.grey[700],
                   ),
                 ),
               ),
@@ -171,49 +189,111 @@ class _TabsSheetState extends State<TabsSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Toggle incognito mode button
-              GestureDetector(
-                onTap: () {
-                  context.read<TabBloc>().add(ToggleIncognitoModeEvent());
-                  // Scroll to active tab after mode change
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    _scrollToActiveTab();
-                  });
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: isIncognitoMode ? Colors.grey[700] : Colors.grey[800],
-                    shape: BoxShape.circle,
+              Semantics(
+                button: true,
+                label: tabState.isSplitViewEnabled
+                    ? 'Disable split view'
+                    : 'Enable split view',
+                child: GestureDetector(
+                  onTap: () {
+                    final bloc = context.read<TabBloc>();
+                    if (tabState.isSplitViewEnabled) {
+                      bloc.add(DisableSplitViewEvent());
+                      return;
+                    }
+
+                    final activeTabId = tabState.activeTab?.id;
+                    final secondary = tabState.filteredTabs.firstWhere(
+                      (tab) => tab.id != activeTabId,
+                      orElse: () => tabState.activeTab!,
+                    );
+                    if (secondary.id != activeTabId) {
+                      bloc.add(EnableSplitViewEvent(secondary.id));
+                    }
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: tabState.isSplitViewEnabled
+                          ? Colors.blue
+                          : (isIncognitoMode
+                                ? Colors.grey[700]
+                                : Colors.grey[300]),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.vertical_split,
+                      size: 18,
+                      color: tabState.isSplitViewEnabled
+                          ? Colors.white
+                          : (isIncognitoMode
+                                ? Colors.grey[300]
+                                : Colors.grey[700]),
+                    ),
                   ),
-                  child: isIncognitoMode
-                      ? Icon(Icons.public, size: 18, color: Colors.grey[300])
-                      : Image.asset(
-                          'assets/logo/Incognito.png',
-                          width: 18,
-                          height: 18,
-                          color: Colors.white,
-                        ),
+                ),
+              ),
+              Semantics(
+                button: true,
+                label: isIncognitoMode
+                    ? 'Switch to normal tabs'
+                    : 'Switch to incognito tabs',
+                child: GestureDetector(
+                  onTap: () {
+                    context.read<TabBloc>().add(ToggleIncognitoModeEvent());
+                    // Scroll to active tab after mode change
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      _scrollToActiveTab();
+                    });
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: isIncognitoMode
+                          ? Colors.grey[700]
+                          : Colors.grey[800],
+                      shape: BoxShape.circle,
+                    ),
+                    child: isIncognitoMode
+                        ? Icon(Icons.public, size: 18, color: Colors.grey[300])
+                        : Image.asset(
+                            'assets/logo/Incognito.png',
+                            width: 18,
+                            height: 18,
+                            color: Colors.white,
+                          ),
+                  ),
                 ),
               ),
               // Add tab button
-              GestureDetector(
-                onTap: () {
-                  context.read<TabBloc>().add(AddTabEvent());
-                  widget.onAddTab();
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: isIncognitoMode ? Colors.grey[700] : Colors.grey[300],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.add,
-                    size: 20,
-                    color: isIncognitoMode ? Colors.grey[300] : Colors.grey[700],
+              Semantics(
+                button: true,
+                label: 'Add tab',
+                child: GestureDetector(
+                  onTap: () {
+                    context.read<TabBloc>().add(AddTabEvent());
+                    widget.onAddTab();
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isIncognitoMode
+                          ? Colors.grey[700]
+                          : Colors.grey[300],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.add,
+                      size: 20,
+                      color: isIncognitoMode
+                          ? Colors.grey[300]
+                          : Colors.grey[700],
+                    ),
                   ),
                 ),
               ),
@@ -245,7 +325,9 @@ class _TabsSheetState extends State<TabsSheet> {
           ),
           SizedBox(height: 8),
           Text(
-            isIncognitoMode ? 'Tap + to create an incognito tab' : 'Tap + to open a new tab',
+            isIncognitoMode
+                ? 'Tap + to create an incognito tab'
+                : 'Tap + to open a new tab',
             style: TextStyle(
               fontSize: 12,
               color: isIncognitoMode ? Colors.grey[600] : Colors.grey[400],
@@ -261,7 +343,9 @@ class _TabsSheetState extends State<TabsSheet> {
 class _TabCard extends StatelessWidget {
   final dynamic tab;
   final bool isActive;
+  final bool isSplitSecondary;
   final VoidCallback onTap;
+  final VoidCallback? onSplit;
   final VoidCallback onClose;
   final bool canClose;
 
@@ -269,7 +353,9 @@ class _TabCard extends StatelessWidget {
     super.key,
     required this.tab,
     required this.isActive,
+    required this.isSplitSecondary,
     required this.onTap,
+    required this.onSplit,
     required this.onClose,
     required this.canClose,
   });
@@ -291,9 +377,11 @@ class _TabCard extends StatelessWidget {
               blurRadius: 4,
             ),
           ],
-          border: isActive
+          border: isActive || isSplitSecondary
               ? Border.all(
-                  color: isIncognito ? Colors.grey[600]! : Colors.blue,
+                  color: isSplitSecondary
+                      ? Colors.orange
+                      : (isIncognito ? Colors.grey[600]! : Colors.blue),
                   width: 2,
                 )
               : null,
@@ -309,18 +397,26 @@ class _TabCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(10),
+                        ),
                         child: Container(
                           width: double.infinity,
                           height: double.infinity,
-                          color: isIncognito ? Colors.grey[700] : Colors.grey[100],
+                          color: isIncognito
+                              ? Colors.grey[700]
+                              : Colors.grey[100],
                           child: tab.thumbnail != null
                               ? Image.memory(
                                   tab.thumbnail!,
                                   fit: BoxFit.cover,
                                   gaplessPlayback: true,
-                                  colorBlendMode: isIncognito ? BlendMode.modulate : null,
-                                  color: isIncognito ? Colors.grey[400]?.withOpacity(0.3) : null,
+                                  colorBlendMode: isIncognito
+                                      ? BlendMode.modulate
+                                      : null,
+                                  color: isIncognito
+                                      ? Colors.grey[400]?.withOpacity(0.3)
+                                      : null,
                                 )
                               : _buildEmptyThumbnail(isIncognito),
                         ),
@@ -330,13 +426,41 @@ class _TabCard extends StatelessWidget {
                           top: 6,
                           left: 6,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: isIncognito ? Colors.grey[600] : Colors.blue,
+                              color: isIncognito
+                                  ? Colors.grey[600]
+                                  : Colors.blue,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
                               'Active',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (isSplitSecondary)
+                        Positioned(
+                          top: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Split',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
@@ -374,7 +498,9 @@ class _TabCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 10,
-                            color: isIncognito ? Colors.grey[400] : Colors.grey[600],
+                            color: isIncognito
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
                           ),
                         ),
                       ],
@@ -413,6 +539,44 @@ class _TabCard extends StatelessWidget {
                   ),
                 ),
               ),
+            if (onSplit != null)
+              Positioned(
+                right: 6,
+                bottom: 54,
+                child: Semantics(
+                  button: true,
+                  label: 'Use tab in split view',
+                  child: GestureDetector(
+                    onTap: onSplit,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: isSplitSecondary
+                            ? Colors.orange
+                            : (isIncognito
+                                  ? Colors.grey[600]?.withOpacity(0.9)
+                                  : Colors.white.withOpacity(0.9)),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.vertical_split,
+                        size: 15,
+                        color: isSplitSecondary
+                            ? Colors.white
+                            : (isIncognito ? Colors.white : Colors.grey[700]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -442,10 +606,7 @@ class _TabCard extends StatelessWidget {
                   Colors.grey[700]!.withOpacity(0.8),
                   Colors.grey[800]!.withOpacity(0.6),
                 ]
-              : [
-                  color.withOpacity(0.8),
-                  color.withOpacity(0.6),
-                ],
+              : [color.withOpacity(0.8), color.withOpacity(0.6)],
         ),
       ),
       child: Center(
@@ -455,7 +616,9 @@ class _TabCard extends StatelessWidget {
             Icon(
               tab.url.isEmpty ? Icons.add_circle_outline : Icons.web,
               size: 36,
-              color: isIncognito ? Colors.grey[400] : Colors.white.withOpacity(0.9),
+              color: isIncognito
+                  ? Colors.grey[400]
+                  : Colors.white.withOpacity(0.9),
             ),
             const SizedBox(height: 8),
             Text(

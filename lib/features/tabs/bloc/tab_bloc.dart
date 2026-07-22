@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:browser_app/core/logger/analytics_event.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 import '../../../../data/models/tab_model.dart';
 import '../../../../data/repositories/tab_repository_impl.dart';
 import '../../../../data/services/storage_service.dart';
@@ -17,6 +19,10 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     on<AddLoadedResourceEvent>(_onAddLoadedResource);
     on<ClearLoadedResourcesEvent>(_onClearLoadedResources);
     on<ToggleIncognitoModeEvent>(_onToggleIncognitoMode);
+    on<EnableSplitViewEvent>(_onEnableSplitView);
+    on<DisableSplitViewEvent>(_onDisableSplitView);
+    on<SetSplitSecondaryTabEvent>(_onSetSplitSecondaryTab);
+    on<UpdateSplitRatioEvent>(_onUpdateSplitRatio);
 
     _init();
   }
@@ -27,11 +33,13 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     repository.addTab(initialTab);
     repository.setActiveTab(initialTab.id);
 
-    emit(state.copyWith(
-      tabs: repository.getTabs(),
-      activeTab: repository.getActiveTab(),
-      activeTabIndex: 0,
-    ));
+    emit(
+      state.copyWith(
+        tabs: repository.getTabs(),
+        activeTab: repository.getActiveTab(),
+        activeTabIndex: 0,
+      ),
+    );
 
     // Load cached tabs in background without blocking
     Future.microtask(() async {
@@ -66,7 +74,8 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       }
 
       // Nếu tất cả tabs đều invalid hoặc chỉ còn empty tabs, tạo tab mới
-      if (repository.getTabs().isEmpty || repository.getTabs().every((t) => t.url.isEmpty)) {
+      if (repository.getTabs().isEmpty ||
+          repository.getTabs().every((t) => t.url.isEmpty)) {
         print('🧹 Clearing invalid tabs, creating new tab');
         // Xóa tabs trong repository bằng cách remove từng tab
         for (var tab in repository.getTabs()) {
@@ -93,17 +102,22 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       final activeTab = repository.getActiveTab();
       final activeIndex = repository.getTabIndex(activeTab?.id ?? '');
 
-      emit(state.copyWith(
-        tabs: repository.getTabs(),
-        activeTab: activeTab,
-        activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
-      ));
+      emit(
+        state.copyWith(
+          tabs: repository.getTabs(),
+          activeTab: activeTab,
+          activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+        ),
+      );
     });
   }
 
   Future<void> _onAddTab(AddTabEvent event, Emitter<TabState> emit) async {
     final newIndex = state.tabs.length;
-    final newTab = TabModel.create(index: newIndex, isIncognito: state.isIncognitoMode);
+    final newTab = TabModel.create(
+      index: newIndex,
+      isIncognito: state.isIncognitoMode,
+    );
 
     repository.addTab(newTab);
     repository.setActiveTab(newTab.id);
@@ -111,11 +125,21 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     final updatedTabs = repository.getTabs();
     final activeTab = repository.getActiveTab();
 
-    emit(state.copyWith(
-      tabs: updatedTabs,
-      activeTab: activeTab,
-      activeTabIndex: newIndex,
-    ));
+    emit(
+      state.copyWith(
+        tabs: updatedTabs,
+        activeTab: activeTab,
+        activeTabIndex: newIndex,
+      ),
+    );
+
+    AppLogger.event(
+      AnalyticsEvent.tabOpened,
+      params: {
+        AnalyticsParam.isIncognito: newTab.isIncognito,
+        AnalyticsParam.tabCount: updatedTabs.length,
+      },
+    );
 
     // Only save non-incognito tabs
     if (!state.isIncognitoMode) {
@@ -123,7 +147,10 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     }
   }
 
-  Future<void> _onToggleIncognitoMode(ToggleIncognitoModeEvent event, Emitter<TabState> emit) async {
+  Future<void> _onToggleIncognitoMode(
+    ToggleIncognitoModeEvent event,
+    Emitter<TabState> emit,
+  ) async {
     final newIncognitoMode = !state.isIncognitoMode;
 
     // Lưu active tab ID của chế độ hiện tại
@@ -147,7 +174,10 @@ class TabBloc extends Bloc<TabEvent, TabState> {
 
     if (targetTabs.isEmpty) {
       // Nếu chưa có tab nào trong chế độ mới, tạo tab mới
-      final newTab = TabModel.create(index: state.tabs.length, isIncognito: newIncognitoMode);
+      final newTab = TabModel.create(
+        index: state.tabs.length,
+        isIncognito: newIncognitoMode,
+      );
       repository.addTab(newTab);
       repository.setActiveTab(newTab.id);
 
@@ -155,14 +185,18 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       final activeTab = repository.getActiveTab();
       final activeIndex = repository.getTabIndex(activeTab?.id ?? '');
 
-      emit(state.copyWith(
-        tabs: updatedTabs,
-        activeTab: activeTab,
-        activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
-        isIncognitoMode: newIncognitoMode,
-        normalModeActiveTabId: savedNormalTabId,
-        incognitoModeActiveTabId: savedIncognitoTabId,
-      ));
+      emit(
+        state.copyWith(
+          tabs: updatedTabs,
+          activeTab: activeTab,
+          activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+          isIncognitoMode: newIncognitoMode,
+          normalModeActiveTabId: savedNormalTabId,
+          incognitoModeActiveTabId: savedIncognitoTabId,
+          isSplitViewEnabled: false,
+          splitSecondaryTabId: null,
+        ),
+      );
     } else {
       // Nếu đã có tab, khôi phục active tab đã lưu trước đó
       final savedActiveTabId = newIncognitoMode
@@ -171,24 +205,39 @@ class TabBloc extends Bloc<TabEvent, TabState> {
 
       // Tìm tab đã lưu trong danh sách tabs của chế độ mới
       final tabToActivate = savedActiveTabId != null
-          ? targetTabs.firstWhere((t) => t.id == savedActiveTabId, orElse: () => targetTabs.first)
+          ? targetTabs.firstWhere(
+              (t) => t.id == savedActiveTabId,
+              orElse: () => targetTabs.first,
+            )
           : targetTabs.first;
 
       repository.setActiveTab(tabToActivate.id);
       final activeTab = repository.getActiveTab();
       final activeIndex = repository.getTabIndex(activeTab?.id ?? '');
 
-      emit(state.copyWith(
-        activeTab: activeTab,
-        activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
-        isIncognitoMode: newIncognitoMode,
-        normalModeActiveTabId: savedNormalTabId,
-        incognitoModeActiveTabId: savedIncognitoTabId,
-      ));
+      emit(
+        state.copyWith(
+          activeTab: activeTab,
+          activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+          isIncognitoMode: newIncognitoMode,
+          normalModeActiveTabId: savedNormalTabId,
+          incognitoModeActiveTabId: savedIncognitoTabId,
+          isSplitViewEnabled: false,
+          splitSecondaryTabId: null,
+        ),
+      );
     }
+
+    AppLogger.event(
+      AnalyticsEvent.incognitoToggled,
+      params: {AnalyticsParam.isIncognito: newIncognitoMode},
+    );
   }
 
-  Future<void> _onRemoveTab(RemoveTabEvent event, Emitter<TabState> emit) async {
+  Future<void> _onRemoveTab(
+    RemoveTabEvent event,
+    Emitter<TabState> emit,
+  ) async {
     repository.removeTab(event.tabId);
     var updatedTabs = repository.getTabs();
     var activeTab = repository.getActiveTab();
@@ -201,7 +250,10 @@ class TabBloc extends Bloc<TabEvent, TabState> {
 
     // Nếu không còn tab nào trong chế độ hiện tại, tạo tab mới
     if (filteredTabs.isEmpty) {
-      final newTab = TabModel.create(index: updatedTabs.length, isIncognito: state.isIncognitoMode);
+      final newTab = TabModel.create(
+        index: updatedTabs.length,
+        isIncognito: state.isIncognitoMode,
+      );
       repository.addTab(newTab);
       repository.setActiveTab(newTab.id);
       updatedTabs = repository.getTabs();
@@ -209,16 +261,37 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       activeIndex = repository.getTabIndex(activeTab?.id ?? '');
     }
 
-    emit(state.copyWith(
-      tabs: updatedTabs,
-      activeTab: activeTab,
-      activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
-    ));
+    final splitStillValid =
+        state.isSplitViewEnabled &&
+        state.splitSecondaryTabId != null &&
+        updatedTabs.any((tab) => tab.id == state.splitSecondaryTabId) &&
+        activeTab?.id != state.splitSecondaryTabId;
+
+    emit(
+      state.copyWith(
+        tabs: updatedTabs,
+        activeTab: activeTab,
+        activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+        isSplitViewEnabled: splitStillValid,
+        splitSecondaryTabId: splitStillValid ? state.splitSecondaryTabId : null,
+      ),
+    );
+
+    AppLogger.event(
+      AnalyticsEvent.tabClosed,
+      params: {
+        AnalyticsParam.isIncognito: state.isIncognitoMode,
+        AnalyticsParam.tabCount: updatedTabs.length,
+      },
+    );
 
     await StorageService.saveTabs(updatedTabs, activeTab?.id);
   }
 
-  Future<void> _onSelectTab(SelectTabEvent event, Emitter<TabState> emit) async {
+  Future<void> _onSelectTab(
+    SelectTabEvent event,
+    Emitter<TabState> emit,
+  ) async {
     repository.setActiveTab(event.tabId);
 
     // Cập nhật lastAccessedAt cho tab được chọn
@@ -231,16 +304,53 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     final index = repository.getTabIndex(event.tabId);
     final updatedActiveTab = repository.getActiveTab();
 
-    emit(state.copyWith(
-      tabs: repository.getTabs(),
-      activeTab: updatedActiveTab,
-      activeTabIndex: index == -1 ? state.activeTabIndex : index,
-    ));
+    String? nextSplitSecondaryId = state.splitSecondaryTabId;
+    var nextSplitEnabled = state.isSplitViewEnabled;
+    if (nextSplitEnabled) {
+      final candidates = repository
+          .getTabs()
+          .where(
+            (tab) =>
+                tab.id != updatedActiveTab?.id &&
+                tab.isIncognito == (updatedActiveTab?.isIncognito ?? false),
+          )
+          .toList();
+      final secondaryStillValid = candidates.any(
+        (tab) => tab.id == nextSplitSecondaryId,
+      );
+      if (!secondaryStillValid) {
+        nextSplitEnabled = candidates.isNotEmpty;
+        nextSplitSecondaryId = candidates.isNotEmpty
+            ? candidates.first.id
+            : null;
+      }
+    }
+
+    emit(
+      state.copyWith(
+        tabs: repository.getTabs(),
+        activeTab: updatedActiveTab,
+        activeTabIndex: index == -1 ? state.activeTabIndex : index,
+        isSplitViewEnabled: nextSplitEnabled,
+        splitSecondaryTabId: nextSplitSecondaryId,
+      ),
+    );
+
+    AppLogger.event(
+      AnalyticsEvent.tabSwitched,
+      params: {
+        AnalyticsParam.isIncognito: updatedActiveTab?.isIncognito ?? false,
+        AnalyticsParam.tabCount: repository.getTabs().length,
+      },
+    );
 
     await StorageService.saveTabs(repository.getTabs(), updatedActiveTab?.id);
   }
 
-  Future<void> _onUpdateTab(UpdateTabEvent event, Emitter<TabState> emit) async {
+  Future<void> _onUpdateTab(
+    UpdateTabEvent event,
+    Emitter<TabState> emit,
+  ) async {
     // Kiểm tra nếu tab thực sự thay đổi rồi mới emit
     final existingTab = repository.getTabs().firstWhere(
       (t) => t.id == event.tab.id,
@@ -249,10 +359,15 @@ class TabBloc extends Bloc<TabEvent, TabState> {
 
     // Chỉ emit khi URL, title, thumbnail, isLoading thay đổi
     // Hoặc loadProgress thay đổi đáng kể (> 10%)
-    final progressDelta = (event.tab.loadProgress - existingTab.loadProgress).abs();
-    final hasSignificantProgressChange = progressDelta >= 10 || event.tab.loadProgress == 100 || event.tab.loadProgress == 0;
+    final progressDelta = (event.tab.loadProgress - existingTab.loadProgress)
+        .abs();
+    final hasSignificantProgressChange =
+        progressDelta >= 10 ||
+        event.tab.loadProgress == 100 ||
+        event.tab.loadProgress == 0;
 
-    final hasMeaningfulChange = existingTab.url != event.tab.url ||
+    final hasMeaningfulChange =
+        existingTab.url != event.tab.url ||
         existingTab.title != event.tab.title ||
         existingTab.thumbnail != event.tab.thumbnail ||
         existingTab.isLoading != event.tab.isLoading ||
@@ -268,12 +383,11 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     repository.updateTab(event.tab);
 
     final updatedTabs = repository.getTabs();
-    final updatedActiveTab = state.activeTab?.id == event.tab.id ? event.tab : state.activeTab;
+    final updatedActiveTab = state.activeTab?.id == event.tab.id
+        ? event.tab
+        : state.activeTab;
 
-    emit(state.copyWith(
-      tabs: updatedTabs,
-      activeTab: updatedActiveTab,
-    ));
+    emit(state.copyWith(tabs: updatedTabs, activeTab: updatedActiveTab));
 
     // Skip cache nếu được yêu cầu (cho progress, thumbnail, title changes)
     if (event.skipCache) return;
@@ -284,7 +398,10 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     }
   }
 
-  void _onAddLoadedResource(AddLoadedResourceEvent event, Emitter<TabState> emit) {
+  void _onAddLoadedResource(
+    AddLoadedResourceEvent event,
+    Emitter<TabState> emit,
+  ) {
     final tab = repository.getTab(event.tabId);
     if (tab == null) return;
 
@@ -304,7 +421,10 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     }
   }
 
-  void _onClearLoadedResources(ClearLoadedResourcesEvent event, Emitter<TabState> emit) {
+  void _onClearLoadedResources(
+    ClearLoadedResourcesEvent event,
+    Emitter<TabState> emit,
+  ) {
     final tab = repository.getTab(event.tabId);
     if (tab == null) return;
 
@@ -314,5 +434,84 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     if (state.activeTab?.id == event.tabId) {
       emit(state.copyWith(activeTab: updatedTab));
     }
+  }
+
+  void _onEnableSplitView(EnableSplitViewEvent event, Emitter<TabState> emit) {
+    final activeTab = state.activeTab;
+    final secondaryTab = repository.getTab(event.secondaryTabId);
+    if (activeTab == null ||
+        secondaryTab == null ||
+        secondaryTab.id == activeTab.id ||
+        secondaryTab.isIncognito != activeTab.isIncognito) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isSplitViewEnabled: true,
+        splitSecondaryTabId: secondaryTab.id,
+        splitRatio: state.splitRatio.clamp(0.25, 0.75),
+      ),
+    );
+
+    AppLogger.event(
+      AnalyticsEvent.splitViewToggled,
+      params: {
+        AnalyticsParam.isIncognito: activeTab.isIncognito,
+        AnalyticsParam.success: true,
+      },
+    );
+  }
+
+  void _onDisableSplitView(
+    DisableSplitViewEvent event,
+    Emitter<TabState> emit,
+  ) {
+    if (!state.isSplitViewEnabled) return;
+
+    emit(state.copyWith(isSplitViewEnabled: false, splitSecondaryTabId: null));
+
+    AppLogger.event(
+      AnalyticsEvent.splitViewToggled,
+      params: {
+        AnalyticsParam.isIncognito: state.activeTab?.isIncognito ?? false,
+        AnalyticsParam.success: false,
+      },
+    );
+  }
+
+  void _onSetSplitSecondaryTab(
+    SetSplitSecondaryTabEvent event,
+    Emitter<TabState> emit,
+  ) {
+    final activeTab = state.activeTab;
+    final secondaryTab = repository.getTab(event.secondaryTabId);
+    if (activeTab == null ||
+        secondaryTab == null ||
+        secondaryTab.id == activeTab.id ||
+        secondaryTab.isIncognito != activeTab.isIncognito) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isSplitViewEnabled: true,
+        splitSecondaryTabId: secondaryTab.id,
+      ),
+    );
+  }
+
+  void _onUpdateSplitRatio(
+    UpdateSplitRatioEvent event,
+    Emitter<TabState> emit,
+  ) {
+    if (!state.isSplitViewEnabled) return;
+    final ratio = event.ratio.clamp(0.25, 0.75);
+    emit(state.copyWith(splitRatio: ratio));
+
+    AppLogger.event(
+      AnalyticsEvent.splitViewResized,
+      params: {AnalyticsParam.splitRatio: (ratio * 100).round()},
+    );
   }
 }

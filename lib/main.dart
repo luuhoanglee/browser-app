@@ -1,9 +1,11 @@
 import 'dart:async' show runZonedGuarded;
 import 'dart:io';
 import 'package:browser_app/core/resources/app_colors.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart' show FirebaseCrashlytics;
+import 'package:firebase_crashlytics/firebase_crashlytics.dart'
+    show FirebaseCrashlytics;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:browser_app/core/logger/analytics_event.dart';
 import 'package:browser_app/core/logger/app_logger.dart';
 import 'package:browser_app/core/services/local_notification_service.dart';
 import 'package:browser_app/data/services/download_notification_service.dart';
@@ -11,18 +13,26 @@ import 'presentation/pages/home/home_page.dart';
 import 'package:browser_app/core/services/fcm/firebase_service.dart';
 
 void main() async {
-  runZonedGuarded<Future<void>>(() async {
-    WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-    await FirebaseService.initializeFirebase();
+      await FirebaseService.initializeFirebase();
 
-    _initBackgroundServices();
+      _initBackgroundServices();
 
-    runApp(const BrowserApp());
-  }, (error, stack) {
-    AppLogger.fatal('App', 'Unhandled zone error', error: error, stackTrace: stack);
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-  });
+      runApp(const BrowserApp());
+    },
+    (error, stack) {
+      AppLogger.fatal(
+        'App',
+        'Unhandled zone error',
+        error: error,
+        stackTrace: stack,
+      );
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    },
+  );
 }
 
 void _initBackgroundServices() {
@@ -37,7 +47,6 @@ void _initBackgroundServices() {
   });
 }
 
-
 final GlobalKey<HomeViewWrapperState> homeViewKey =
     GlobalKey<HomeViewWrapperState>();
 
@@ -49,18 +58,25 @@ class BrowserApp extends StatefulWidget {
 }
 
 class _BrowserAppState extends State<BrowserApp> {
-  static const _channel =
-      MethodChannel('com.dino.pardix/deeplink');
+  static const _channel = MethodChannel('com.dino.pardix/deeplink');
 
+  final _lifecycleAnalyticsObserver = _AppLifecycleAnalyticsObserver();
   String? _initialLink;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(_lifecycleAnalyticsObserver);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeepLinkListener();
       _getInitialLink();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(_lifecycleAnalyticsObserver);
+    super.dispose();
   }
 
   Future<void> _getInitialLink() async {
@@ -70,7 +86,12 @@ class _BrowserAppState extends State<BrowserApp> {
         setState(() => _initialLink = link);
       }
     } catch (e, s) {
-      AppLogger.warning('App', 'Failed to get initial deep link', error: e, stackTrace: s);
+      AppLogger.warning(
+        'App',
+        'Failed to get initial deep link',
+        error: e,
+        stackTrace: s,
+      );
     }
   }
 
@@ -88,13 +109,17 @@ class _BrowserAppState extends State<BrowserApp> {
     return MaterialApp(
       title: 'Browser App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-      ),
-      home: HomePage(
-        key: homeViewKey,
-        initialUrl: _initialLink,
-      ),
+      theme: ThemeData(useMaterial3: true),
+      home: HomePage(key: homeViewKey, initialUrl: _initialLink),
     );
+  }
+}
+
+class _AppLifecycleAnalyticsObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AppLogger.event(AnalyticsEvent.appForegrounded);
+    }
   }
 }

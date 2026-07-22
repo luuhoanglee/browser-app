@@ -1,5 +1,7 @@
 import '../../../domain/entities/tab_entity.dart';
 
+const Object _unset = Object();
+
 class TabState {
   final List<TabEntity> tabs;
   final TabEntity? activeTab;
@@ -7,6 +9,9 @@ class TabState {
   final bool isIncognitoMode;
   final String? normalModeActiveTabId;
   final String? incognitoModeActiveTabId;
+  final bool isSplitViewEnabled;
+  final String? splitSecondaryTabId;
+  final double splitRatio;
 
   const TabState({
     this.tabs = const [],
@@ -15,6 +20,9 @@ class TabState {
     this.isIncognitoMode = false,
     this.normalModeActiveTabId,
     this.incognitoModeActiveTabId,
+    this.isSplitViewEnabled = false,
+    this.splitSecondaryTabId,
+    this.splitRatio = 0.5,
   });
 
   TabState copyWith({
@@ -24,14 +32,24 @@ class TabState {
     bool? isIncognitoMode,
     String? normalModeActiveTabId,
     String? incognitoModeActiveTabId,
+    bool? isSplitViewEnabled,
+    Object? splitSecondaryTabId = _unset,
+    double? splitRatio,
   }) {
     return TabState(
       tabs: tabs ?? this.tabs,
       activeTab: activeTab ?? this.activeTab,
       activeTabIndex: activeTabIndex ?? this.activeTabIndex,
       isIncognitoMode: isIncognitoMode ?? this.isIncognitoMode,
-      normalModeActiveTabId: normalModeActiveTabId ?? this.normalModeActiveTabId,
-      incognitoModeActiveTabId: incognitoModeActiveTabId ?? this.incognitoModeActiveTabId,
+      normalModeActiveTabId:
+          normalModeActiveTabId ?? this.normalModeActiveTabId,
+      incognitoModeActiveTabId:
+          incognitoModeActiveTabId ?? this.incognitoModeActiveTabId,
+      isSplitViewEnabled: isSplitViewEnabled ?? this.isSplitViewEnabled,
+      splitSecondaryTabId: identical(splitSecondaryTabId, _unset)
+          ? this.splitSecondaryTabId
+          : splitSecondaryTabId as String?,
+      splitRatio: splitRatio ?? this.splitRatio,
     );
   }
 
@@ -41,5 +59,14 @@ class TabState {
       return tabs.where((tab) => tab.isIncognito).toList();
     }
     return tabs.where((tab) => !tab.isIncognito).toList();
+  }
+
+  TabEntity? get splitSecondaryTab {
+    final id = splitSecondaryTabId;
+    if (id == null) return null;
+    for (final tab in tabs) {
+      if (tab.id == id) return tab;
+    }
+    return null;
   }
 }

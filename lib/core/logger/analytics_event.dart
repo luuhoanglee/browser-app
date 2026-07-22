@@ -16,6 +16,8 @@ abstract final class AnalyticsEvent {
   static const String tabClosed = 'tab_closed';
   static const String tabSwitched = 'tab_switched';
   static const String incognitoToggled = 'incognito_toggled';
+  static const String splitViewToggled = 'split_view_toggled';
+  static const String splitViewResized = 'split_view_resized';
 
   // ── Navigation events ──────────────────────────────────
   static const String pageLoaded = 'page_loaded';
@@ -46,6 +48,11 @@ abstract final class AnalyticsEvent {
   // ── Ad block events ────────────────────────────────────
   static const String adBlocked = 'ad_blocked';
 
+  // ── WARP / DNS events ──────────────────────────────────
+  static const String warpOpened = 'warp_opened';
+  static const String warpStoreOpened = 'warp_store_opened';
+  static const String warpSiteOpened = 'warp_site_opened';
+
   // ── App lifecycle events ───────────────────────────────
   static const String appForegrounded = 'app_foregrounded';
   static const String notificationReceived = 'notification_received';
@@ -57,6 +64,7 @@ abstract final class AnalyticsParam {
   // Tab
   static const String isIncognito = 'is_incognito';
   static const String tabCount = 'tab_count';
+  static const String splitRatio = 'split_ratio';
 
   // Navigation
   static const String domain = 'domain';
@@ -78,7 +86,8 @@ abstract final class AnalyticsParam {
 
   // Ad block
   static const String blockedCount = 'blocked_count';
-  static const String blockReason = 'block_reason'; // domain | pattern | youtube
+  static const String blockReason =
+      'block_reason'; // domain | pattern | youtube
 
   // General
   static const String success = 'success';

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../../../features/tabs/bloc/tab_bloc.dart';
-import '../../../../../../features/tabs/bloc/tab_event.dart';
 
 class BottomBar extends StatelessWidget {
   final dynamic activeTab;
@@ -13,6 +10,7 @@ class BottomBar extends StatelessWidget {
   final VoidCallback onShowHistory;
   final VoidCallback onShowDownload;
   final VoidCallback onShowMedia;
+  final VoidCallback onShowWarp;
 
   final bool isSearching;
   final bool isMediaSheetOpen;
@@ -34,6 +32,7 @@ class BottomBar extends StatelessWidget {
     required this.onShowHistory,
     required this.onShowDownload,
     required this.onShowMedia,
+    required this.onShowWarp,
     required this.isSearching,
     required this.isMediaSheetOpen,
     required this.searchController,
@@ -64,47 +63,60 @@ class BottomBar extends StatelessWidget {
 
     return RepaintBoundary(
       child: Container(
-      decoration: BoxDecoration(
-        color: isIncognito ? Colors.grey[900] : Colors.white,
-      ),
+        decoration: BoxDecoration(
+          color: isIncognito ? Colors.grey[900] : Colors.white,
+        ),
         child: SafeArea(
           bottom: false,
           top: false,
           child: Padding(
-          padding: const EdgeInsets.only(bottom:20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Address bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: _buildAddressBar(context),
-            ),
-            // Navigation buttons
-            SizedBox(
-              height: 44,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavBackItem(Icons.chevron_left, onBack),
-                  _buildNavForwardItem(Icons.chevron_right, onForward),
-                  _buildNavBarItem(Icons.history, onShowHistory),
-                  _buildNavBarItem(Icons.play_arrow, onShowMedia, isDisabled: activeTab.url.isEmpty),
-                  _buildNavBarItem(Icons.download, onShowDownload),
-
-                  _buildNavBarItemWithBadge(
-                    Icons.copy,
-                    onShowTabs,
-                    badgeCount: tabState.filteredTabs.length,
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Address bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
-                ],
-              ),
+                  child: _buildAddressBar(context),
+                ),
+                // Navigation buttons
+                SizedBox(
+                  height: 44,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavBackItem(Icons.chevron_left, onBack),
+                      _buildNavForwardItem(Icons.chevron_right, onForward),
+                      _buildNavBarItem(Icons.history, onShowHistory),
+                      _buildNavBarItem(
+                        Icons.shield_outlined,
+                        onShowWarp,
+                        semanticLabel: 'WARP / 1.1.1.1',
+                      ),
+                      _buildNavBarItem(
+                        Icons.play_arrow,
+                        onShowMedia,
+                        isDisabled: activeTab.url.isEmpty,
+                      ),
+                      _buildNavBarItem(Icons.download, onShowDownload),
+
+                      _buildNavBarItemWithBadge(
+                        Icons.copy,
+                        onShowTabs,
+                        badgeCount: tabState.filteredTabs.length,
+                        semanticLabel: 'Tabs',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-      )
-      )
     );
   }
 
@@ -135,10 +147,16 @@ class BottomBar extends StatelessWidget {
                 focusNode: searchFocusNode,
                 textCapitalization: TextCapitalization.sentences,
                 autofocus: true,
-                style: TextStyle(fontSize: 16, color: isIncognito ? Colors.white70 : Colors.black87),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isIncognito ? Colors.white70 : Colors.black87,
+                ),
                 decoration: InputDecoration(
                   hintText: 'Search or enter website name',
-                  hintStyle: TextStyle(color: isIncognito ? Colors.grey[500] : Colors.grey[500], fontSize: 16),
+                  hintStyle: TextStyle(
+                    color: isIncognito ? Colors.grey[500] : Colors.grey[500],
+                    fontSize: 16,
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 ),
@@ -153,7 +171,11 @@ class BottomBar extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   margin: const EdgeInsets.only(right: 8),
-                  child: Icon(Icons.cancel, size: 16, color: isIncognito ? Colors.grey[500] : Colors.grey[500]),
+                  child: Icon(
+                    Icons.cancel,
+                    size: 16,
+                    color: isIncognito ? Colors.grey[500] : Colors.grey[500],
+                  ),
                 ),
               ),
           ],
@@ -179,7 +201,11 @@ class BottomBar extends StatelessWidget {
                 color: isIncognito ? Colors.grey[400] : Colors.grey[600],
               )
             else
-              Icon(Icons.search, size: 18, color: isIncognito ? Colors.grey[500] : Colors.grey[500]),
+              Icon(
+                Icons.search,
+                size: 18,
+                color: isIncognito ? Colors.grey[500] : Colors.grey[500],
+              ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -200,7 +226,11 @@ class BottomBar extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   margin: const EdgeInsets.only(right: 4),
-                  child: Icon(Icons.refresh, size: 18, color: isIncognito ? Colors.grey[400] : Colors.grey[600]),
+                  child: Icon(
+                    Icons.refresh,
+                    size: 18,
+                    color: isIncognito ? Colors.grey[400] : Colors.grey[600],
+                  ),
                 ),
               ),
           ],
@@ -209,71 +239,97 @@ class BottomBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavBarItem(IconData icon, VoidCallback onTap, {bool isActive = true, bool isNavigationButton = false, bool isDisabled = false}) {
+  Widget _buildNavBarItem(
+    IconData icon,
+    VoidCallback onTap, {
+    bool isActive = true,
+    bool isNavigationButton = false,
+    bool isDisabled = false,
+    String? semanticLabel,
+  }) {
     final isIncognito = activeTab.isIncognito ?? false;
     final iconColor = isMediaSheetOpen || isDisabled
         ? Colors.grey[400]
         : (isActive
-            ? (isNavigationButton ? Colors.blue : (isIncognito ? Colors.white70 : Colors.grey[700]))
-            : Colors.grey[400]);
+              ? (isNavigationButton
+                    ? Colors.blue
+                    : (isIncognito ? Colors.white70 : Colors.grey[700]))
+              : Colors.grey[400]);
 
-    return GestureDetector(
-      onTap: (isActive && !isDisabled) ? onTap : null,
-      child: Container(
-        width: 50,
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          size: 22,
-          color: iconColor,
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: Tooltip(
+        message: semanticLabel ?? '',
+        excludeFromSemantics: true,
+        child: GestureDetector(
+          onTap: (isActive && !isDisabled) ? onTap : null,
+          child: Container(
+            width: 50,
+            alignment: Alignment.center,
+            child: Icon(icon, size: 22, color: iconColor),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildNavBarItemWithBadge(IconData icon, VoidCallback onTap, {bool isActive = true, required int badgeCount}) {
+  Widget _buildNavBarItemWithBadge(
+    IconData icon,
+    VoidCallback onTap, {
+    bool isActive = true,
+    required int badgeCount,
+    String? semanticLabel,
+  }) {
     final isIncognito = activeTab.isIncognito ?? false;
-    final iconColor = isMediaSheetOpen ? Colors.grey[400] : (isActive ? (isIncognito ? Colors.white70 : Colors.grey[700]) : Colors.grey[400]);
+    final iconColor = isMediaSheetOpen
+        ? Colors.grey[400]
+        : (isActive
+              ? (isIncognito ? Colors.white70 : Colors.grey[700])
+              : Colors.grey[400]);
 
-    return GestureDetector(
-      onTap: isActive ? onTap : null,
-      child: Container(
-        width: 50,
-        alignment: Alignment.center,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: iconColor,
-            ),
-            if (badgeCount >= 1)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: isIncognito ? Colors.grey[600] : Colors.blue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 14,
-                  ),
-                  child: Text(
-                    badgeCount.toString(),
-                    style: TextStyle(
-                      color: isIncognito ? Colors.white70 : Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        onTap: isActive ? onTap : null,
+        child: Container(
+          width: 50,
+          alignment: Alignment.center,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(icon, size: 22, color: iconColor),
+              if (badgeCount >= 1)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
                     ),
-                    textAlign: TextAlign.center,
+                    decoration: BoxDecoration(
+                      color: isIncognito ? Colors.grey[600] : Colors.blue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 14,
+                    ),
+                    child: Text(
+                      badgeCount.toString(),
+                      style: TextStyle(
+                        color: isIncognito ? Colors.white70 : Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -284,9 +340,13 @@ class BottomBar extends StatelessWidget {
       future: canGoBack(),
       builder: (context, snapshot) {
         final canGoBackVal = snapshot.data ?? false;
-        final isIncognito = activeTab.isIncognito ?? false;
         final isActive = canGoBackVal || activeTab.url.isNotEmpty;
-        return _buildNavBarItem(icon, onTap ?? () {}, isActive: isActive, isNavigationButton: true);
+        return _buildNavBarItem(
+          icon,
+          onTap ?? () {},
+          isActive: isActive,
+          isNavigationButton: true,
+        );
       },
     );
   }
@@ -297,7 +357,12 @@ class BottomBar extends StatelessWidget {
       builder: (context, snapshot) {
         final canGoForwardVal = snapshot.data ?? false;
         final isActive = canGoForwardVal;
-        return _buildNavBarItem(icon, onTap ?? () {}, isActive: isActive, isNavigationButton: true);
+        return _buildNavBarItem(
+          icon,
+          onTap ?? () {},
+          isActive: isActive,
+          isNavigationButton: true,
+        );
       },
     );
   }

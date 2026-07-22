@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:browser_app/core/logger/analytics_event.dart';
 import 'package:browser_app/core/logger/app_logger.dart';
+import 'package:browser_app/core/logger/analytics_utils.dart';
 import 'package:browser_app/core/utils/url_utils.dart';
 import '../../../data/repositories/tab_repository_impl.dart';
 import '../../../data/services/storage_service.dart';
@@ -29,6 +31,7 @@ import 'package:browser_app/features/search/search_service.dart';
 import '../../../features/media/widgets/media_gallery_sheet.dart';
 import '../../../features/download/bloc/download_bloc.dart';
 import '../../../features/download/widgets/download_sheet.dart';
+import '../../../features/warp/widgets/warp_support_sheet.dart';
 import 'bloc/home_ui_cubit.dart';
 import 'mixins/status_bar_mixin.dart';
 import 'services/nav_history_manager.dart';
@@ -162,6 +165,10 @@ class _HomeViewState extends State<HomeView>
     final activeTab = bloc.state.activeTab;
     if (activeTab != null) {
       AppLogger.info('HomePage', 'Loading deep link URL: $url');
+      AppLogger.event(
+        AnalyticsEvent.deepLinkOpened,
+        params: AnalyticsUtils.navigationParams(url),
+      );
       _navManager.addUrl(activeTab.id, url);
       bloc.add(UpdateTabEvent(activeTab.copyWith(url: url)));
       final controller = _getController(activeTab.id);
@@ -384,6 +391,13 @@ class _HomeViewState extends State<HomeView>
 
           if (prevTab?.id != currTab?.id) return true;
           if (previous.tabs.length != current.tabs.length) return true;
+          if (previous.isSplitViewEnabled != current.isSplitViewEnabled) {
+            return true;
+          }
+          if (previous.splitSecondaryTabId != current.splitSecondaryTabId) {
+            return true;
+          }
+          if (previous.splitRatio != current.splitRatio) return true;
           final prevUrlEmpty = prevTab?.url.isEmpty ?? true;
           final currUrlEmpty = currTab?.url.isEmpty ?? true;
           if (prevUrlEmpty != currUrlEmpty) return true;
@@ -447,6 +461,8 @@ class _HomeViewState extends State<HomeView>
                                     onShowDownload: () =>
                                         _showDownloadSheet(context),
                                     onShowMedia: () => _showMediaSheet(context),
+                                    onShowWarp: () =>
+                                        WarpSupportSheet.show(context),
                                     isSearching: _isSearching,
                                     isMediaSheetOpen: _isMediaSheetOpen,
                                     searchController: _searchController,
@@ -502,204 +518,301 @@ class _HomeViewState extends State<HomeView>
     dynamic activeTab,
     TabState tabState,
   ) {
+    final secondaryTab = tabState.splitSecondaryTab;
+    final canShowSplit =
+        tabState.isSplitViewEnabled &&
+        secondaryTab != null &&
+        secondaryTab.id != activeTab.id &&
+        secondaryTab.isIncognito == activeTab.isIncognito;
+
+    if (canShowSplit) {
+      return _buildSplitPageContent(context, activeTab, secondaryTab, tabState);
+    }
+
     return Stack(
       children: tabState.tabs.map((tab) {
-        final isActive = tab.id == activeTab.id;
-
-        if (tab.url.isEmpty) {
-          return Offstage(
-            offstage: !isActive,
-            child: RepaintBoundary(
-              key: ValueKey('empty_boundary_${tab.id}'),
-              child: EmptyPage(
-                key: ValueKey('empty_${tab.id}'),
-                activeTab: tab,
-                onSearchBarTap: () => _showSearchPage(context),
-                onQuickAccessTap: (url) {
-                  _resetScrollState();
-                  final formatted = UrlUtils.formatUrl(url);
-                  _navManager.addUrl(tab.id, formatted);
-                  final bloc = context.read<TabBloc>();
-                  bloc.add(UpdateTabEvent(tab.copyWith(url: formatted)));
-                  final controller = _getController(tab.id);
-                  if (controller != null) {
-                    controller.loadUrl(
-                      urlRequest: URLRequest(url: WebUri(formatted)),
-                    );
-                  }
-                },
-              ),
-            ),
-          );
-        }
-
         return Offstage(
-          offstage: !isActive,
-          child: WebViewPage(
-            key: ValueKey('webview_${tab.id}'),
-            activeTab: tab,
-            controller: _getController(tab.id),
-            pullToRefreshController: _pullToRefreshController,
-            onWebViewCreated: (controller) =>
-                _setController(tab.id, controller),
-            onUpdateVisitedHistory: (controller, url, isReload) {
-              final bloc = context.read<TabBloc>();
-              final currentTab = bloc.state.tabs.firstWhere(
-                (t) => t.id == tab.id,
-                orElse: () => tab,
-              );
-              final urlStr = url?.toString() ?? '';
-              if (urlStr.isNotEmpty &&
-                  !urlStr.startsWith('intent://') &&
-                  !UrlUtils.isExternalUrl(urlStr)) {
-                if (currentTab.url != urlStr) {
-                  bloc.add(
-                    UpdateTabEvent(
-                      currentTab.copyWith(url: urlStr),
-                      skipCache: true,
-                    ),
-                  );
-                }
-              }
-            },
-            onUrlUpdated: (newUrl) {
-              final bloc = context.read<TabBloc>();
-              final currentTab = bloc.state.tabs.firstWhere(
-                (t) => t.id == tab.id,
-                orElse: () => tab,
-              );
-              if (newUrl.isNotEmpty) {
-                bloc.add(
-                  UpdateTabEvent(
-                    currentTab.copyWith(url: newUrl),
-                    skipCache: false,
-                  ),
-                );
-              }
-            },
-            onLoadStart: (controller, url) {
-              _resetScrollState();
-              final bloc = context.read<TabBloc>();
-              final currentTab = bloc.state.tabs.firstWhere(
-                (t) => t.id == tab.id,
-                orElse: () => tab,
-              );
-              final urlStr = url?.toString() ?? '';
-              if (!urlStr.startsWith('intent://') &&
-                  !UrlUtils.isExternalUrl(urlStr)) {
-                if (currentTab.url != urlStr) {
-                  bloc.add(
-                    UpdateTabEvent(
-                      currentTab.copyWith(url: urlStr),
-                      skipCache: true,
-                    ),
-                  );
-                }
-              }
-            },
-            onLoadStop: (controller, url) async {
-              final bloc = context.read<TabBloc>();
-              final currentTab = bloc.state.tabs.firstWhere(
-                (t) => t.id == tab.id,
-                orElse: () => tab,
-              );
-              final urlStr = url?.toString() ?? '';
-              if (url != null &&
-                  urlStr.isNotEmpty &&
-                  !urlStr.startsWith('intent://') &&
-                  !UrlUtils.isExternalUrl(urlStr)) {
-                if (tab.url.isNotEmpty && isActive) {
-                  await syncSystemUiFromWebPage(
-                    controller: controller,
-                    tabId: tab.id,
-                    isIncognito: currentTab.isIncognito,
-                  );
-                }
-                final title = await controller.getTitle();
-                if (title != null &&
-                    title.isNotEmpty &&
-                    currentTab.title == 'New Tab') {
-                  bloc.add(
-                    UpdateTabEvent(
-                      currentTab.copyWith(title: title),
-                      skipCache: true,
-                    ),
-                  );
-                } else if (currentTab.title == 'New Tab' ||
-                    currentTab.title.isEmpty) {
-                  final uri = Uri.tryParse(urlStr);
-                  final fallbackTitle =
-                      uri?.host ?? UrlUtils.formatUrlTitle(urlStr);
-                  if (fallbackTitle.isNotEmpty) {
-                    bloc.add(
-                      UpdateTabEvent(
-                        currentTab.copyWith(title: fallbackTitle),
-                        skipCache: true,
-                      ),
-                    );
-                  }
-                }
-
-                Future.delayed(const Duration(milliseconds: 500), () {
-                  _captureThumbnail(tab.id);
-                  _addToHistory(urlStr);
-                });
-              }
-            },
-            onTitleChanged: (controller, title) {
-              final bloc = context.read<TabBloc>();
-              final currentTab = bloc.state.tabs.firstWhere(
-                (t) => t.id == tab.id,
-                orElse: () => tab,
-              );
-              if (title != null &&
-                  title.isNotEmpty &&
-                  currentTab.title != title) {
-                bloc.add(
-                  UpdateTabEvent(
-                    currentTab.copyWith(title: title),
-                    skipCache: true,
-                  ),
-                );
-              }
-            },
-            onProgressChanged: (controller, progress) {
-              // Chỉ update khi thay đổi 20%+ để giảm số lần rebuild
-              final shouldUpdate =
-                  (progress - _lastProgress).abs() >= 20 ||
-                  progress == 100 ||
-                  (progress == 0 && _lastProgress != 0);
-
-              if (!shouldUpdate) return;
-
-              _lastProgress = progress;
-
-              _progressDebounce?.cancel();
-              _progressDebounce = Timer(const Duration(milliseconds: 100), () {
-                if (!mounted) return;
-
-                final bloc = context.read<TabBloc>();
-                final currentTab = bloc.state.tabs.firstWhere(
-                  (t) => t.id == tab.id,
-                  orElse: () => tab,
-                );
-                bloc.add(
-                  UpdateTabEvent(
-                    currentTab.copyWith(
-                      loadProgress: progress,
-                      isLoading: progress < 100,
-                    ),
-                    skipCache: true,
-                  ),
-                );
-              });
-            },
-            onScrollChanged: (y) => _handleScrollChange(y),
-            onSwipeBack: () => _handleNavigation(context, tab.id, false),
-            onSwipeForward: () => _handleNavigation(context, tab.id, true),
-          ),
+          offstage: tab.id != activeTab.id,
+          child: _buildTabPane(context, tab, tab.id == activeTab.id),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildSplitPageContent(
+    BuildContext context,
+    dynamic activeTab,
+    dynamic secondaryTab,
+    TabState tabState,
+  ) {
+    final hiddenTabs = tabState.tabs
+        .where((tab) => tab.id != activeTab.id && tab.id != secondaryTab.id)
+        .map(
+          (tab) => Offstage(
+            offstage: true,
+            child: _buildTabPane(context, tab, false),
+          ),
+        )
+        .toList();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isLandscape = constraints.maxWidth > constraints.maxHeight;
+        final ratio = tabState.splitRatio.clamp(0.25, 0.75);
+
+        final splitLayout = isLandscape
+            ? Row(
+                children: [
+                  Expanded(
+                    flex: (ratio * 1000).round(),
+                    child: _buildSplitPane(context, activeTab, true),
+                  ),
+                  _buildSplitDivider(context, isLandscape, constraints),
+                  Expanded(
+                    flex: ((1 - ratio) * 1000).round(),
+                    child: _buildSplitPane(context, secondaryTab, false),
+                  ),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    flex: (ratio * 1000).round(),
+                    child: _buildSplitPane(context, activeTab, true),
+                  ),
+                  _buildSplitDivider(context, isLandscape, constraints),
+                  Expanded(
+                    flex: ((1 - ratio) * 1000).round(),
+                    child: _buildSplitPane(context, secondaryTab, false),
+                  ),
+                ],
+              );
+
+        return Stack(children: [...hiddenTabs, splitLayout]);
+      },
+    );
+  }
+
+  Widget _buildSplitPane(BuildContext context, dynamic tab, bool isPrimary) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: isPrimary ? Colors.blue.withOpacity(0.35) : Colors.orange,
+          width: isPrimary ? 0.5 : 1,
+        ),
+      ),
+      child: ClipRect(child: _buildTabPane(context, tab, isPrimary)),
+    );
+  }
+
+  Widget _buildSplitDivider(
+    BuildContext context,
+    bool isLandscape,
+    BoxConstraints constraints,
+  ) {
+    const dividerExtent = 14.0;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanUpdate: (details) {
+        final bloc = context.read<TabBloc>();
+        final delta = isLandscape
+            ? details.delta.dx / constraints.maxWidth
+            : details.delta.dy / constraints.maxHeight;
+        bloc.add(UpdateSplitRatioEvent(bloc.state.splitRatio + delta));
+      },
+      child: MouseRegion(
+        cursor: isLandscape
+            ? SystemMouseCursors.resizeLeftRight
+            : SystemMouseCursors.resizeUpDown,
+        child: Container(
+          width: isLandscape ? dividerExtent : double.infinity,
+          height: isLandscape ? double.infinity : dividerExtent,
+          color: Colors.black.withOpacity(0.06),
+          alignment: Alignment.center,
+          child: Container(
+            width: isLandscape ? 3 : 44,
+            height: isLandscape ? 44 : 3,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.32),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabPane(BuildContext context, dynamic tab, bool isPrimaryPane) {
+    if (tab.url.isEmpty) {
+      return RepaintBoundary(
+        key: ValueKey('empty_boundary_${tab.id}'),
+        child: EmptyPage(
+          key: ValueKey('empty_${tab.id}'),
+          activeTab: tab,
+          onSearchBarTap: () => _showSearchPage(context),
+          onQuickAccessTap: (url) {
+            _resetScrollState();
+            final formatted = UrlUtils.formatUrl(url);
+            _navManager.addUrl(tab.id, formatted);
+            final bloc = context.read<TabBloc>();
+            bloc.add(UpdateTabEvent(tab.copyWith(url: formatted)));
+            final controller = _getController(tab.id);
+            if (controller != null) {
+              controller.loadUrl(
+                urlRequest: URLRequest(url: WebUri(formatted)),
+              );
+            }
+          },
+        ),
+      );
+    }
+
+    return WebViewPage(
+      key: ValueKey('webview_${tab.id}'),
+      activeTab: tab,
+      controller: _getController(tab.id),
+      pullToRefreshController: isPrimaryPane ? _pullToRefreshController : null,
+      onWebViewCreated: (controller) => _setController(tab.id, controller),
+      onUpdateVisitedHistory: (controller, url, isReload) {
+        final bloc = context.read<TabBloc>();
+        final currentTab = bloc.state.tabs.firstWhere(
+          (t) => t.id == tab.id,
+          orElse: () => tab,
+        );
+        final urlStr = url?.toString() ?? '';
+        if (urlStr.isNotEmpty &&
+            !urlStr.startsWith('intent://') &&
+            !UrlUtils.isExternalUrl(urlStr) &&
+            currentTab.url != urlStr) {
+          bloc.add(
+            UpdateTabEvent(currentTab.copyWith(url: urlStr), skipCache: true),
+          );
+        }
+      },
+      onUrlUpdated: (newUrl) {
+        final bloc = context.read<TabBloc>();
+        final currentTab = bloc.state.tabs.firstWhere(
+          (t) => t.id == tab.id,
+          orElse: () => tab,
+        );
+        if (newUrl.isNotEmpty) {
+          bloc.add(
+            UpdateTabEvent(currentTab.copyWith(url: newUrl), skipCache: false),
+          );
+        }
+      },
+      onLoadStart: (controller, url) {
+        _resetScrollState();
+        final bloc = context.read<TabBloc>();
+        final currentTab = bloc.state.tabs.firstWhere(
+          (t) => t.id == tab.id,
+          orElse: () => tab,
+        );
+        final urlStr = url?.toString() ?? '';
+        if (!urlStr.startsWith('intent://') &&
+            !UrlUtils.isExternalUrl(urlStr) &&
+            currentTab.url != urlStr) {
+          bloc.add(
+            UpdateTabEvent(currentTab.copyWith(url: urlStr), skipCache: true),
+          );
+        }
+      },
+      onLoadStop: (controller, url) async {
+        final bloc = context.read<TabBloc>();
+        final currentTab = bloc.state.tabs.firstWhere(
+          (t) => t.id == tab.id,
+          orElse: () => tab,
+        );
+        final urlStr = url?.toString() ?? '';
+        if (url != null &&
+            urlStr.isNotEmpty &&
+            !urlStr.startsWith('intent://') &&
+            !UrlUtils.isExternalUrl(urlStr)) {
+          if (tab.url.isNotEmpty && isPrimaryPane) {
+            await syncSystemUiFromWebPage(
+              controller: controller,
+              tabId: tab.id,
+              isIncognito: currentTab.isIncognito,
+            );
+          }
+          final title = await controller.getTitle();
+          if (title != null &&
+              title.isNotEmpty &&
+              currentTab.title == 'New Tab') {
+            bloc.add(
+              UpdateTabEvent(
+                currentTab.copyWith(title: title),
+                skipCache: true,
+              ),
+            );
+          } else if (currentTab.title == 'New Tab' ||
+              currentTab.title.isEmpty) {
+            final uri = Uri.tryParse(urlStr);
+            final fallbackTitle = uri?.host ?? UrlUtils.formatUrlTitle(urlStr);
+            if (fallbackTitle.isNotEmpty) {
+              bloc.add(
+                UpdateTabEvent(
+                  currentTab.copyWith(title: fallbackTitle),
+                  skipCache: true,
+                ),
+              );
+            }
+          }
+
+          Future.delayed(const Duration(milliseconds: 500), () {
+            AppLogger.event(
+              AnalyticsEvent.pageLoaded,
+              params: AnalyticsUtils.navigationParams(urlStr),
+            );
+            _captureThumbnail(tab.id);
+            _addToHistory(urlStr);
+          });
+        }
+      },
+      onTitleChanged: (controller, title) {
+        final bloc = context.read<TabBloc>();
+        final currentTab = bloc.state.tabs.firstWhere(
+          (t) => t.id == tab.id,
+          orElse: () => tab,
+        );
+        if (title != null && title.isNotEmpty && currentTab.title != title) {
+          bloc.add(
+            UpdateTabEvent(currentTab.copyWith(title: title), skipCache: true),
+          );
+        }
+      },
+      onProgressChanged: (controller, progress) {
+        final shouldUpdate =
+            (progress - _lastProgress).abs() >= 20 ||
+            progress == 100 ||
+            (progress == 0 && _lastProgress != 0);
+
+        if (!shouldUpdate) return;
+
+        _lastProgress = progress;
+        _progressDebounce?.cancel();
+        _progressDebounce = Timer(const Duration(milliseconds: 100), () {
+          if (!mounted) return;
+
+          final bloc = context.read<TabBloc>();
+          final currentTab = bloc.state.tabs.firstWhere(
+            (t) => t.id == tab.id,
+            orElse: () => tab,
+          );
+          bloc.add(
+            UpdateTabEvent(
+              currentTab.copyWith(
+                loadProgress: progress,
+                isLoading: progress < 100,
+              ),
+              skipCache: true,
+            ),
+          );
+        });
+      },
+      onScrollChanged: (y) => _handleScrollChange(y),
+      onSwipeBack: () => _handleNavigation(context, tab.id, false),
+      onSwipeForward: () => _handleNavigation(context, tab.id, true),
     );
   }
 
@@ -868,6 +981,10 @@ class _HomeViewState extends State<HomeView>
     if (controller == null) return;
 
     final loadedResources = activeTab?.loadedResources ?? [];
+    AppLogger.event(
+      AnalyticsEvent.mediaGalleryOpened,
+      params: {AnalyticsParam.resourceCount: loadedResources.length},
+    );
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

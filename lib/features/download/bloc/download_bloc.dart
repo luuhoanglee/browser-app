@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:browser_app/core/logger/analytics_event.dart';
+import 'package:browser_app/core/logger/analytics_utils.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 import '../../../data/services/download_service.dart';
 import '../../../data/services/download_notification_service.dart';
 import 'download_event.dart';
@@ -45,7 +48,8 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
 
     // Reset downloading/pending tasks to paused and save
     final resetDownloads = existingDownloads.map((task) {
-      if (task.status == DownloadStatus.downloading || task.status == DownloadStatus.pending) {
+      if (task.status == DownloadStatus.downloading ||
+          task.status == DownloadStatus.pending) {
         return task.copyWith(status: DownloadStatus.paused);
       }
       return task;
@@ -61,6 +65,15 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     DownloadStartEvent event,
     Emitter<DownloadState> emit,
   ) async {
+    AppLogger.event(
+      AnalyticsEvent.downloadStarted,
+      params: {
+        AnalyticsParam.fileType: event.customFileName == null
+            ? 'unknown'
+            : AnalyticsUtils.fileTypeFromName(event.customFileName!),
+      },
+    );
+
     unawaited(
       _downloadService.startDownload(
         event.url,
@@ -69,11 +82,13 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
           // Get latest task ID
           final currentDownloads = _downloadService.downloads;
           if (currentDownloads.isNotEmpty) {
-            add(DownloadProgressEvent(
-              currentDownloads.last.id,
-              downloaded,
-              total,
-            ));
+            add(
+              DownloadProgressEvent(
+                currentDownloads.last.id,
+                downloaded,
+                total,
+              ),
+            );
           }
         },
         onStatusChange: (updatedTask) {
@@ -89,9 +104,14 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
   ) async {
     print('[BLOC] Pause requested for ID: ${event.id}');
     _downloadService.pauseDownload(event.id);
-    print('[BLOC] Pause completed, current downloads in service: ${_downloadService.downloads.length}');
+    AppLogger.event(AnalyticsEvent.downloadPaused);
+    print(
+      '[BLOC] Pause completed, current downloads in service: ${_downloadService.downloads.length}',
+    );
     // Emit updated state from service
-    final updatedDownloads = List<DownloadTask>.from(_downloadService.downloads);
+    final updatedDownloads = List<DownloadTask>.from(
+      _downloadService.downloads,
+    );
     print('[BLOC] Emitting state with ${updatedDownloads.length} downloads');
     emit(state.copyWith(downloads: updatedDownloads));
   }
@@ -111,6 +131,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
         },
       ),
     );
+    AppLogger.event(AnalyticsEvent.downloadResumed);
   }
 
   Future<void> _onCancelDownload(
@@ -118,8 +139,11 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     Emitter<DownloadState> emit,
   ) async {
     _downloadService.cancelDownload(event.id);
+    AppLogger.event(AnalyticsEvent.downloadCancelled);
     // Remove from state - service already removed it
-    final updatedDownloads = List<DownloadTask>.from(_downloadService.downloads);
+    final updatedDownloads = List<DownloadTask>.from(
+      _downloadService.downloads,
+    );
     emit(state.copyWith(downloads: updatedDownloads));
   }
 
@@ -196,11 +220,36 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     }
 
     _handleNotificationForTask(event.task);
+    _logDownloadStatusEvent(event.task);
 
-    emit(state.copyWith(
-      downloads: updatedDownloads,
-      activeDownloads: updatedActive,
-    ));
+    emit(
+      state.copyWith(
+        downloads: updatedDownloads,
+        activeDownloads: updatedActive,
+      ),
+    );
+  }
+
+  void _logDownloadStatusEvent(DownloadTask task) {
+    final params = {
+      AnalyticsParam.fileType: AnalyticsUtils.fileTypeFromName(task.fileName),
+      if (task.totalBytes > 0)
+        AnalyticsParam.fileSizeKb: (task.totalBytes / 1024).round(),
+    };
+
+    switch (task.status) {
+      case DownloadStatus.completed:
+        AppLogger.event(AnalyticsEvent.downloadCompleted, params: params);
+        break;
+      case DownloadStatus.failed:
+        AppLogger.event(AnalyticsEvent.downloadFailed, params: params);
+        break;
+      case DownloadStatus.pending:
+      case DownloadStatus.downloading:
+      case DownloadStatus.paused:
+      case DownloadStatus.cancelled:
+        break;
+    }
   }
 
   void _handleNotificationForTask(DownloadTask task) {
@@ -241,13 +290,17 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
         progress: progress,
       );
 
-      final updatedActive = Map<String, DownloadTask>.from(state.activeDownloads);
+      final updatedActive = Map<String, DownloadTask>.from(
+        state.activeDownloads,
+      );
       updatedActive[event.id] = updatedDownloads[index];
 
-      emit(state.copyWith(
-        downloads: updatedDownloads,
-        activeDownloads: updatedActive,
-      ));
+      emit(
+        state.copyWith(
+          downloads: updatedDownloads,
+          activeDownloads: updatedActive,
+        ),
+      );
     }
   }
 
@@ -260,12 +313,19 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     _activeBatchDownloads.clear();
     _hasEmittedBatchComplete = false;
 
-    emit(state.copyWith(
-      isBatchDownloading: true,
-      batchTotalCount: event.items.length,
-      batchCompletedCount: 0,
-      batchFailedCount: 0,
-    ));
+    emit(
+      state.copyWith(
+        isBatchDownloading: true,
+        batchTotalCount: event.items.length,
+        batchCompletedCount: 0,
+        batchFailedCount: 0,
+      ),
+    );
+
+    AppLogger.event(
+      AnalyticsEvent.batchDownloadStarted,
+      params: {AnalyticsParam.batchCount: event.items.length},
+    );
 
     _processBatchQueue(emit);
   }
@@ -274,7 +334,8 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     if (_isBatchProcessing) return;
     _isBatchProcessing = true;
 
-    while (_batchQueue.isNotEmpty && _activeBatchDownloads.length < _maxConcurrentDownloads) {
+    while (_batchQueue.isNotEmpty &&
+        _activeBatchDownloads.length < _maxConcurrentDownloads) {
       final item = _batchQueue.removeAt(0);
 
       final taskId = await _startBatchItem(item);
@@ -289,7 +350,9 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     _isBatchProcessing = false;
 
     // Check if batch is complete - return result instead of emitting here
-    if (_activeBatchDownloads.isEmpty && _batchQueue.isEmpty && !_hasEmittedBatchComplete) {
+    if (_activeBatchDownloads.isEmpty &&
+        _batchQueue.isEmpty &&
+        !_hasEmittedBatchComplete) {
       _hasEmittedBatchComplete = true;
 
       final completed = state.batchCompletedCount;
@@ -319,9 +382,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     // Kept for compatibility in case it's triggered elsewhere
   }
 
-  Future<String?> _startBatchItem(
-    BatchDownloadItem item,
-  ) async {
+  Future<String?> _startBatchItem(BatchDownloadItem item) async {
     String? taskId;
 
     await _downloadService.startDownload(
@@ -421,12 +482,14 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     _isBatchProcessing = false;
     _hasEmittedBatchComplete = false;
 
-    emit(state.copyWith(
-      isBatchDownloading: false,
-      batchTotalCount: 0,
-      batchCompletedCount: 0,
-      batchFailedCount: 0,
-    ));
+    emit(
+      state.copyWith(
+        isBatchDownloading: false,
+        batchTotalCount: 0,
+        batchCompletedCount: 0,
+        batchFailedCount: 0,
+      ),
+    );
   }
 
   Future<void> _onBatchItemCompleted(
@@ -448,7 +511,9 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     await _processBatchQueue(emit);
 
     // Check if batch is complete after processing
-    if (_activeBatchDownloads.isEmpty && _batchQueue.isEmpty && !_hasEmittedBatchComplete) {
+    if (_activeBatchDownloads.isEmpty &&
+        _batchQueue.isEmpty &&
+        !_hasEmittedBatchComplete) {
       _hasEmittedBatchComplete = true;
       emit(state.copyWith(isBatchDownloading: false));
     }
@@ -473,7 +538,9 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     await _processBatchQueue(emit);
 
     // Check if batch is complete after processing
-    if (_activeBatchDownloads.isEmpty && _batchQueue.isEmpty && !_hasEmittedBatchComplete) {
+    if (_activeBatchDownloads.isEmpty &&
+        _batchQueue.isEmpty &&
+        !_hasEmittedBatchComplete) {
       _hasEmittedBatchComplete = true;
       emit(state.copyWith(isBatchDownloading: false));
     }
@@ -495,7 +562,9 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     await _processBatchQueue(emit);
 
     // Check if batch is complete after processing
-    if (_activeBatchDownloads.isEmpty && _batchQueue.isEmpty && !_hasEmittedBatchComplete) {
+    if (_activeBatchDownloads.isEmpty &&
+        _batchQueue.isEmpty &&
+        !_hasEmittedBatchComplete) {
       _hasEmittedBatchComplete = true;
       emit(state.copyWith(isBatchDownloading: false));
     }
