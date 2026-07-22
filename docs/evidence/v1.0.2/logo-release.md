@@ -30,10 +30,10 @@
 - Appium driver: UiAutomator2
 - Result: passed. App launched from the release APK, the `WARP / 1.1.1.1` control was visible, and tapping it opened the WARP sheet.
 - Evidence screenshots:
-  - `docs/evidence/v1.0.2/01-home.png` (`3f5a846f84b0a34ef5f5a1d24e545178b5fae8aa35dfd38633f5edc808d3f6ca`)
-  - `docs/evidence/v1.0.2/02-warp-sheet.png` (`af15ac7cfca12b043a12afdb10677298cf3ce7099cd1bf66f77ac418e180d933`)
+  - `docs/evidence/v1.0.2/01-home.png` (`5878654500d37be0596026886adb149a503b8693c87550e03556db910884f779`)
+  - `docs/evidence/v1.0.2/02-warp-sheet.png` (`8e18af1eacce48460695ed9e8bd14453a736a54ee27dc57273e53d22f66b55e5`)
   - `docs/evidence/v1.0.2/03-device-current.png` (`4bc649a666818f1f3a039ec65402b67d02a69fd85cded7d5e317a68aebfca6ae`)
-- Appium log: `docs/evidence/v1.0.2/appium-server.log` (`fb85284e8b24d734c9dcb6f6d14a3425e90100673e301c2a95a3c6bf64c45c59`)
+- Appium log: `docs/evidence/v1.0.2/appium-server.log` (`5c9b3ec0178e361431c3ffa9e1752d6f3bbb8b67785cb2364002c5bafe28334d`)
 
 ## Artifact
 

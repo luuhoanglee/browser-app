@@ -1,0 +1,550 @@
+2026-07-22 05:09:37:704 [Appium] Welcome to Appium v2.19.0 (REV a65a8955e69e12da43b4ce6e9e16fb225b126fd8)
+2026-07-22 05:09:37:710 [Appium] Non-default server args:
+2026-07-22 05:09:37:714 [Appium] { basePath: '/wd/hub' }
+2026-07-22 05:09:37:719 [Appium] The autodetected Appium home path: /Users/lee/Desktop/dino/browser-app
+2026-07-22 05:09:37:721 [Appium] Attempting to load driver uiautomator2...
+2026-07-22 05:09:37:729 [Appium] Requiring driver at /Users/lee/Desktop/dino/browser-app/node_modules/appium-uiautomator2-driver/build/lib/index.js
+2026-07-22 05:09:40:141 [Appium] AndroidUiautomator2Driver has been successfully loaded in 2.418s
+2026-07-22 05:09:40:358 [Appium] Appium REST http interface listener started on http://0.0.0.0:4723/wd/hub
+2026-07-22 05:09:40:418 [Appium] You can provide the following URLs in your client code to connect to this server:
+	http://127.0.0.1:4723/wd/hub (only accessible from the same host)
+	http://10.32.23.100:4723/wd/hub
+	http://169.254.145.139:4723/wd/hub
+2026-07-22 05:09:40:418 [Appium] Available drivers:
+2026-07-22 05:09:40:419 [Appium]   - uiautomator2@8.1.0 (automationName 'UiAutomator2')
+2026-07-22 05:09:40:419 [Appium] No plugins have been installed. Use the "appium plugin" command to install the one(s) you want to use.
+2026-07-22 05:09:44:489 [HTTP] --> POST /wd/hub/session {"capabilities":{"alwaysMatch":{"platformName":"Android","appium:automationName":"UiAutomator2","appium:deviceName":"emulator-5554","appium:app":"build/app/outputs/flutter-apk/app-release.apk","appium:appPackage":"com.dino.pardix","appium:autoGrantPermissions":true,"appium:newCommandTimeout":120},"firstMatch":[{}]}}
+2026-07-22 05:09:44:494 [AppiumDriver@bc13] Calling AppiumDriver.createSession() with args: [null,null,{"alwaysMatch":{"platformName":"Android","appium:automationName":"UiAutomator2","appium:deviceName":"emulator-5554","appium:app":"build/app/outputs/flutter-apk/app-release.apk","appium:appPackage":"com.dino.pardix","appium:autoGrantPermissions":true,"appium:newCommandTimeout":120},"firstMatch":[{}]}]
+2026-07-22 05:09:44:501 [AppiumDriver@bc13] Event 'newSessionRequested' logged at 1784696984499 (12:09:44 GMT+0700 (Indochina Time))
+2026-07-22 05:09:44:524 [Appium] Attempting to find matching driver for automationName 'UiAutomator2' and platformName 'Android'
+2026-07-22 05:09:44:525 [Appium] The 'uiautomator2' driver was installed and matched caps.
+2026-07-22 05:09:44:526 [Appium] Will require it at /Users/lee/Desktop/dino/browser-app/node_modules/appium-uiautomator2-driver
+2026-07-22 05:09:44:621 [Appium] Requiring driver at /Users/lee/Desktop/dino/browser-app/node_modules/appium-uiautomator2-driver/build/lib/index.js
+2026-07-22 05:09:44:624 [AppiumDriver@bc13] Appium v2.19.0 creating new AndroidUiautomator2Driver (v8.1.0) session
+2026-07-22 05:09:44:625 [AppiumDriver@bc13] Checking BaseDriver versions for Appium and AndroidUiautomator2Driver
+2026-07-22 05:09:44:625 [AppiumDriver@bc13] Appium's BaseDriver version is 9.18.0
+2026-07-22 05:09:44:625 [AppiumDriver@bc13] AndroidUiautomator2Driver's BaseDriver version is 9.18.0
+2026-07-22 05:09:44:633 [AndroidUiautomator2Driver@870a] 
+2026-07-22 05:09:44:634 [AndroidUiautomator2Driver@870a] Creating session with W3C capabilities: {
+  "alwaysMatch": {
+    "platformName": "Android",
+    "appium:automationName": "UiAutomator2",
+    "appium:deviceName": "emulator-5554",
+    "appium:app": "build/app/outputs/flutter-apk/app-release.apk",
+    "appium:appPackage": "com.dino.pardix",
+    "appium:autoGrantPermissions": true,
+    "appium:newCommandTimeout": 120
+  },
+  "firstMatch": [
+    {}
+  ]
+}
+2026-07-22 05:09:44:654 [d9e114ed][AndroidUiautomator2Driver@870a] Session created with session id: d9e114ed-e45c-41a3-aab6-08e3f18bcccf
+2026-07-22 05:09:44:686 [d9e114ed][ADB] Found 5 'build-tools' folders under '/Users/lee/Library/Android/sdk' (newest first):
+2026-07-22 05:09:44:686 [d9e114ed][ADB]     /Users/lee/Library/Android/sdk/build-tools/35.0.0
+2026-07-22 05:09:44:686 [d9e114ed][ADB]     /Users/lee/Library/Android/sdk/build-tools/34.0.0
+2026-07-22 05:09:44:686 [d9e114ed][ADB]     /Users/lee/Library/Android/sdk/build-tools/33.0.1
+2026-07-22 05:09:44:686 [d9e114ed][ADB]     /Users/lee/Library/Android/sdk/build-tools/30.0.3
+2026-07-22 05:09:44:686 [d9e114ed][ADB]     /Users/lee/Library/Android/sdk/build-tools/30.0.2
+2026-07-22 05:09:44:692 [d9e114ed][ADB] Using 'adb' from '/Users/lee/Library/Android/sdk/platform-tools/adb'
+2026-07-22 05:09:44:694 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 start-server'
+2026-07-22 05:09:44:760 [d9e114ed][AndroidUiautomator2Driver@870a] Retrieving device list
+2026-07-22 05:09:44:760 [d9e114ed][ADB] Trying to find connected Android devices
+2026-07-22 05:09:44:761 [d9e114ed][ADB] Getting connected devices
+2026-07-22 05:09:44:843 [d9e114ed][ADB] Connected devices: [{"udid":"emulator-5554","state":"device"}]
+2026-07-22 05:09:44:845 [d9e114ed][AndroidUiautomator2Driver@870a] Using device: emulator-5554
+2026-07-22 05:09:44:850 [d9e114ed][AndroidUiautomator2Driver@870a] Driver-instance IPC is unavailable. Skipping publication of the session udid.
+2026-07-22 05:09:44:852 [d9e114ed][ADB] Using 'adb' from '/Users/lee/Library/Android/sdk/platform-tools/adb'
+2026-07-22 05:09:44:853 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 start-server'
+2026-07-22 05:09:44:899 [d9e114ed][ADB] Setting device id to emulator-5554
+2026-07-22 05:09:44:903 [d9e114ed][BaseDriver] The current application path 'build/app/outputs/flutter-apk/app-release.apk' is not absolute and has been rewritten to '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'. Consider using absolute paths rather than relative
+2026-07-22 05:09:44:917 [d9e114ed][BaseDriver] Using local app '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:09:45:244 [d9e114ed][AndroidUiautomator2Driver@870a] Checking whether app is actually present
+2026-07-22 05:09:45:247 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell getprop ro.build.version.sdk'
+2026-07-22 05:09:45:756 [d9e114ed][ADB] Current device property 'ro.build.version.sdk': 35
+2026-07-22 05:09:45:758 [d9e114ed][ADB] Getting device platform version
+2026-07-22 05:09:45:758 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell getprop ro.build.version.release'
+2026-07-22 05:09:45:919 [d9e114ed][ADB] Current device property 'ro.build.version.release': 15
+2026-07-22 05:09:45:919 [d9e114ed][ADB] Device API level: 35
+2026-07-22 05:09:45:920 [d9e114ed][AndroidUiautomator2Driver@870a] Relaxing hidden api policy
+2026-07-22 05:09:45:921 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell 'settings put global hidden_api_policy_pre_p_apps 1;settings put global hidden_api_policy_p_apps 1;settings put global hidden_api_policy 1''
+2026-07-22 05:09:45:925 [d9e114ed][AndroidUiautomator2Driver@870a] Parsing package and activity from the 'app-release.apk' file manifest
+2026-07-22 05:09:45:927 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 wait-for-device'
+2026-07-22 05:09:45:934 [d9e114ed][ADB] Using 'aapt2' from '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2'
+2026-07-22 05:09:45:934 [d9e114ed][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:09:45:985 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell echo ping'
+2026-07-22 05:09:46:115 [d9e114ed][ADB] Package name: 'com.dino.pardix'
+2026-07-22 05:09:46:116 [d9e114ed][ADB] Main activity name: 'com.dino.pardix.MainActivity'
+2026-07-22 05:09:46:116 [d9e114ed][AndroidUiautomator2Driver@870a] Resolved launch package -> activity: com.dino.pardix -> com.dino.pardix.MainActivity
+2026-07-22 05:09:46:116 [d9e114ed][AndroidUiautomator2Driver@870a] Resolved wait package -> activity: com.dino.pardix -> com.dino.pardix.MainActivity
+2026-07-22 05:09:46:304 [d9e114ed][AndroidUiautomator2Driver@870a] Pushing settings apk to the device...
+2026-07-22 05:09:46:305 [d9e114ed][ADB] Getting package info for 'io.appium.settings'
+2026-07-22 05:09:46:306 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys package io.appium.settings'
+2026-07-22 05:09:47:306 [d9e114ed][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/io.appium.settings\@7.1.11/node_modules/io.appium.settings/apks/settings_apk-debug.apk'
+2026-07-22 05:09:47:353 [d9e114ed][ADB] The version name of the installed 'io.appium.settings' is greater or equal to the application version name ('7.1.11' >= '7.1.11')
+2026-07-22 05:09:47:356 [d9e114ed][ADB] There is no need to install/upgrade '/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/io.appium.settings@7.1.11/node_modules/io.appium.settings/apks/settings_apk-debug.apk'
+2026-07-22 05:09:47:357 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:47:494 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell cmd notification allow_listener io.appium.settings/.NLService'
+2026-07-22 05:09:47:500 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell appops set io.appium.settings PROJECT_MEDIA allow'
+2026-07-22 05:09:47:765 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:47:982 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am start-activity -n io.appium.settings/.Settings -a android.intent.action.MAIN -c android.intent.category.LAUNCHER'
+2026-07-22 05:09:50:205 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:51:642 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:52:741 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:53:250 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:54:284 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:54:769 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:55:495 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:56:687 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:09:56:823 [d9e114ed][Logcat] Starting logs capture with command: /Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 logcat -v threadtime
+2026-07-22 05:09:57:067 [d9e114ed][AndroidUiautomator2Driver@870a] Forwarding UiAutomator2 Server port 6790 to local port 8200
+2026-07-22 05:09:57:070 [d9e114ed][ADB] Forwarding system: 8200 to device: 6790
+2026-07-22 05:09:57:070 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 forward tcp:8200 tcp:6790'
+2026-07-22 05:09:57:113 [d9e114ed][AndroidUiautomator2Driver@870a] UIA2Proxy options: {"server":"127.0.0.1","port":8200,"keepAlive":true,"scheme":"http","base":"","reqBasePath":"","sessionId":null,"timeout":240000}
+2026-07-22 05:09:57:115 [d9e114ed][ADB] Getting package info for 'io.appium.uiautomator2.server'
+2026-07-22 05:09:57:115 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys package io.appium.uiautomator2.server'
+2026-07-22 05:09:57:119 [d9e114ed][ADB] Getting install status for io.appium.uiautomator2.server.test
+2026-07-22 05:09:57:120 [d9e114ed][ADB] Checking app cert for /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk
+2026-07-22 05:09:57:121 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell cmd package list packages --show-versioncode'
+2026-07-22 05:09:57:472 [d9e114ed][ADB] Using 'apksigner.jar' from '/Users/lee/Library/Android/sdk/build-tools/35.0.0/lib/apksigner.jar'
+2026-07-22 05:09:57:476 [d9e114ed][ADB] Starting apksigner: /Users/lee/Library/Java/JavaVirtualMachines/openjdk-25.0.1/Contents/Home/bin/java -Xmx1024M -Xss1m -jar /Users/lee/Library/Android/sdk/build-tools/35.0.0/lib/apksigner.jar verify --print-certs /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk
+2026-07-22 05:09:58:639 [d9e114ed][ADB] apksigner stdout: Signer #1 certificate DN: CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown
+Signer #1 certificate SHA-256 digest: 71b248d8a416cbb0489bacc6a163f3449544e0f1c699cc8bbecaca03fdf19fc4
+Signer #1 certificate SHA-1 digest: 57f95242257e9c7b99093c869e376df691af9894
+Signer #1 certificate MD5 digest: 0263e402806bcb242b776737df1a35d8
+
+2026-07-22 05:09:58:640 [d9e114ed][ADB] apksigner stderr: WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::loadLibrary has been called by org.conscrypt.NativeLibraryUtil in an unnamed module (file:/Users/lee/Library/Android/sdk/build-tools/35.0.0/lib/apksigner.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+
+2026-07-22 05:09:58:641 [d9e114ed][ADB] '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk' is signed with a non-default certificate
+2026-07-22 05:09:58:641 [d9e114ed][ADB] Getting package info for 'com.dino.pardix'
+2026-07-22 05:09:58:642 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys package com.dino.pardix'
+2026-07-22 05:09:58:849 [d9e114ed][ADB] 'io.appium.uiautomator2.server.test' is installed
+2026-07-22 05:09:59:157 [d9e114ed][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server\@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-v10.3.2.apk'
+2026-07-22 05:09:59:309 [d9e114ed][ADB] The version name of the installed 'io.appium.uiautomator2.server' is greater or equal to the application version name ('10.3.2' >= '10.3.2')
+2026-07-22 05:09:59:310 [d9e114ed][AndroidUiautomator2Driver@870a] Server packages status: [{"installState":"sameVersionInstalled","appPath":"/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-v10.3.2.apk","appId":"io.appium.uiautomator2.server"},{"installState":"sameVersionInstalled","appPath":"/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-debug-androidTest.apk","appId":"io.appium.uiautomator2.server.test"}]
+2026-07-22 05:09:59:310 [d9e114ed][AndroidUiautomator2Driver@870a] Server packages are not going to be (re)installed
+2026-07-22 05:09:59:311 [d9e114ed][AndroidUiautomator2Driver@870a] Waiting up to 30000ms for services to be available
+2026-07-22 05:09:59:311 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell pm list instrumentation'
+2026-07-22 05:10:00:169 [d9e114ed][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:10:00:254 [d9e114ed][ADB] The installed 'com.dino.pardix' package is older than '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk' (6 < 7 or '1.0.1' < '1.0.2')'
+2026-07-22 05:10:00:255 [d9e114ed][ADB] Executing upgrade of '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:10:00:256 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 install -r -g /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:10:00:465 [d9e114ed][AndroidUiautomator2Driver@870a] Instrumentation target 'io.appium.uiautomator2.server.test/androidx.test.runner.AndroidJUnitRunner' is available
+2026-07-22 05:10:00:468 [d9e114ed][ADB] Adding packages ["io.appium.settings","io.appium.uiautomator2.server","io.appium.uiautomator2.server.test"] to Doze whitelist
+2026-07-22 05:10:00:469 [d9e114ed][ADB] Got the following command chunks to execute: [["dumpsys","deviceidle","whitelist","+io.appium.settings",";","dumpsys","deviceidle","whitelist","+io.appium.uiautomator2.server",";","dumpsys","deviceidle","whitelist","+io.appium.uiautomator2.server.test",";"]]
+2026-07-22 05:10:00:469 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys deviceidle whitelist +io.appium.settings ; dumpsys deviceidle whitelist +io.appium.uiautomator2.server ; dumpsys deviceidle whitelist +io.appium.uiautomator2.server.test ;'
+2026-07-22 05:10:10:625 [d9e114ed][ADB] Cannot install/upgrade 'com.dino.pardix' because of 'Error executing adbExec. Original error: 'Command '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 install -r -g /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk' exited with code 1'; Command output: adb: failed to install /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk: Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package com.dino.pardix signatures do not match newer version; ignoring!]
+
+'. Trying full reinstall
+2026-07-22 05:10:10:626 [d9e114ed][ADB] Uninstalling com.dino.pardix
+2026-07-22 05:10:10:626 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop com.dino.pardix'
+2026-07-22 05:10:12:792 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 uninstall com.dino.pardix'
+2026-07-22 05:10:15:485 [d9e114ed][ADB] 'adb uninstall com.dino.pardix' command output: Success
+2026-07-22 05:10:15:485 [d9e114ed][ADB] com.dino.pardix was successfully uninstalled
+2026-07-22 05:10:15:486 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 install -g /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:10:34:307 [d9e114ed][ADB] The installation of 'app-release.apk' took 18820ms
+2026-07-22 05:10:34:308 [d9e114ed][ADB] Install command stdout: Performing Streamed Install
+Success
+2026-07-22 05:10:34:310 [d9e114ed][AndroidUiautomator2Driver@870a] Performing shallow cleanup of automation leftovers
+2026-07-22 05:10:34:437 [d9e114ed][AndroidUiautomator2Driver@870a] No obsolete sessions have been detected (socket hang up)
+2026-07-22 05:10:34:438 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server'
+2026-07-22 05:10:34:439 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server.test'
+2026-07-22 05:10:35:411 [d9e114ed][AndroidUiautomator2Driver@870a] Starting UIAutomator2 server 10.3.2
+2026-07-22 05:10:35:412 [d9e114ed][AndroidUiautomator2Driver@870a] Using UIAutomator2 server from '/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-v10.3.2.apk' and test from '/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-debug-androidTest.apk'
+2026-07-22 05:10:35:412 [d9e114ed][AndroidUiautomator2Driver@870a] Waiting up to 30000ms for UiAutomator2 to be online...
+2026-07-22 05:10:35:413 [d9e114ed][ADB] Creating ADB subprocess with args: ["-P","5037","-s","emulator-5554","shell","am","instrument","-w","-e","disableAnalytics","true","io.appium.uiautomator2.server.test/androidx.test.runner.AndroidJUnitRunner"]
+2026-07-22 05:10:35:423 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:35:425 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:35:497 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:36:500 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:36:501 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:36:515 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:37:517 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:37:517 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:37:751 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:38:754 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:38:754 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:38:768 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:39:770 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:39:771 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:40:120 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:41:121 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:41:122 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:41:139 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:42:140 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:42:141 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:42:161 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:43:164 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:43:165 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:43:252 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:44:255 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:44:255 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:44:301 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:45:303 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:45:303 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:45:783 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:46:786 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:46:786 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:47:570 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:48:571 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:48:572 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:48:588 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:49:590 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:49:590 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:49:621 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:50:310 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] 
+2026-07-22 05:10:50:627 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:50:627 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:51:302 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:52:304 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:52:304 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:52:390 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:53:392 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:53:393 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:53:402 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:54:404 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:54:404 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:54:412 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:55:422 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:55:423 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:55:489 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:56:518 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:56:523 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:57:030 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:58:032 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:58:033 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:58:043 [d9e114ed][AndroidUiautomator2Driver@870a] socket hang up
+2026-07-22 05:10:59:046 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/status' to command name 'getStatus'
+2026-07-22 05:10:59:047 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:10:59:269 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"None","value":{"build":{"version":"10.3.2","versionCode":266},"message":"UiAutomator2 Server is ready to accept commands","ready":true}}
+2026-07-22 05:10:59:270 [d9e114ed][AndroidUiautomator2Driver@870a] The initialization of the instrumentation process took 23857ms
+2026-07-22 05:10:59:272 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/session' to command name 'createSession'
+2026-07-22 05:10:59:273 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [POST /session] to [POST http://127.0.0.1:8200/session] with body: {"capabilities":{"firstMatch":[{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120,"platform":"LINUX","webStorageEnabled":false,"takesScreenshot":true,"javascriptEnabled":true,"databaseEnabled":false,"networkConnectionEnabled":true,"locationContextEnabled":false,"warnings":{},"desired":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120},"deviceUDID":"emulator-5554","appActivity":"com.dino.pardix.MainActivity"}],"alwaysMatch":{}}}
+2026-07-22 05:10:59:350 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":{"capabilities":{"firstMatch":[{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120,"platform":"LINUX","webStorageEnabled":false,"takesScreenshot":true,"javascriptEnabled":true,"databaseEnabled":false,"networkConnectionEnabled":true,"locationContextEnabled":false,"warnings":{},"desired":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120},"deviceUDID":"emulator-5554","appActivity":"com.dino.pardix.MainActivity"}],"alwaysMatch":{}},"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497"}}
+2026-07-22 05:10:59:351 [d9e114ed][AndroidUiautomator2Driver@870a] Determined the downstream protocol as 'W3C'
+2026-07-22 05:10:59:381 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /appium/device/pixel_ratio] to [GET http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/appium/device/pixel_ratio] with no body
+2026-07-22 05:10:59:389 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/appium/device/system_bars' to command name 'getSystemBars'
+2026-07-22 05:10:59:390 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /appium/device/system_bars] to [GET http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/appium/device/system_bars] with no body
+2026-07-22 05:10:59:394 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/window/current/size' to command name 'getWindowSize'
+2026-07-22 05:10:59:394 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /window/current/size] to [GET http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/window/current/size] with no body
+2026-07-22 05:10:59:401 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /appium/device/info] to [GET http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/appium/device/info] with no body
+2026-07-22 05:10:59:404 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys window'
+2026-07-22 05:10:59:406 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys power'
+2026-07-22 05:10:59:584 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":2.625}
+2026-07-22 05:10:59:622 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":{"height":2400,"width":1080}}
+2026-07-22 05:10:59:789 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":{"statusBar":132}}
+2026-07-22 05:11:00:709 [d9e114ed][AndroidUiautomator2Driver@870a] Screen already unlocked, doing nothing
+2026-07-22 05:11:00:710 [d9e114ed][AndroidUiautomator2Driver@870a] Starting 'com.dino.pardix/com.dino.pardix.MainActivityand waiting for 'com.dino.pardix/com.dino.pardix.MainActivity'
+2026-07-22 05:11:00:715 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am start-activity -W -n com.dino.pardix/com.dino.pardix.MainActivity -S -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000'
+2026-07-22 05:11:01:982 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":{"androidId":"6de3d067b8da13ef","apiVersion":"35","bluetooth":{"state":"ON"},"brand":"google","carrierName":"T-Mobile","displayDensity":420,"locale":"en_US","manufacturer":"Google","model":"sdk_gphone64_arm64","networks":[{"capabilities":{"SSID":null,"linkDownBandwidthKbps":30000,"linkUpstreamBandwidthKbps":12000,"networkCapabilities":"NET_CAPABILITY_NOT_METERED,NET_CAPABILITY_INTERNET,NET_CAPABILITY_NOT_RESTRICTED,NET_CAPABILITY_TRUSTED,NET_CAPABILITY_NOT_VPN,NET_CAPABILITY_VALIDATED,NET_CAPABILITY_NOT_ROAMING,NET_CAPABILITY_FOREGROUND,NET_CAPABILITY_NOT_CONGESTED,NET_CAPABILITY_NOT_SUSPENDED","signalStrength":-50,"transportTypes":"TRANSPORT_WIFI"},"detailedState":"CONNECTED","extraInfo":"","isAvailable":true,"isConnected":true,"isFailover":false,"isRoaming":false,"state":"CONNECTED","subtype":-1,"subtypeName":"","type":1,"typeName":"WIFI"},{"capabilities":{"SSID":null,"linkDownBandwidthKbps":30000,"linkUpstreamBandwidthKbps":15000,"networkCapabi...
+2026-07-22 05:11:17:709 [d9e114ed][ADB] Expected package names to be focused within 20000ms: 'com.dino.pardix'
+2026-07-22 05:11:17:709 [d9e114ed][ADB] Expected activity name patterns to be focused within 20000ms: '/^com\.dino\.pardix\.MainActivity$/'
+2026-07-22 05:11:17:710 [d9e114ed][ADB] Getting focused package and activity
+2026-07-22 05:11:17:711 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys window displays'
+2026-07-22 05:11:18:277 [d9e114ed][ADB] Focused package: com.dino.pardix
+2026-07-22 05:11:18:278 [d9e114ed][ADB] Focused fully qualified activity name: com.dino.pardix.MainActivity
+2026-07-22 05:11:18:283 [d9e114ed][AppiumDriver@bc13] New AndroidUiautomator2Driver session created successfully, session d9e114ed-e45c-41a3-aab6-08e3f18bcccf added to master session list
+2026-07-22 05:11:18:284 [d9e114ed][AppiumDriver@bc13] Event 'newSessionStarted' logged at 1784697078284 (12:11:18 GMT+0700 (Indochina Time))
+2026-07-22 05:11:18:285 [d9e114ed][AndroidUiautomator2Driver@870a] Cached the protocol value 'W3C' for the new session d9e114ed-e45c-41a3-aab6-08e3f18bcccf
+2026-07-22 05:11:18:286 [d9e114ed][AndroidUiautomator2Driver@870a] Responding to client with driver.createSession() result: {"capabilities":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120,"platform":"LINUX","webStorageEnabled":false,"takesScreenshot":true,"javascriptEnabled":true,"databaseEnabled":false,"networkConnectionEnabled":true,"locationContextEnabled":false,"warnings":{},"desired":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120},"deviceUDID":"emulator-5554","appActivity":"com.dino.pardix.MainActivity","pixelRatio":"2.625","statBarHeight":132,"viewportRect":{"left":0,"top":132,"width":1080,"height":2268},"deviceApiLevel":35,"platformVersion":"15","deviceManufacturer":"Google","deviceModel":"sdk_gphone64_arm64","deviceScreenSize":"1080x2400","deviceScreenDensity":420}}
+2026-07-22 05:11:18:292 [d9e114ed][HTTP] <-- POST /wd/hub/session 200 93804 ms - 1074 
+2026-07-22 05:11:18:340 [d9e114ed][HTTP] --> POST /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/element {"using":"accessibility id","value":"WARP / 1.1.1.1"}
+2026-07-22 05:11:18:344 [d9e114ed][AndroidUiautomator2Driver@870a] Calling AppiumDriver.findElement() with args: ["accessibility id","WARP / 1.1.1.1","d9e114ed-e45c-41a3-aab6-08e3f18bcccf"]
+2026-07-22 05:11:18:345 [d9e114ed][AndroidUiautomator2Driver@870a] Valid locator strategies for this request: xpath, id, class name, accessibility id, css selector, -android uiautomator
+2026-07-22 05:11:18:346 [d9e114ed][AndroidUiautomator2Driver@870a] Waiting up to 0 ms for condition
+2026-07-22 05:11:18:349 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/element' to command name 'findElement'
+2026-07-22 05:11:18:349 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [POST /element] to [POST http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/element] with body: {"strategy":"accessibility id","selector":"WARP / 1.1.1.1","context":"","multiple":false}
+2026-07-22 05:11:27:364 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":{"ELEMENT":"00000000-0000-000a-0000-001a00000003","element-6066-11e4-a52e-4f735466cecf":"00000000-0000-000a-0000-001a00000003"}}
+2026-07-22 05:11:27:365 [d9e114ed][AndroidUiautomator2Driver@870a] Responding to client with driver.findElement() result: {"element-6066-11e4-a52e-4f735466cecf":"00000000-0000-000a-0000-001a00000003","ELEMENT":"00000000-0000-000a-0000-001a00000003"}
+2026-07-22 05:11:27:366 [d9e114ed][HTTP] <-- POST /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/element 200 9026 ms - 137 
+2026-07-22 05:11:27:396 [d9e114ed][HTTP] --> GET /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/element/00000000-0000-000a-0000-001a00000003/displayed {}
+2026-07-22 05:11:27:399 [d9e114ed][AndroidUiautomator2Driver@870a] Calling AppiumDriver.elementDisplayed() with args: ["00000000-0000-000a-0000-001a00000003","d9e114ed-e45c-41a3-aab6-08e3f18bcccf"]
+2026-07-22 05:11:27:401 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/element/00000000-0000-000a-0000-001a00000003/attribute/displayed' to command name 'getAttribute'
+2026-07-22 05:11:27:401 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /element/00000000-0000-000a-0000-001a00000003/attribute/displayed] to [GET http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/element/00000000-0000-000a-0000-001a00000003/attribute/displayed] with no body
+2026-07-22 05:11:28:240 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":"true"}
+2026-07-22 05:11:28:241 [d9e114ed][AndroidUiautomator2Driver@870a] Responding to client with driver.elementDisplayed() result: true
+2026-07-22 05:11:28:244 [d9e114ed][HTTP] <-- GET /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/element/00000000-0000-000a-0000-001a00000003/displayed 200 847 ms - 14 
+2026-07-22 05:11:28:259 [d9e114ed][HTTP] --> GET /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/screenshot {}
+2026-07-22 05:11:28:266 [d9e114ed][AndroidUiautomator2Driver@870a] Calling AppiumDriver.getScreenshot() with args: ["d9e114ed-e45c-41a3-aab6-08e3f18bcccf"]
+2026-07-22 05:11:28:267 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/screenshot' to command name 'getScreenshot'
+2026-07-22 05:11:28:267 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /screenshot] to [GET http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/screenshot] with no body
+2026-07-22 05:11:32:608 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":"iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N15YFzVfff/zzl3ZrQvtvCKvGBjY4zBgFlsDCUJEJwAMRCylTSUhOAG3PRJSZqkvydt8/zSdEnTpCG/hjQLCaEPhJKEsJRAwlK8YMCYxRt4X+VF3iTZ0mhm7jm/P+6dkWRbXiVLY79fqZqMfOfcM3dkwf3MOd+v8d57AQAAAAAAFDHb1xMAAAAAAAA4XgQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKHgEHAAAAAAAoegQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKHgEHAAAAAAAoegQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKHgEHAAAAAAAoegQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKXqKvJwAAAAAA6B+2b9+uhoYGNTc3q6WlpfDf+/btU0VFhaqrq1VVVaXq6mpVV1dr2LBhGjx4cF9P+7gsXbpU55xzTq+eY8WK...
+2026-07-22 05:11:32:609 [d9e114ed][AndroidUiautomator2Driver@870a] Responding to client with driver.getScreenshot() result: "iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N15YFzVfff/zzl3ZrQvtvCKvGBjY4zBgFlsDCUJEJwAMRCylTSUhOAG3PRJSZqkvydt8/zSdEnTpCG/hjQLCaEPhJKEsJRAwlK8YMCYxRt4X+VF3iTZ0mhm7jm/P+6dkWRbXiVLY79fqZqMfOfcM3dkwf3MOd+v8d57AQAAAAAAFDHb1xMAAAAAAAA4XgQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKHgEHAAAAAAAoegQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKHgEHAAAAAAAoegQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKHgEHAAAAAAAoegQcAAAAAACg6BFwAAAAAACAokfAAQAAAAAAih4BBwAAAAAAKHoEHAAAAAAAoOgRcAAAAAAAgKJHwAEAAAAAAIoeAQcAAAAAACh6BBwAAAAAAKDoEXAAAAAAAICiR8ABAAAAAACKXqKvJwAAAAAA6B+2b9+uhoYGNTc3q6WlpfDf+/btU0VFhaqrq1VVVaXq6mpVV1dr2LBhGjx4cF9P+7gsXbpU55xzTq+eY8WKFXriiScOecwNN9yg8ePH9+o8TnYEHDgltbe3q7GxUVu2bFFDQ4M2bNigTZs2...
+2026-07-22 05:11:32:616 [d9e114ed][HTTP] <-- GET /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/screenshot 200 4353 ms - 223688 
+2026-07-22 05:11:32:741 [d9e114ed][HTTP] --> POST /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/element/00000000-0000-000a-0000-001a00000003/click {}
+2026-07-22 05:11:32:743 [d9e114ed][AndroidUiautomator2Driver@870a] Calling AppiumDriver.click() with args: ["00000000-0000-000a-0000-001a00000003","d9e114ed-e45c-41a3-aab6-08e3f18bcccf"]
+2026-07-22 05:11:32:748 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/element/00000000-0000-000a-0000-001a00000003/click' to command name 'click'
+2026-07-22 05:11:32:748 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [POST /element/00000000-0000-000a-0000-001a00000003/click] to [POST http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/element/00000000-0000-000a-0000-001a00000003/click] with body: {"element":"00000000-0000-000a-0000-001a00000003"}
+2026-07-22 05:11:33:431 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":null}
+2026-07-22 05:11:33:432 [d9e114ed][AndroidUiautomator2Driver@870a] Responding to client with driver.click() result: null
+2026-07-22 05:11:33:434 [d9e114ed][HTTP] <-- POST /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/element/00000000-0000-000a-0000-001a00000003/click 200 693 ms - 14 
+2026-07-22 05:11:35:040 [d9e114ed][HTTP] --> GET /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/screenshot {}
+2026-07-22 05:11:35:042 [d9e114ed][AndroidUiautomator2Driver@870a] Calling AppiumDriver.getScreenshot() with args: ["d9e114ed-e45c-41a3-aab6-08e3f18bcccf"]
+2026-07-22 05:11:35:042 [d9e114ed][AndroidUiautomator2Driver@870a] Matched '/screenshot' to command name 'getScreenshot'
+2026-07-22 05:11:35:043 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [GET /screenshot] to [GET http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497/screenshot] with no body
+2026-07-22 05:11:41:205 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":"iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N1pdxzZfef5343IBfsOECC4gXuximupSpZkWbJky632nPbpPnPaT+bMvAo/n3cz02dst+1uu22121ptV6msUlVxKVZxBwEQ+5qJXOPeeRBLZmIjQAIkkvx+bAhAIjLyRmQCrPjl//6v+bM/+zMnAAAAAACAJua97gEAAAAAAAC8LAIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNj4ADAAAAAAA0PQIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNj4ADAAAAAAA0PQIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNj4ADAAAAAAA0PQIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNL/W6BwAAAAAAOBzW19eVy+VULpdVLpdVKpVULpdVqVSUTqeVzWaVyWSSj46ODrW1tb3uYb+U+fl5DQwMHOhjLC0t6f79+ztuc/bsWfX29h7oON50...
+2026-07-22 05:11:41:207 [d9e114ed][AndroidUiautomator2Driver@870a] Responding to client with driver.getScreenshot() result: "iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N1pdxzZfef5343IBfsOECC4gXuximupSpZkWbJky632nPbpPnPaT+bMvAo/n3cz02dst+1uu22121ptV6msUlVxKVZxBwEQ+5qJXOPeeRBLZmIjQAIkkvx+bAhAIjLyRmQCrPjl//6v+bM/+zMnAAAAAACAJua97gEAAAAAAAC8LAIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNj4ADAAAAAAA0PQIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNj4ADAAAAAAA0PQIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNj4ADAAAAAAA0PQIOAAAAAADQ9Ag4AAAAAABA0yPgAAAAAAAATY+AAwAAAAAAND0CDgAAAAAA0PQIOAAAAAAAQNMj4AAAAAAAAE2PgAMAAAAAADQ9Ag4AAAAAAND0CDgAAAAAAEDTI+AAAAAAAABNL/W6BwAAAAAAOBzW19eVy+VULpdVLpdVKpVULpdVqVSUTqeVzWaVyWSSj46ODrW1tb3uYb+U+fl5DQwMHOhjLC0t6f79+ztuc/bsWfX29h7oON50BBx4KwVBoPX1deXzeeVyOa2urmptbU3lclmtra3q7u5WZ2en2tvb1dHRodbW...
+2026-07-22 05:11:41:215 [d9e114ed][HTTP] <-- GET /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf/screenshot 200 6170 ms - 241320 
+2026-07-22 05:11:41:228 [d9e114ed][HTTP] --> DELETE /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf {}
+2026-07-22 05:11:41:228 [d9e114ed][AndroidUiautomator2Driver@870a] Calling AppiumDriver.deleteSession() with args: ["d9e114ed-e45c-41a3-aab6-08e3f18bcccf"]
+2026-07-22 05:11:41:229 [d9e114ed][AppiumDriver@bc13] Event 'quitSessionRequested' logged at 1784697101229 (12:11:41 GMT+0700 (Indochina Time))
+2026-07-22 05:11:41:231 [d9e114ed][AppiumDriver@bc13] Removing session d9e114ed-e45c-41a3-aab6-08e3f18bcccf from our master session list
+2026-07-22 05:11:41:232 [d9e114ed][AndroidUiautomator2Driver@870a] Deleting UiAutomator2 session
+2026-07-22 05:11:41:233 [d9e114ed][AndroidUiautomator2Driver@870a] Deleting UiAutomator2 server session
+2026-07-22 05:11:41:233 [d9e114ed][AndroidUiautomator2Driver@870a] Proxying [DELETE /] to [DELETE http://127.0.0.1:8200/session/e5f4cb0b-02d5-4da5-ae12-1b77e5343497] with no body
+2026-07-22 05:11:41:402 [d9e114ed][AndroidUiautomator2Driver@870a] Got response with status 200: {"sessionId":"e5f4cb0b-02d5-4da5-ae12-1b77e5343497","value":null}
+2026-07-22 05:11:41:403 [d9e114ed][ADB] Getting IDs of all 'io.appium.uiautomator2.server' processes
+2026-07-22 05:11:41:404 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell ps --help'
+2026-07-22 05:11:41:667 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell ps -A'
+2026-07-22 05:11:42:251 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] io.appium.uiautomator2.server.test.AppiumUiAutomator2Server:.
+2026-07-22 05:11:42:251 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] 
+2026-07-22 05:11:42:251 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] Time: 51.286
+2026-07-22 05:11:42:252 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] 
+2026-07-22 05:11:42:252 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] OK (1 test)
+2026-07-22 05:11:42:253 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] 
+2026-07-22 05:11:42:253 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] 
+2026-07-22 05:11:42:617 [d9e114ed][ADB] Getting IDs of all 'io.appium.uiautomator2.server' processes
+2026-07-22 05:11:42:617 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell ps -A'
+2026-07-22 05:11:46:419 [d9e114ed][AndroidUiautomator2Driver@870a] [Instrumentation] The process has exited with code 0, signal null
+2026-07-22 05:11:46:442 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server'
+2026-07-22 05:11:46:445 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server.test'
+2026-07-22 05:11:47:065 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings/.recorder.RecorderService'
+2026-07-22 05:11:47:353 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop com.dino.pardix'
+2026-07-22 05:11:48:057 [d9e114ed][ADB] Removing forwarded port socket connection: 8200 
+2026-07-22 05:11:48:057 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 forward --remove tcp:8200'
+2026-07-22 05:11:48:311 [d9e114ed][AndroidUiautomator2Driver@870a] Restoring hidden api policy to the device default configuration
+2026-07-22 05:11:48:314 [d9e114ed][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell 'settings delete global hidden_api_policy_pre_p_apps;settings delete global hidden_api_policy_p_apps;settings delete global hidden_api_policy''
+2026-07-22 05:11:49:101 [d9e114ed][Logcat] Stopping logcat capture
+2026-07-22 05:11:49:105 [d9e114ed][AppiumDriver@bc13] Event 'quitSessionFinished' logged at 1784697109104 (12:11:49 GMT+0700 (Indochina Time))
+2026-07-22 05:11:49:105 [d9e114ed][AppiumDriver@bc13] Received response: null
+2026-07-22 05:11:49:105 [d9e114ed][AppiumDriver@bc13] But deleting session, so not returning
+2026-07-22 05:11:49:106 [d9e114ed][AppiumDriver@bc13] Responding to client with driver.deleteSession() result: null
+2026-07-22 05:11:49:108 [d9e114ed][HTTP] <-- DELETE /wd/hub/session/d9e114ed-e45c-41a3-aab6-08e3f18bcccf 200 7880 ms - 14 
+2026-07-22 05:14:37:109 [HTTP] --> POST /wd/hub/session {"capabilities":{"alwaysMatch":{"platformName":"Android","appium:automationName":"UiAutomator2","appium:deviceName":"emulator-5554","appium:app":"build/app/outputs/flutter-apk/app-release.apk","appium:appPackage":"com.dino.pardix","appium:autoGrantPermissions":true,"appium:newCommandTimeout":120},"firstMatch":[{}]}}
+2026-07-22 05:14:37:110 [AppiumDriver@bc13] Calling AppiumDriver.createSession() with args: [null,null,{"alwaysMatch":{"platformName":"Android","appium:automationName":"UiAutomator2","appium:deviceName":"emulator-5554","appium:app":"build/app/outputs/flutter-apk/app-release.apk","appium:appPackage":"com.dino.pardix","appium:autoGrantPermissions":true,"appium:newCommandTimeout":120},"firstMatch":[{}]}]
+2026-07-22 05:14:37:110 [AppiumDriver@bc13] Event 'newSessionRequested' logged at 1784697277110 (12:14:37 GMT+0700 (Indochina Time))
+2026-07-22 05:14:37:114 [Appium] Attempting to find matching driver for automationName 'UiAutomator2' and platformName 'Android'
+2026-07-22 05:14:37:114 [Appium] The 'uiautomator2' driver was installed and matched caps.
+2026-07-22 05:14:37:115 [Appium] Will require it at /Users/lee/Desktop/dino/browser-app/node_modules/appium-uiautomator2-driver
+2026-07-22 05:14:37:118 [Appium] Requiring driver at /Users/lee/Desktop/dino/browser-app/node_modules/appium-uiautomator2-driver/build/lib/index.js
+2026-07-22 05:14:37:118 [AppiumDriver@bc13] Appium v2.19.0 creating new AndroidUiautomator2Driver (v8.1.0) session
+2026-07-22 05:14:37:118 [AppiumDriver@bc13] Checking BaseDriver versions for Appium and AndroidUiautomator2Driver
+2026-07-22 05:14:37:118 [AppiumDriver@bc13] Appium's BaseDriver version is 9.18.0
+2026-07-22 05:14:37:118 [AppiumDriver@bc13] AndroidUiautomator2Driver's BaseDriver version is 9.18.0
+2026-07-22 05:14:37:124 [38;5;-79m[AndroidUiautomator2Driver@ba6c] 
+2026-07-22 05:14:37:124 [38;5;-79m[AndroidUiautomator2Driver@ba6c] Creating session with W3C capabilities: {
+  "alwaysMatch": {
+    "platformName": "Android",
+    "appium:automationName": "UiAutomator2",
+    "appium:deviceName": "emulator-5554",
+    "appium:app": "build/app/outputs/flutter-apk/app-release.apk",
+    "appium:appPackage": "com.dino.pardix",
+    "appium:autoGrantPermissions": true,
+    "appium:newCommandTimeout": 120
+  },
+  "firstMatch": [
+    {}
+  ]
+}
+2026-07-22 05:14:37:127 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Session created with session id: 1f867fd5-0812-4f41-a88c-72f0afb7e198
+2026-07-22 05:14:37:128 [1f867fd5][ADB] Using 'adb' from '/Users/lee/Library/Android/sdk/platform-tools/adb'
+2026-07-22 05:14:37:128 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 start-server'
+2026-07-22 05:14:37:152 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Retrieving device list
+2026-07-22 05:14:37:152 [1f867fd5][ADB] Trying to find connected Android devices
+2026-07-22 05:14:37:152 [1f867fd5][ADB] Getting connected devices
+2026-07-22 05:14:37:167 [1f867fd5][ADB] Connected devices: [{"udid":"emulator-5554","state":"device"}]
+2026-07-22 05:14:37:167 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Using device: emulator-5554
+2026-07-22 05:14:37:167 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Driver-instance IPC is unavailable. Skipping publication of the session udid.
+2026-07-22 05:14:37:167 [1f867fd5][ADB] Using 'adb' from '/Users/lee/Library/Android/sdk/platform-tools/adb'
+2026-07-22 05:14:37:168 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 start-server'
+2026-07-22 05:14:37:181 [1f867fd5][ADB] Setting device id to emulator-5554
+2026-07-22 05:14:37:181 [1f867fd5][BaseDriver] The current application path 'build/app/outputs/flutter-apk/app-release.apk' is not absolute and has been rewritten to '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'. Consider using absolute paths rather than relative
+2026-07-22 05:14:37:181 [1f867fd5][BaseDriver] Using local app '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:14:37:264 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Checking whether app is actually present
+2026-07-22 05:14:37:265 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell getprop ro.build.version.sdk'
+2026-07-22 05:14:37:323 [1f867fd5][ADB] Current device property 'ro.build.version.sdk': 35
+2026-07-22 05:14:37:323 [1f867fd5][ADB] Getting device platform version
+2026-07-22 05:14:37:323 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell getprop ro.build.version.release'
+2026-07-22 05:14:37:345 [1f867fd5][ADB] Current device property 'ro.build.version.release': 15
+2026-07-22 05:14:37:346 [1f867fd5][ADB] Device API level: 35
+2026-07-22 05:14:37:346 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Relaxing hidden api policy
+2026-07-22 05:14:37:346 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell 'settings put global hidden_api_policy_pre_p_apps 1;settings put global hidden_api_policy_p_apps 1;settings put global hidden_api_policy 1''
+2026-07-22 05:14:37:346 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Parsing package and activity from the 'app-release.apk' file manifest
+2026-07-22 05:14:37:347 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 wait-for-device'
+2026-07-22 05:14:37:348 [1f867fd5][ADB] Using 'aapt2' from '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2'
+2026-07-22 05:14:37:348 [1f867fd5][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:14:37:363 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell echo ping'
+2026-07-22 05:14:37:389 [1f867fd5][ADB] Package name: 'com.dino.pardix'
+2026-07-22 05:14:37:389 [1f867fd5][ADB] Main activity name: 'com.dino.pardix.MainActivity'
+2026-07-22 05:14:37:389 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Resolved launch package -> activity: com.dino.pardix -> com.dino.pardix.MainActivity
+2026-07-22 05:14:37:389 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Resolved wait package -> activity: com.dino.pardix -> com.dino.pardix.MainActivity
+2026-07-22 05:14:37:390 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Pushing settings apk to the device...
+2026-07-22 05:14:37:390 [1f867fd5][ADB] Getting package info for 'io.appium.settings'
+2026-07-22 05:14:37:390 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys package io.appium.settings'
+2026-07-22 05:14:37:559 [1f867fd5][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/io.appium.settings\@7.1.11/node_modules/io.appium.settings/apks/settings_apk-debug.apk'
+2026-07-22 05:14:37:577 [1f867fd5][ADB] The version name of the installed 'io.appium.settings' is greater or equal to the application version name ('7.1.11' >= '7.1.11')
+2026-07-22 05:14:37:577 [1f867fd5][ADB] There is no need to install/upgrade '/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/io.appium.settings@7.1.11/node_modules/io.appium.settings/apks/settings_apk-debug.apk'
+2026-07-22 05:14:37:577 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings'
+2026-07-22 05:14:37:606 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] io.appium.settings is already running. There is no need to reset its permissions.
+2026-07-22 05:14:37:607 [1f867fd5][Logcat] Starting logs capture with command: /Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 logcat -v threadtime
+2026-07-22 05:14:37:638 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Forwarding UiAutomator2 Server port 6790 to local port 8200
+2026-07-22 05:14:37:639 [1f867fd5][ADB] Forwarding system: 8200 to device: 6790
+2026-07-22 05:14:37:639 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 forward tcp:8200 tcp:6790'
+2026-07-22 05:14:37:655 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] UIA2Proxy options: {"server":"127.0.0.1","port":8200,"keepAlive":true,"scheme":"http","base":"","reqBasePath":"","sessionId":null,"timeout":240000}
+2026-07-22 05:14:37:655 [1f867fd5][ADB] Getting package info for 'io.appium.uiautomator2.server'
+2026-07-22 05:14:37:656 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys package io.appium.uiautomator2.server'
+2026-07-22 05:14:37:657 [1f867fd5][ADB] Getting install status for io.appium.uiautomator2.server.test
+2026-07-22 05:14:37:657 [1f867fd5][ADB] Checking app cert for /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk
+2026-07-22 05:14:37:657 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell cmd package list packages --show-versioncode'
+2026-07-22 05:14:37:716 [1f867fd5][ADB] 'io.appium.uiautomator2.server.test' is installed
+2026-07-22 05:14:37:721 [1f867fd5][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server\@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-v10.3.2.apk'
+2026-07-22 05:14:37:791 [1f867fd5][ADB] The version name of the installed 'io.appium.uiautomator2.server' is greater or equal to the application version name ('10.3.2' >= '10.3.2')
+2026-07-22 05:14:37:791 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Server packages status: [{"installState":"sameVersionInstalled","appPath":"/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-v10.3.2.apk","appId":"io.appium.uiautomator2.server"},{"installState":"sameVersionInstalled","appPath":"/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-debug-androidTest.apk","appId":"io.appium.uiautomator2.server.test"}]
+2026-07-22 05:14:37:791 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Server packages are not going to be (re)installed
+2026-07-22 05:14:37:791 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Waiting up to 30000ms for services to be available
+2026-07-22 05:14:37:792 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell pm list instrumentation'
+2026-07-22 05:14:37:809 [1f867fd5][ADB] Using the previously cached signature entry for 'app-release.apk'
+2026-07-22 05:14:37:809 [1f867fd5][ADB] Getting package info for 'com.dino.pardix'
+2026-07-22 05:14:37:809 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys package com.dino.pardix'
+2026-07-22 05:14:37:828 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Instrumentation target 'io.appium.uiautomator2.server.test/androidx.test.runner.AndroidJUnitRunner' is available
+2026-07-22 05:14:37:828 [1f867fd5][ADB] Adding packages ["io.appium.settings","io.appium.uiautomator2.server","io.appium.uiautomator2.server.test"] to Doze whitelist
+2026-07-22 05:14:37:828 [1f867fd5][ADB] Got the following command chunks to execute: [["dumpsys","deviceidle","whitelist","+io.appium.settings",";","dumpsys","deviceidle","whitelist","+io.appium.uiautomator2.server",";","dumpsys","deviceidle","whitelist","+io.appium.uiautomator2.server.test",";"]]
+2026-07-22 05:14:37:828 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys deviceidle whitelist +io.appium.settings ; dumpsys deviceidle whitelist +io.appium.uiautomator2.server ; dumpsys deviceidle whitelist +io.appium.uiautomator2.server.test ;'
+2026-07-22 05:14:37:843 [1f867fd5][ADB] Reading package manifest: '/Users/lee/Library/Android/sdk/build-tools/35.0.0/aapt2 dump badging /Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:14:37:864 [1f867fd5][ADB] The version name of the installed 'com.dino.pardix' is greater or equal to the application version name ('1.0.2' >= '1.0.2')
+2026-07-22 05:14:37:864 [1f867fd5][ADB] There is no need to install/upgrade '/Users/lee/Desktop/dino/browser-app/build/app/outputs/flutter-apk/app-release.apk'
+2026-07-22 05:14:37:864 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Performing fast reset on 'com.dino.pardix'
+2026-07-22 05:14:37:864 [1f867fd5][ADB] Getting install status for com.dino.pardix
+2026-07-22 05:14:37:864 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell cmd package list packages --show-versioncode'
+2026-07-22 05:14:37:887 [1f867fd5][ADB] 'com.dino.pardix' is installed
+2026-07-22 05:14:37:887 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop com.dino.pardix'
+2026-07-22 05:14:37:973 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell pm clear com.dino.pardix'
+2026-07-22 05:14:38:084 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys package com.dino.pardix'
+2026-07-22 05:14:38:152 [1f867fd5][ADB] Retrieving requested permissions
+2026-07-22 05:14:38:152 [1f867fd5][ADB] Retrieved 15 permissions from requested group
+2026-07-22 05:14:38:153 [1f867fd5][ADB] Retrieving granted permissions
+2026-07-22 05:14:38:153 [1f867fd5][ADB] Retrieved 13 permissions from install,runtime groups
+2026-07-22 05:14:38:153 [1f867fd5][ADB] Granting permissions ["android.permission.POST_NOTIFICATIONS","android.permission.READ_MEDIA_AUDIO"] to 'com.dino.pardix'
+2026-07-22 05:14:38:153 [1f867fd5][ADB] Got the following command chunks to execute: [["pm","grant","com.dino.pardix","android.permission.POST_NOTIFICATIONS",";","pm","grant","com.dino.pardix","android.permission.READ_MEDIA_AUDIO",";"]]
+2026-07-22 05:14:38:153 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell pm grant com.dino.pardix android.permission.POST_NOTIFICATIONS ; pm grant com.dino.pardix android.permission.READ_MEDIA_AUDIO ;'
+2026-07-22 05:14:38:234 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Performed fast reset on the installed 'com.dino.pardix' application (stop and clear)
+2026-07-22 05:14:38:234 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Performing shallow cleanup of automation leftovers
+2026-07-22 05:14:38:243 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] No obsolete sessions have been detected (socket hang up)
+2026-07-22 05:14:38:243 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server'
+2026-07-22 05:14:38:244 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server.test'
+2026-07-22 05:14:38:309 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Starting UIAutomator2 server 10.3.2
+2026-07-22 05:14:38:309 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Using UIAutomator2 server from '/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-v10.3.2.apk' and test from '/Users/lee/Desktop/dino/browser-app/node_modules/.pnpm/appium-uiautomator2-server@10.3.2/node_modules/appium-uiautomator2-server/apks/appium-uiautomator2-server-debug-androidTest.apk'
+2026-07-22 05:14:38:309 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Waiting up to 30000ms for UiAutomator2 to be online...
+2026-07-22 05:14:38:309 [1f867fd5][ADB] Creating ADB subprocess with args: ["-P","5037","-s","emulator-5554","shell","am","instrument","-w","-e","disableAnalytics","true","io.appium.uiautomator2.server.test/androidx.test.runner.AndroidJUnitRunner"]
+2026-07-22 05:14:38:311 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/status' to command name 'getStatus'
+2026-07-22 05:14:38:311 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:14:38:314 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] socket hang up
+2026-07-22 05:14:39:109 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] 
+2026-07-22 05:14:39:316 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/status' to command name 'getStatus'
+2026-07-22 05:14:39:316 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /status] to [GET http://127.0.0.1:8200/status] with no body
+2026-07-22 05:14:39:344 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"None","value":{"build":{"version":"10.3.2","versionCode":266},"message":"UiAutomator2 Server is ready to accept commands","ready":true}}
+2026-07-22 05:14:39:344 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] The initialization of the instrumentation process took 1035ms
+2026-07-22 05:14:39:344 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/session' to command name 'createSession'
+2026-07-22 05:14:39:344 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [POST /session] to [POST http://127.0.0.1:8200/session] with body: {"capabilities":{"firstMatch":[{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120,"platform":"LINUX","webStorageEnabled":false,"takesScreenshot":true,"javascriptEnabled":true,"databaseEnabled":false,"networkConnectionEnabled":true,"locationContextEnabled":false,"warnings":{},"desired":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120},"deviceUDID":"emulator-5554","appActivity":"com.dino.pardix.MainActivity"}],"alwaysMatch":{}}}
+2026-07-22 05:14:39:355 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":{"capabilities":{"firstMatch":[{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120,"platform":"LINUX","webStorageEnabled":false,"takesScreenshot":true,"javascriptEnabled":true,"databaseEnabled":false,"networkConnectionEnabled":true,"locationContextEnabled":false,"warnings":{},"desired":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120},"deviceUDID":"emulator-5554","appActivity":"com.dino.pardix.MainActivity"}],"alwaysMatch":{}},"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500"}}
+2026-07-22 05:14:39:355 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Determined the downstream protocol as 'W3C'
+2026-07-22 05:14:39:355 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /appium/device/pixel_ratio] to [GET http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/appium/device/pixel_ratio] with no body
+2026-07-22 05:14:39:355 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/appium/device/system_bars' to command name 'getSystemBars'
+2026-07-22 05:14:39:355 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /appium/device/system_bars] to [GET http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/appium/device/system_bars] with no body
+2026-07-22 05:14:39:356 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/window/current/size' to command name 'getWindowSize'
+2026-07-22 05:14:39:356 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /window/current/size] to [GET http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/window/current/size] with no body
+2026-07-22 05:14:39:356 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /appium/device/info] to [GET http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/appium/device/info] with no body
+2026-07-22 05:14:39:356 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys window'
+2026-07-22 05:14:39:357 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys power'
+2026-07-22 05:14:39:362 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":2.625}
+2026-07-22 05:14:39:370 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":{"statusBar":132}}
+2026-07-22 05:14:39:376 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":{"height":2400,"width":1080}}
+2026-07-22 05:14:39:407 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":{"androidId":"6de3d067b8da13ef","apiVersion":"35","bluetooth":{"state":"ON"},"brand":"google","carrierName":"T-Mobile","displayDensity":420,"locale":"en_US","manufacturer":"Google","model":"sdk_gphone64_arm64","networks":[{"capabilities":{"SSID":null,"linkDownBandwidthKbps":30000,"linkUpstreamBandwidthKbps":12000,"networkCapabilities":"NET_CAPABILITY_NOT_METERED,NET_CAPABILITY_INTERNET,NET_CAPABILITY_NOT_RESTRICTED,NET_CAPABILITY_TRUSTED,NET_CAPABILITY_NOT_VPN,NET_CAPABILITY_VALIDATED,NET_CAPABILITY_NOT_ROAMING,NET_CAPABILITY_FOREGROUND,NET_CAPABILITY_NOT_CONGESTED,NET_CAPABILITY_NOT_SUSPENDED","signalStrength":-50,"transportTypes":"TRANSPORT_WIFI"},"detailedState":"CONNECTED","extraInfo":"","isAvailable":true,"isConnected":true,"isFailover":false,"isRoaming":false,"state":"CONNECTED","subtype":-1,"subtypeName":"","type":1,"typeName":"WIFI"},{"capabilities":{"SSID":null,"linkDownBandwidthKbps":30000,"linkUpstreamBandwidthKbps":15000,"networkCapabi...
+2026-07-22 05:14:39:409 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Screen already unlocked, doing nothing
+2026-07-22 05:14:39:409 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Starting 'com.dino.pardix/com.dino.pardix.MainActivityand waiting for 'com.dino.pardix/com.dino.pardix.MainActivity'
+2026-07-22 05:14:39:410 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am start-activity -W -n com.dino.pardix/com.dino.pardix.MainActivity -S -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000'
+2026-07-22 05:14:40:696 [1f867fd5][ADB] Expected package names to be focused within 20000ms: 'com.dino.pardix'
+2026-07-22 05:14:40:697 [1f867fd5][ADB] Expected activity name patterns to be focused within 20000ms: '/^com\.dino\.pardix\.MainActivity$/'
+2026-07-22 05:14:40:697 [1f867fd5][ADB] Getting focused package and activity
+2026-07-22 05:14:40:697 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys window displays'
+2026-07-22 05:14:40:751 [1f867fd5][ADB] Focused package: com.dino.pardix
+2026-07-22 05:14:40:751 [1f867fd5][ADB] Focused fully qualified activity name: com.dino.pardix.MainActivity
+2026-07-22 05:14:40:751 [1f867fd5][AppiumDriver@bc13] New AndroidUiautomator2Driver session created successfully, session 1f867fd5-0812-4f41-a88c-72f0afb7e198 added to master session list
+2026-07-22 05:14:40:751 [1f867fd5][AppiumDriver@bc13] Event 'newSessionStarted' logged at 1784697280751 (12:14:40 GMT+0700 (Indochina Time))
+2026-07-22 05:14:40:752 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Cached the protocol value 'W3C' for the new session 1f867fd5-0812-4f41-a88c-72f0afb7e198
+2026-07-22 05:14:40:752 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Responding to client with driver.createSession() result: {"capabilities":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120,"platform":"LINUX","webStorageEnabled":false,"takesScreenshot":true,"javascriptEnabled":true,"databaseEnabled":false,"networkConnectionEnabled":true,"locationContextEnabled":false,"warnings":{},"desired":{"platformName":"Android","automationName":"UiAutomator2","deviceName":"emulator-5554","app":"build/app/outputs/flutter-apk/app-release.apk","appPackage":"com.dino.pardix","autoGrantPermissions":true,"newCommandTimeout":120},"deviceUDID":"emulator-5554","appActivity":"com.dino.pardix.MainActivity","pixelRatio":"2.625","statBarHeight":132,"viewportRect":{"left":0,"top":132,"width":1080,"height":2268},"deviceApiLevel":35,"platformVersion":"15","deviceManufacturer":"Google","deviceModel":"sdk_gphone64_arm64","deviceScreenSize":"1080x2400","deviceScreenDensity":420}}
+2026-07-22 05:14:40:753 [1f867fd5][HTTP] <-- POST /wd/hub/session 200 3643 ms - 1074 
+2026-07-22 05:14:40:772 [1f867fd5][HTTP] --> POST /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/element {"using":"accessibility id","value":"WARP / 1.1.1.1"}
+2026-07-22 05:14:40:772 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Calling AppiumDriver.findElement() with args: ["accessibility id","WARP / 1.1.1.1","1f867fd5-0812-4f41-a88c-72f0afb7e198"]
+2026-07-22 05:14:40:772 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Valid locator strategies for this request: xpath, id, class name, accessibility id, css selector, -android uiautomator
+2026-07-22 05:14:40:772 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Waiting up to 0 ms for condition
+2026-07-22 05:14:40:773 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/element' to command name 'findElement'
+2026-07-22 05:14:40:773 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [POST /element] to [POST http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/element] with body: {"strategy":"accessibility id","selector":"WARP / 1.1.1.1","context":"","multiple":false}
+2026-07-22 05:14:41:267 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":{"ELEMENT":"00000000-0000-0015-0000-001a00000003","element-6066-11e4-a52e-4f735466cecf":"00000000-0000-0015-0000-001a00000003"}}
+2026-07-22 05:14:41:267 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Responding to client with driver.findElement() result: {"element-6066-11e4-a52e-4f735466cecf":"00000000-0000-0015-0000-001a00000003","ELEMENT":"00000000-0000-0015-0000-001a00000003"}
+2026-07-22 05:14:41:268 [1f867fd5][HTTP] <-- POST /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/element 200 496 ms - 137 
+2026-07-22 05:14:41:276 [1f867fd5][HTTP] --> GET /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/element/00000000-0000-0015-0000-001a00000003/displayed {}
+2026-07-22 05:14:41:276 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Calling AppiumDriver.elementDisplayed() with args: ["00000000-0000-0015-0000-001a00000003","1f867fd5-0812-4f41-a88c-72f0afb7e198"]
+2026-07-22 05:14:41:278 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/element/00000000-0000-0015-0000-001a00000003/attribute/displayed' to command name 'getAttribute'
+2026-07-22 05:14:41:278 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /element/00000000-0000-0015-0000-001a00000003/attribute/displayed] to [GET http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/element/00000000-0000-0015-0000-001a00000003/attribute/displayed] with no body
+2026-07-22 05:14:41:284 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":"true"}
+2026-07-22 05:14:41:284 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Responding to client with driver.elementDisplayed() result: true
+2026-07-22 05:14:41:285 [1f867fd5][HTTP] <-- GET /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/element/00000000-0000-0015-0000-001a00000003/displayed 200 9 ms - 14 
+2026-07-22 05:14:41:288 [1f867fd5][HTTP] --> GET /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/screenshot {}
+2026-07-22 05:14:41:288 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Calling AppiumDriver.getScreenshot() with args: ["1f867fd5-0812-4f41-a88c-72f0afb7e198"]
+2026-07-22 05:14:41:289 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/screenshot' to command name 'getScreenshot'
+2026-07-22 05:14:41:289 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /screenshot] to [GET http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/screenshot] with no body
+2026-07-22 05:14:41:472 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":"iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N15gFxVnf/9zzm3qnpPJ2my0llISEhCIOwEAqICElkkLIoMjgyKZISM83PQQef5OTPOo47OjKMjPiOOCorMgIiALCIoy5CFAEkEskH2pdNJ6Kzd6e7qqrrnPH/cW9XdJJ21O90V3i+nBqr71r3n3uo0uZ865/s13nsvAAAAAACAImZ7ewAAAAAAAABHioADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRI+AAAAAAAABFj4ADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRI+AAAAAAAABFj4ADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRI+AAAAAAAABFj4ADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRS/T2AAAAAAAAfcO7776r+vp6NTY2qqmpqfDP5uZmVVRUqF+/fqqqqlK/fv3Ur18/DRs2TIMHD+7tYR+RpUuX6uSTT+7RY6xY...
+2026-07-22 05:14:41:473 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Responding to client with driver.getScreenshot() result: "iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N15gFxVnf/9zzm3qnpPJ2my0llISEhCIOwEAqICElkkLIoMjgyKZISM83PQQef5OTPOo47OjKMjPiOOCorMgIiALCIoy5CFAEkEskH2pdNJ6Kzd6e7qqrrnPH/cW9XdJJ21O90V3i+nBqr71r3n3uo0uZ865/s13nsvAAAAAACAImZ7ewAAAAAAAABHioADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRI+AAAAAAAABFj4ADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRI+AAAAAAAABFj4ADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRI+AAAAAAAABFj4ADAAAAAAAUPQIOAAAAAABQ9Ag4AAAAAABA0SPgAAAAAAAARY+AAwAAAAAAFD0CDgAAAAAAUPQIOAAAAAAAQNEj4AAAAAAAAEWPgAMAAAAAABQ9Ag4AAAAAAFD0CDgAAAAAAEDRS/T2AAAAAAAAfcO7776r+vp6NTY2qqmpqfDP5uZmVVRUqF+/fqqqqlK/fv3Ur18/DRs2TIMHD+7tYR+RpUuX6uSTT+7RY6xYsUJPPvnkfre56qqrNH78+B4dx7GOgAPvS21tbWpoaNDmzZtVX1+vDRs2qK6u...
+2026-07-22 05:14:41:474 [1f867fd5][HTTP] <-- GET /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/screenshot 200 185 ms - 224292 
+2026-07-22 05:14:41:479 [1f867fd5][HTTP] --> POST /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/element/00000000-0000-0015-0000-001a00000003/click {}
+2026-07-22 05:14:41:480 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Calling AppiumDriver.click() with args: ["00000000-0000-0015-0000-001a00000003","1f867fd5-0812-4f41-a88c-72f0afb7e198"]
+2026-07-22 05:14:41:480 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/element/00000000-0000-0015-0000-001a00000003/click' to command name 'click'
+2026-07-22 05:14:41:480 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [POST /element/00000000-0000-0015-0000-001a00000003/click] to [POST http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/element/00000000-0000-0015-0000-001a00000003/click] with body: {"element":"00000000-0000-0015-0000-001a00000003"}
+2026-07-22 05:14:42:267 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":null}
+2026-07-22 05:14:42:268 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Responding to client with driver.click() result: null
+2026-07-22 05:14:42:268 [1f867fd5][HTTP] <-- POST /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/element/00000000-0000-0015-0000-001a00000003/click 200 789 ms - 14 
+2026-07-22 05:14:43:775 [1f867fd5][HTTP] --> GET /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/screenshot {}
+2026-07-22 05:14:43:776 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Calling AppiumDriver.getScreenshot() with args: ["1f867fd5-0812-4f41-a88c-72f0afb7e198"]
+2026-07-22 05:14:43:776 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Matched '/screenshot' to command name 'getScreenshot'
+2026-07-22 05:14:43:776 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [GET /screenshot] to [GET http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500/screenshot] with no body
+2026-07-22 05:14:43:939 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":"iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N1pdxzZfef5343IBfsOECC472QV11JRm2XJki232n3ap/vMaT+ZM/Mq9HzezUyfsd22u+WWNWprsWxVSaqVS7G4EwRA7GsmErnEvfMglszERoAECCTr+5FQ2CIjb0QmAMYv//d/zY9//GMnAAAAAACABubt9wAAAAAAAABeFwEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGR8ABAAAAAAAaHgEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGR8ABAAAAAAAaHgEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGR8ABAAAAAAAaHgEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGl9rvAQAAAAAADoaVlRXlcjmVSiWVSiUVi0WVSiWVy2Wl02lls1llMpnkra2tTS0tLfs97NcyMzOjvr6+Pb2P+fl5PXz4cMttzpw5o+7u7j0dx9uOgANf...
+2026-07-22 05:14:43:940 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Responding to client with driver.getScreenshot() result: "iVBORw0KGgoAAAANSUhEUgAABDgAAAlgCAYAAABtGofVAAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAACAASURBVHic7N1pdxzZfef5343IBfsOECC472QV11JRm2XJki232n3ap/vMaT+ZM/Mq9HzezUyfsd22u+WWNWprsWxVSaqVS7G4EwRA7GsmErnEvfMglszERoAECCTr+5FQ2CIjb0QmAMYv//d/zY9//GMnAAAAAACABubt9wAAAAAAAABeFwEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGR8ABAAAAAAAaHgEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGR8ABAAAAAAAaHgEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGR8ABAAAAAAAaHgEHAAAAAABoeAQcAAAAAACg4RFwAAAAAACAhkfAAQAAAAAAGh4BBwAAAAAAaHgEHAAAAAAAoOERcAAAAAAAgIZHwAEAAAAAABoeAQcAAAAAAGh4BBwAAAAAAKDhEXAAAAAAAICGl9rvAQAAAAAADoaVlRXlcjmVSiWVSiUVi0WVSiWVy2Wl02lls1llMpnkra2tTS0tLfs97NcyMzOjvr6+Pb2P+fl5PXz4cMttzpw5o+7u7j0dx9uOgANfSUEQaGVlRfl8XrlcTktLS1peXlapVFJzc7M6OzvV3t6u1tZWtbW1qbm5eb+H...
+2026-07-22 05:14:43:941 [1f867fd5][HTTP] <-- GET /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198/screenshot 200 166 ms - 241668 
+2026-07-22 05:14:43:946 [1f867fd5][HTTP] --> DELETE /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198 {}
+2026-07-22 05:14:43:946 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Calling AppiumDriver.deleteSession() with args: ["1f867fd5-0812-4f41-a88c-72f0afb7e198"]
+2026-07-22 05:14:43:946 [1f867fd5][AppiumDriver@bc13] Event 'quitSessionRequested' logged at 1784697283946 (12:14:43 GMT+0700 (Indochina Time))
+2026-07-22 05:14:43:946 [1f867fd5][AppiumDriver@bc13] Removing session 1f867fd5-0812-4f41-a88c-72f0afb7e198 from our master session list
+2026-07-22 05:14:43:946 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Deleting UiAutomator2 session
+2026-07-22 05:14:43:946 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Deleting UiAutomator2 server session
+2026-07-22 05:14:43:946 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Proxying [DELETE /] to [DELETE http://127.0.0.1:8200/session/45176d11-5a71-4ef6-9fb8-dce55fa54500] with no body
+2026-07-22 05:14:43:949 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Got response with status 200: {"sessionId":"45176d11-5a71-4ef6-9fb8-dce55fa54500","value":null}
+2026-07-22 05:14:43:949 [1f867fd5][ADB] Getting IDs of all 'io.appium.uiautomator2.server' processes
+2026-07-22 05:14:43:949 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell ps --help'
+2026-07-22 05:14:43:975 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell ps -A'
+2026-07-22 05:14:43:990 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] io.appium.uiautomator2.server.test.AppiumUiAutomator2Server:.
+2026-07-22 05:14:43:990 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] 
+2026-07-22 05:14:43:990 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] Time: 4.879
+2026-07-22 05:14:43:990 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] 
+2026-07-22 05:14:43:990 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] OK (1 test)
+2026-07-22 05:14:43:990 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] 
+2026-07-22 05:14:43:991 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] 
+2026-07-22 05:14:43:999 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] [Instrumentation] The process has exited with code 0, signal null
+2026-07-22 05:14:44:023 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server'
+2026-07-22 05:14:44:024 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop io.appium.uiautomator2.server.test'
+2026-07-22 05:14:44:054 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell dumpsys activity services io.appium.settings/.recorder.RecorderService'
+2026-07-22 05:14:44:076 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell am force-stop com.dino.pardix'
+2026-07-22 05:14:44:131 [1f867fd5][ADB] Removing forwarded port socket connection: 8200 
+2026-07-22 05:14:44:131 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 forward --remove tcp:8200'
+2026-07-22 05:14:44:151 [1f867fd5][38;5;-79m[AndroidUiautomator2Driver@ba6c] Restoring hidden api policy to the device default configuration
+2026-07-22 05:14:44:151 [1f867fd5][ADB] Running '/Users/lee/Library/Android/sdk/platform-tools/adb -P 5037 -s emulator-5554 shell 'settings delete global hidden_api_policy_pre_p_apps;settings delete global hidden_api_policy_p_apps;settings delete global hidden_api_policy''
+2026-07-22 05:14:44:216 [1f867fd5][Logcat] Stopping logcat capture
+2026-07-22 05:14:44:217 [1f867fd5][AppiumDriver@bc13] Event 'quitSessionFinished' logged at 1784697284217 (12:14:44 GMT+0700 (Indochina Time))
+2026-07-22 05:14:44:217 [1f867fd5][AppiumDriver@bc13] Received response: null
+2026-07-22 05:14:44:218 [1f867fd5][AppiumDriver@bc13] But deleting session, so not returning
+2026-07-22 05:14:44:218 [1f867fd5][AppiumDriver@bc13] Responding to client with driver.deleteSession() result: null
+2026-07-22 05:14:44:218 [1f867fd5][HTTP] <-- DELETE /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198 200 272 ms - 14 
