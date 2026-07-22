@@ -33,7 +33,7 @@
   - `docs/evidence/v1.0.2/01-home.png` (`5878654500d37be0596026886adb149a503b8693c87550e03556db910884f779`)
   - `docs/evidence/v1.0.2/02-warp-sheet.png` (`8e18af1eacce48460695ed9e8bd14453a736a54ee27dc57273e53d22f66b55e5`)
   - `docs/evidence/v1.0.2/03-device-current.png` (`4bc649a666818f1f3a039ec65402b67d02a69fd85cded7d5e317a68aebfca6ae`)
-- Appium log: `docs/evidence/v1.0.2/appium-server.log` (`5c9b3ec0178e361431c3ffa9e1752d6f3bbb8b67785cb2364002c5bafe28334d`)
+- Appium log: `docs/evidence/v1.0.2/appium-server.log` (`65cc5e3682cdeee09599c0344edac865840658c79a66cdd98b32c237980bf40f`)
 
 ## Artifact
 

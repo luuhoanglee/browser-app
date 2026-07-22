@@ -548,3 +548,4 @@ Success
 2026-07-22 05:14:44:218 [1f867fd5][AppiumDriver@bc13] But deleting session, so not returning
 2026-07-22 05:14:44:218 [1f867fd5][AppiumDriver@bc13] Responding to client with driver.deleteSession() result: null
 2026-07-22 05:14:44:218 [1f867fd5][HTTP] <-- DELETE /wd/hub/session/1f867fd5-0812-4f41-a88c-72f0afb7e198 200 272 ms - 14 
+2026-07-22 05:16:52:581 [Appium] Received SIGINT - shutting down
