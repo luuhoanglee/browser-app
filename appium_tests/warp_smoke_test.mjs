@@ -3,7 +3,9 @@ import path from 'node:path';
 import { remote } from 'webdriverio';
 
 const rootDir = process.cwd();
-const evidenceDir = path.join(rootDir, 'docs', 'evidence', 'v1.0.1');
+const evidenceDir =
+  process.env.EVIDENCE_DIR ??
+  path.join(rootDir, 'docs', 'evidence', 'v1.0.1');
 const apkPath =
   process.env.APK_PATH ??
   path.join(rootDir, 'build', 'app', 'outputs', 'flutter-apk', 'app-debug.apk');
