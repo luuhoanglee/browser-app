@@ -8,18 +8,19 @@
 
 ## Logo Check
 
-- Android launcher icon source: `assets/logo/app_icon.png`
-- Play Store listing icon asset: `assets/logo/play_store_icon.png`
-- The Android launcher resources generated from `assets/logo/app_icon.png` already match the current blue/white Pardix logo.
-- The old orange/purple logo observed in Google Play Console is the Store Listing icon, which is managed separately from the app bundle launcher icon.
+- Correct brand icon: orange/purple Pardix icon, matching the current Google Play Store listing.
+- Previous Android launcher icon source: `assets/logo/app_icon.png` (old blue/white icon).
+- New Android launcher icon source: `assets/logo/logo.png` (orange/purple icon).
+- Regenerated launcher resources so the installed app icon matches the Google Play Store icon.
 
 ## Validation
 
 - `dart run flutter_launcher_icons`
 - `flutter test`
 - `flutter build appbundle --release`
+- `flutter analyze` currently reports the existing project baseline analyzer debt; the logo change does not add new analyzer issues.
 
 ## Artifact
 
-- AAB size: `54.9MB`
-- SHA-256: `5093c440af9694ba40cee7cc88853a086df96c48ffaec377a8f341aad634b759`
+- AAB size: `55.0MB`
+- SHA-256: `da4abb0600aab83f1f6e22b766c3aff9a2407a85e3087c2b753934cb97704832`
