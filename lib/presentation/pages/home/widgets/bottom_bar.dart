@@ -107,6 +107,7 @@ class BottomBar extends StatelessWidget {
                         Icons.copy,
                         onShowTabs,
                         badgeCount: tabState.filteredTabs.length,
+                        semanticLabel: 'Tabs',
                       ),
                     ],
                   ),
@@ -278,6 +279,7 @@ class BottomBar extends StatelessWidget {
     VoidCallback onTap, {
     bool isActive = true,
     required int badgeCount,
+    String? semanticLabel,
   }) {
     final isIncognito = activeTab.isIncognito ?? false;
     final iconColor = isMediaSheetOpen
@@ -286,44 +288,48 @@ class BottomBar extends StatelessWidget {
               ? (isIncognito ? Colors.white70 : Colors.grey[700])
               : Colors.grey[400]);
 
-    return GestureDetector(
-      onTap: isActive ? onTap : null,
-      child: Container(
-        width: 50,
-        alignment: Alignment.center,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(icon, size: 22, color: iconColor),
-            if (badgeCount >= 1)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isIncognito ? Colors.grey[600] : Colors.blue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 14,
-                  ),
-                  child: Text(
-                    badgeCount.toString(),
-                    style: TextStyle(
-                      color: isIncognito ? Colors.white70 : Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        onTap: isActive ? onTap : null,
+        child: Container(
+          width: 50,
+          alignment: Alignment.center,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(icon, size: 22, color: iconColor),
+              if (badgeCount >= 1)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
                     ),
-                    textAlign: TextAlign.center,
+                    decoration: BoxDecoration(
+                      color: isIncognito ? Colors.grey[600] : Colors.blue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 14,
+                    ),
+                    child: Text(
+                      badgeCount.toString(),
+                      style: TextStyle(
+                        color: isIncognito ? Colors.white70 : Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

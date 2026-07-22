@@ -19,6 +19,10 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     on<AddLoadedResourceEvent>(_onAddLoadedResource);
     on<ClearLoadedResourcesEvent>(_onClearLoadedResources);
     on<ToggleIncognitoModeEvent>(_onToggleIncognitoMode);
+    on<EnableSplitViewEvent>(_onEnableSplitView);
+    on<DisableSplitViewEvent>(_onDisableSplitView);
+    on<SetSplitSecondaryTabEvent>(_onSetSplitSecondaryTab);
+    on<UpdateSplitRatioEvent>(_onUpdateSplitRatio);
 
     _init();
   }
@@ -189,6 +193,8 @@ class TabBloc extends Bloc<TabEvent, TabState> {
           isIncognitoMode: newIncognitoMode,
           normalModeActiveTabId: savedNormalTabId,
           incognitoModeActiveTabId: savedIncognitoTabId,
+          isSplitViewEnabled: false,
+          splitSecondaryTabId: null,
         ),
       );
     } else {
@@ -216,6 +222,8 @@ class TabBloc extends Bloc<TabEvent, TabState> {
           isIncognitoMode: newIncognitoMode,
           normalModeActiveTabId: savedNormalTabId,
           incognitoModeActiveTabId: savedIncognitoTabId,
+          isSplitViewEnabled: false,
+          splitSecondaryTabId: null,
         ),
       );
     }
@@ -253,11 +261,19 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       activeIndex = repository.getTabIndex(activeTab?.id ?? '');
     }
 
+    final splitStillValid =
+        state.isSplitViewEnabled &&
+        state.splitSecondaryTabId != null &&
+        updatedTabs.any((tab) => tab.id == state.splitSecondaryTabId) &&
+        activeTab?.id != state.splitSecondaryTabId;
+
     emit(
       state.copyWith(
         tabs: updatedTabs,
         activeTab: activeTab,
         activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+        isSplitViewEnabled: splitStillValid,
+        splitSecondaryTabId: splitStillValid ? state.splitSecondaryTabId : null,
       ),
     );
 
@@ -288,11 +304,35 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     final index = repository.getTabIndex(event.tabId);
     final updatedActiveTab = repository.getActiveTab();
 
+    String? nextSplitSecondaryId = state.splitSecondaryTabId;
+    var nextSplitEnabled = state.isSplitViewEnabled;
+    if (nextSplitEnabled) {
+      final candidates = repository
+          .getTabs()
+          .where(
+            (tab) =>
+                tab.id != updatedActiveTab?.id &&
+                tab.isIncognito == (updatedActiveTab?.isIncognito ?? false),
+          )
+          .toList();
+      final secondaryStillValid = candidates.any(
+        (tab) => tab.id == nextSplitSecondaryId,
+      );
+      if (!secondaryStillValid) {
+        nextSplitEnabled = candidates.isNotEmpty;
+        nextSplitSecondaryId = candidates.isNotEmpty
+            ? candidates.first.id
+            : null;
+      }
+    }
+
     emit(
       state.copyWith(
         tabs: repository.getTabs(),
         activeTab: updatedActiveTab,
         activeTabIndex: index == -1 ? state.activeTabIndex : index,
+        isSplitViewEnabled: nextSplitEnabled,
+        splitSecondaryTabId: nextSplitSecondaryId,
       ),
     );
 
@@ -394,5 +434,84 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     if (state.activeTab?.id == event.tabId) {
       emit(state.copyWith(activeTab: updatedTab));
     }
+  }
+
+  void _onEnableSplitView(EnableSplitViewEvent event, Emitter<TabState> emit) {
+    final activeTab = state.activeTab;
+    final secondaryTab = repository.getTab(event.secondaryTabId);
+    if (activeTab == null ||
+        secondaryTab == null ||
+        secondaryTab.id == activeTab.id ||
+        secondaryTab.isIncognito != activeTab.isIncognito) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isSplitViewEnabled: true,
+        splitSecondaryTabId: secondaryTab.id,
+        splitRatio: state.splitRatio.clamp(0.25, 0.75),
+      ),
+    );
+
+    AppLogger.event(
+      AnalyticsEvent.splitViewToggled,
+      params: {
+        AnalyticsParam.isIncognito: activeTab.isIncognito,
+        AnalyticsParam.success: true,
+      },
+    );
+  }
+
+  void _onDisableSplitView(
+    DisableSplitViewEvent event,
+    Emitter<TabState> emit,
+  ) {
+    if (!state.isSplitViewEnabled) return;
+
+    emit(state.copyWith(isSplitViewEnabled: false, splitSecondaryTabId: null));
+
+    AppLogger.event(
+      AnalyticsEvent.splitViewToggled,
+      params: {
+        AnalyticsParam.isIncognito: state.activeTab?.isIncognito ?? false,
+        AnalyticsParam.success: false,
+      },
+    );
+  }
+
+  void _onSetSplitSecondaryTab(
+    SetSplitSecondaryTabEvent event,
+    Emitter<TabState> emit,
+  ) {
+    final activeTab = state.activeTab;
+    final secondaryTab = repository.getTab(event.secondaryTabId);
+    if (activeTab == null ||
+        secondaryTab == null ||
+        secondaryTab.id == activeTab.id ||
+        secondaryTab.isIncognito != activeTab.isIncognito) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        isSplitViewEnabled: true,
+        splitSecondaryTabId: secondaryTab.id,
+      ),
+    );
+  }
+
+  void _onUpdateSplitRatio(
+    UpdateSplitRatioEvent event,
+    Emitter<TabState> emit,
+  ) {
+    if (!state.isSplitViewEnabled) return;
+    final ratio = event.ratio.clamp(0.25, 0.75);
+    emit(state.copyWith(splitRatio: ratio));
+
+    AppLogger.event(
+      AnalyticsEvent.splitViewResized,
+      params: {AnalyticsParam.splitRatio: (ratio * 100).round()},
+    );
   }
 }
