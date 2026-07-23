@@ -23,6 +23,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     on<DisableSplitViewEvent>(_onDisableSplitView);
     on<SetSplitSecondaryTabEvent>(_onSetSplitSecondaryTab);
     on<UpdateSplitRatioEvent>(_onUpdateSplitRatio);
+    on<SetAudioTabEvent>(_onSetAudioTab);
 
     _init();
   }
@@ -38,6 +39,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         tabs: repository.getTabs(),
         activeTab: repository.getActiveTab(),
         activeTabIndex: 0,
+        audioTabId: initialTab.id,
       ),
     );
 
@@ -107,6 +109,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
           tabs: repository.getTabs(),
           activeTab: activeTab,
           activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
+          audioTabId: activeTab?.id,
         ),
       );
     });
@@ -130,6 +133,8 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         tabs: updatedTabs,
         activeTab: activeTab,
         activeTabIndex: newIndex,
+        // A freshly opened, focused tab becomes the audio owner.
+        audioTabId: newTab.id,
       ),
     );
 
@@ -195,6 +200,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
           incognitoModeActiveTabId: savedIncognitoTabId,
           isSplitViewEnabled: false,
           splitSecondaryTabId: null,
+          audioTabId: activeTab?.id,
         ),
       );
     } else {
@@ -224,6 +230,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
           incognitoModeActiveTabId: savedIncognitoTabId,
           isSplitViewEnabled: false,
           splitSecondaryTabId: null,
+          audioTabId: activeTab?.id,
         ),
       );
     }
@@ -267,6 +274,11 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         updatedTabs.any((tab) => tab.id == state.splitSecondaryTabId) &&
         activeTab?.id != state.splitSecondaryTabId;
 
+    // Keep the current audio owner unless its tab was the one closed.
+    final audioStillValid = updatedTabs.any(
+      (tab) => tab.id == state.audioTabId,
+    );
+
     emit(
       state.copyWith(
         tabs: updatedTabs,
@@ -274,6 +286,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
         isSplitViewEnabled: splitStillValid,
         splitSecondaryTabId: splitStillValid ? state.splitSecondaryTabId : null,
+        audioTabId: audioStillValid ? state.audioTabId : activeTab?.id,
       ),
     );
 
@@ -333,6 +346,8 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         activeTabIndex: index == -1 ? state.activeTabIndex : index,
         isSplitViewEnabled: nextSplitEnabled,
         splitSecondaryTabId: nextSplitSecondaryId,
+        // Switching tabs moves audio to the newly focused tab.
+        audioTabId: updatedActiveTab?.id,
       ),
     );
 
@@ -512,6 +527,25 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     AppLogger.event(
       AnalyticsEvent.splitViewResized,
       params: {AnalyticsParam.splitRatio: (ratio * 100).round()},
+    );
+  }
+
+  void _onSetAudioTab(SetAudioTabEvent event, Emitter<TabState> emit) {
+    // The tab must still exist to receive audio.
+    final exists = state.tabs.any((tab) => tab.id == event.tabId);
+    if (!exists) return;
+
+    // Toggle: tapping the current owner mutes everything; otherwise this pane
+    // becomes the sole audio owner. This keeps the "at most one pane has sound"
+    // invariant.
+    final nextAudioTabId = state.audioTabId == event.tabId ? null : event.tabId;
+    if (nextAudioTabId == state.audioTabId) return;
+
+    emit(state.copyWith(audioTabId: nextAudioTabId));
+
+    AppLogger.event(
+      AnalyticsEvent.paneAudioToggled,
+      params: {AnalyticsParam.hasAudio: nextAudioTabId != null},
     );
   }
 }

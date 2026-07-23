@@ -21,6 +21,7 @@ import 'widgets/bottom_bar_wrapper.dart';
 import 'widgets/mini_url_bar_wrapper.dart';
 import 'widgets/progress_bar_wrapper.dart';
 import 'widgets/page_content_wrapper.dart';
+import 'widgets/split_audio_toggle.dart';
 import '../../../features/tabs/widgets/empty_page.dart';
 import '../../../features/webview/widgets/webview_page.dart';
 import '../../../features/tabs/widgets/tabs_sheet.dart';
@@ -398,6 +399,7 @@ class _HomeViewState extends State<HomeView>
             return true;
           }
           if (previous.splitRatio != current.splitRatio) return true;
+          if (previous.audioTabId != current.audioTabId) return true;
           final prevUrlEmpty = prevTab?.url.isEmpty ?? true;
           final currUrlEmpty = currTab?.url.isEmpty ?? true;
           if (prevUrlEmpty != currUrlEmpty) return true;
@@ -533,7 +535,12 @@ class _HomeViewState extends State<HomeView>
       children: tabState.tabs.map((tab) {
         return Offstage(
           offstage: tab.id != activeTab.id,
-          child: _buildTabPane(context, tab, tab.id == activeTab.id),
+          child: _buildTabPane(
+            context,
+            tab,
+            tab.id == activeTab.id,
+            muted: tabState.isTabMuted(tab.id),
+          ),
         );
       }).toList(),
     );
@@ -550,10 +557,18 @@ class _HomeViewState extends State<HomeView>
         .map(
           (tab) => Offstage(
             offstage: true,
-            child: _buildTabPane(context, tab, false),
+            child: _buildTabPane(
+              context,
+              tab,
+              false,
+              muted: tabState.isTabMuted(tab.id),
+            ),
           ),
         )
         .toList();
+
+    final primaryMuted = tabState.isTabMuted(activeTab.id);
+    final secondaryMuted = tabState.isTabMuted(secondaryTab.id);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -565,12 +580,22 @@ class _HomeViewState extends State<HomeView>
                 children: [
                   Expanded(
                     flex: (ratio * 1000).round(),
-                    child: _buildSplitPane(context, activeTab, true),
+                    child: _buildSplitPane(
+                      context,
+                      activeTab,
+                      true,
+                      muted: primaryMuted,
+                    ),
                   ),
                   _buildSplitDivider(context, isLandscape, constraints),
                   Expanded(
                     flex: ((1 - ratio) * 1000).round(),
-                    child: _buildSplitPane(context, secondaryTab, false),
+                    child: _buildSplitPane(
+                      context,
+                      secondaryTab,
+                      false,
+                      muted: secondaryMuted,
+                    ),
                   ),
                 ],
               )
@@ -578,12 +603,22 @@ class _HomeViewState extends State<HomeView>
                 children: [
                   Expanded(
                     flex: (ratio * 1000).round(),
-                    child: _buildSplitPane(context, activeTab, true),
+                    child: _buildSplitPane(
+                      context,
+                      activeTab,
+                      true,
+                      muted: primaryMuted,
+                    ),
                   ),
                   _buildSplitDivider(context, isLandscape, constraints),
                   Expanded(
                     flex: ((1 - ratio) * 1000).round(),
-                    child: _buildSplitPane(context, secondaryTab, false),
+                    child: _buildSplitPane(
+                      context,
+                      secondaryTab,
+                      false,
+                      muted: secondaryMuted,
+                    ),
                   ),
                 ],
               );
@@ -593,7 +628,12 @@ class _HomeViewState extends State<HomeView>
     );
   }
 
-  Widget _buildSplitPane(BuildContext context, dynamic tab, bool isPrimary) {
+  Widget _buildSplitPane(
+    BuildContext context,
+    dynamic tab,
+    bool isPrimary, {
+    required bool muted,
+  }) {
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(
@@ -601,7 +641,24 @@ class _HomeViewState extends State<HomeView>
           width: isPrimary ? 0.5 : 1,
         ),
       ),
-      child: ClipRect(child: _buildTabPane(context, tab, isPrimary)),
+      child: ClipRect(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: _buildTabPane(context, tab, isPrimary, muted: muted),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: SplitAudioToggle(
+                muted: muted,
+                onToggle: () =>
+                    context.read<TabBloc>().add(SetAudioTabEvent(tab.id)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -642,7 +699,12 @@ class _HomeViewState extends State<HomeView>
     );
   }
 
-  Widget _buildTabPane(BuildContext context, dynamic tab, bool isPrimaryPane) {
+  Widget _buildTabPane(
+    BuildContext context,
+    dynamic tab,
+    bool isPrimaryPane, {
+    bool muted = false,
+  }) {
     if (tab.url.isEmpty) {
       return RepaintBoundary(
         key: ValueKey('empty_boundary_${tab.id}'),
@@ -671,6 +733,7 @@ class _HomeViewState extends State<HomeView>
       key: ValueKey('webview_${tab.id}'),
       activeTab: tab,
       controller: _getController(tab.id),
+      muted: muted,
       pullToRefreshController: isPrimaryPane ? _pullToRefreshController : null,
       onWebViewCreated: (controller) => _setController(tab.id, controller),
       onUpdateVisitedHistory: (controller, url, isReload) {

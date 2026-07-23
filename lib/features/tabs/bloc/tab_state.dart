@@ -13,6 +13,12 @@ class TabState {
   final String? splitSecondaryTabId;
   final double splitRatio;
 
+  /// Id of the single tab currently allowed to play audio. All other tabs /
+  /// split panes are muted so that, on Android, only one media session holds
+  /// audio focus — letting multiple videos play their picture at once (issue
+  /// #20). `null` means every pane is muted.
+  final String? audioTabId;
+
   const TabState({
     this.tabs = const [],
     this.activeTab,
@@ -23,6 +29,7 @@ class TabState {
     this.isSplitViewEnabled = false,
     this.splitSecondaryTabId,
     this.splitRatio = 0.5,
+    this.audioTabId,
   });
 
   TabState copyWith({
@@ -35,6 +42,7 @@ class TabState {
     bool? isSplitViewEnabled,
     Object? splitSecondaryTabId = _unset,
     double? splitRatio,
+    Object? audioTabId = _unset,
   }) {
     return TabState(
       tabs: tabs ?? this.tabs,
@@ -50,8 +58,15 @@ class TabState {
           ? this.splitSecondaryTabId
           : splitSecondaryTabId as String?,
       splitRatio: splitRatio ?? this.splitRatio,
+      audioTabId: identical(audioTabId, _unset)
+          ? this.audioTabId
+          : audioTabId as String?,
     );
   }
+
+  /// Whether [tabId]'s WebView should be muted. Only [audioTabId] keeps sound;
+  /// at most one pane is ever unmuted.
+  bool isTabMuted(String tabId) => tabId != audioTabId;
 
   // Get filtered tabs based on incognito mode
   List<TabEntity> get filteredTabs {
