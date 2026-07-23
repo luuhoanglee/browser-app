@@ -45,4 +45,11 @@ flutter test test/evidence/issue21_evidence_test.dart -d flutter-tester
   leaves no white band; page content is flush to the mini bar and the pill
   respects the bottom inset (1 case).
 
-All pass headless via `flutter test … -d flutter-tester`.
+All pass headless via `flutter test … -d flutter-tester`. The E2E test was **also
+run on a real Android emulator** (Android 15 / API 35, `emulator-5554`) — see
+[`android-integration-test.log`](android-integration-test.log):
+
+```
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+00:24 +1: All tests passed!
+```
