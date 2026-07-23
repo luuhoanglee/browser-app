@@ -39,8 +39,13 @@ class MiniUrlBar extends StatelessWidget {
         onTap: onTap,
         child: Container(
           color: Colors.transparent,
+          // The mini bar sits at the very bottom of the screen. Only the
+          // bottom inset (gesture nav bar) is relevant here — applying the top
+          // (status bar) inset would pad the bar downward and leave a tall
+          // blank strip above the pill that exposes the white Scaffold. See
+          // issue #21.
           child: SafeArea(
-            bottom: false,
+            top: false,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Center(
