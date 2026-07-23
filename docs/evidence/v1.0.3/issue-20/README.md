@@ -71,7 +71,15 @@ flutter test test/evidence/issue20_evidence_test.dart -d flutter-tester
   the real `TabBloc` + `SplitAudioToggle`; toggling keeps exactly one pane with
   sound across the whole flow — **1 case**.
 
-All pass headless via `flutter test … -d flutter-tester`.
+All pass headless via `flutter test … -d flutter-tester`. The E2E test was **also
+run on a real Android emulator** (Android 15 / API 35, `emulator-5554`) — see
+[`android-integration-test.log`](android-integration-test.log):
+
+```
+Running Gradle task 'assembleDebug'... 15.7s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+00:56 +1: All tests passed!
+```
 
 ## Acceptance mapping
 
@@ -79,5 +87,6 @@ All pass headless via `flutter test … -d flutter-tester`.
       never grab audio focus.
 - [x] A mechanism to pick which pane has sound — per-pane `SplitAudioToggle`,
       enforced single owner.
-- [ ] Android 8/10/13 device matrix — pending on-device QA (no Android device was
-      attached to this environment; logic + UI verified headless).
+- [x] E2E audio-owner flow verified on Android (API 35 emulator).
+- [ ] Android 8/10/13 physical-device matrix — pending manual QA to confirm the
+      audio-focus behaviour on those OS versions specifically.
