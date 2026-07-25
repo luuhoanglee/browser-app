@@ -29,6 +29,31 @@ Handled by `TabBloc` (`lib/features/tabs/bloc/tab_bloc.dart`).
 
 ---
 
+## Split View & Multi-Pane Audio
+
+Split-screen browsing driven by `TabBloc` (`isSplitViewEnabled`,
+`splitSecondaryTabId`, `splitRatio`, `audioTabId`).
+
+### Split View
+
+- Show two tabs side by side (primary + secondary pane)
+- Adjustable split ratio via a draggable divider; adapts to portrait / landscape
+- Both panes are live WebViews and keep independent navigation history
+- Split is only allowed between tabs of the same privacy mode (both normal or
+  both incognito)
+
+### Multi-Pane Audio (#20)
+
+- Both panes can play video **at the same time** — previously a second video
+  would mute the first
+- One pane at a time is the **audio owner** (`audioTabId`); the other pane keeps
+  playing muted
+- `SplitAudioToggle` on each pane lets the user hand audio ownership to that
+  pane (tap to unmute it, muting the other)
+- Per-pane mute state is tracked in `TabState.isTabMuted`
+
+---
+
 ## WebView
 
 Implemented in `lib/features/webview/widgets/webview_page.dart` using a local fork of `flutter_inappwebview`.
@@ -79,6 +104,33 @@ Custom error pages for:
 
 ---
 
+## Browser Chrome (Toolbar & Safe Area)
+
+Managed at the `HomePage` level (`home_page.dart`) via `HomeUiCubit` and
+`StatusBarMixin`.
+
+### Collapsible Toolbar / Mini URL Bar (#21)
+
+- Scrolling the page **down** hides the full bottom toolbar; scrolling **up**
+  restores it (`HomeUiCubit.handleScrollChange`)
+- When hidden, a small **URL pill** (`MiniUrlBar`) floats over the page content
+  at the bottom — the page fills the whole screen behind it, so there is no
+  white band on dark pages
+- Only the pill itself is hit-testable; taps/scrolls around it pass through to
+  the web page. Tapping the pill opens the search page
+
+### Safari-style Top Safe Area
+
+- Web content is inset **below** the status bar so a page's top row
+  (header / menu / buttons) is never clipped behind the status-bar icons
+- The status-bar strip is painted with the page's **own background colour**,
+  captured on load by `StatusBarMixin.syncSystemUiFromWebPage` (reads the page
+  `background-color` via JS) and exposed as `tabThemeColor`
+- Status-bar icon brightness auto-adapts (light icons on dark pages, dark on
+  light); incognito uses the dark scaffold colour
+
+---
+
 ## Ad Blocking
 
 Multi-layer approach:
@@ -124,9 +176,17 @@ Engine selection persisted to SharedPreferences.
 
 ### Smart URL Detection
 
-Input is classified as:
-- **URL** — if it matches URL pattern (has protocol, TLD, etc.) → loaded directly
-- **Search query** — otherwise → formatted with selected engine's query URL
+`SearchService.formatInput` classifies the input:
+- **Full URL** (has scheme + host, e.g. `https://x.com`) → loaded as-is
+- **Bare domain** (e.g. `spacex.com`, `spacex.com/careers`) or **raw IPv4** (e.g.
+  `192.168.1.1`) → prefixed with `https://` and loaded directly. A scheme-less
+  input parses with an empty host, so it is re-parsed with an `https://` prefix
+  to detect the host; a valid alphabetic TLD or an IPv4 address is required, so
+  numeric strings like `3.14` still go to search.
+- **Search query** — everything else → formatted with the selected engine's query URL
+
+> The bottom-bar address box (`_performSearch`) uses the equivalent
+> `UrlUtils.formatUrl` heuristic ("contains a dot + no space → domain").
 
 ### Suggestions
 
