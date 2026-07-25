@@ -174,11 +174,20 @@ class SearchService {
   }
 
   static bool _isLikelyDomain(String input) {
-    final uri = Uri.tryParse(input);
-    return uri != null &&
-        !uri.hasScheme &&
-        uri.host.contains('.') &&
-        !input.contains(' ');
+    if (input.isEmpty || input.contains(' ') || !input.contains('.')) {
+      return false;
+    }
+    // A bare domain like "spacex.com" has no scheme, so Uri.parse treats the
+    // whole string as a path and leaves `host` empty. Re-parse with a scheme so
+    // the authority (host) is populated, then validate it.
+    final uri = Uri.tryParse('https://$input');
+    if (uri == null || uri.host.isEmpty) return false;
+    final host = uri.host;
+    // Accept a raw IPv4 host (e.g. 192.168.1.1) or a domain whose TLD is
+    // alphabetic (com, io, co.uk…). This rejects numeric strings like "3.14".
+    final isIpv4 = RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(host);
+    final hasAlphaTld = RegExp(r'\.[a-zA-Z]{2,}$').hasMatch(host);
+    return isIpv4 || hasAlphaTld;
   }
 
   static List<String> _getTrendingSeeds(SearchEngine engine) {
