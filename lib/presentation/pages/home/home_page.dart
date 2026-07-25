@@ -21,6 +21,7 @@ import 'widgets/bottom_bar_wrapper.dart';
 import 'widgets/mini_url_bar_wrapper.dart';
 import 'widgets/progress_bar_wrapper.dart';
 import 'widgets/page_content_wrapper.dart';
+import 'widgets/split_audio_toggle.dart';
 import '../../../features/tabs/widgets/empty_page.dart';
 import '../../../features/webview/widgets/webview_page.dart';
 import '../../../features/tabs/widgets/tabs_sheet.dart';
@@ -398,6 +399,7 @@ class _HomeViewState extends State<HomeView>
             return true;
           }
           if (previous.splitRatio != current.splitRatio) return true;
+          if (previous.audioTabId != current.audioTabId) return true;
           final prevUrlEmpty = prevTab?.url.isEmpty ?? true;
           final currUrlEmpty = currTab?.url.isEmpty ?? true;
           if (prevUrlEmpty != currUrlEmpty) return true;
@@ -411,6 +413,14 @@ class _HomeViewState extends State<HomeView>
 
           final isIncognito = activeTab.isIncognito;
 
+          // Colour for the top safe-area strip: the page's own background
+          // colour (captured from the page on load) so the status-bar area
+          // reads as a seamless extension of the page, Safari-style. Falls back
+          // to the scaffold colour until a page reports its colour.
+          final topSafeAreaColor = isIncognito
+              ? const Color(0xFF1A1A2E)
+              : (tabThemeColor(activeTab.id) ?? Colors.white);
+
           return Scaffold(
             backgroundColor: isIncognito
                 ? const Color(0xFF1A1A2E)
@@ -418,10 +428,82 @@ class _HomeViewState extends State<HomeView>
             body: Column(
               children: [
                 Expanded(
-                  child: PageContentWrapper(
-                    activeTab: activeTab,
-                    tabState: tabState,
-                    buildPageContent: _buildPageContent,
+                  child: Stack(
+                    children: [
+                      // Web content is inset below the top safe area so a
+                      // page's top row (header / menu / buttons) is never
+                      // hidden behind the status bar. The strip above is painted
+                      // with the page's own background colour, so it looks like
+                      // a seamless continuation of the page (Safari-style top
+                      // safe area) rather than a hard opaque bar.
+                      Positioned.fill(
+                        child: Column(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeInOut,
+                              width: double.infinity,
+                              height: MediaQuery.paddingOf(context).top,
+                              color: topSafeAreaColor,
+                            ),
+                            Expanded(
+                              child: PageContentWrapper(
+                                activeTab: activeTab,
+                                tabState: tabState,
+                                buildPageContent: _buildPageContent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // When the toolbar is hidden the mini URL pill floats over
+                      // the page content instead of the layout reserving a
+                      // toolbar strip. A reserved strip would expose the
+                      // Scaffold background (white in normal mode) as a band on
+                      // dark pages — the bug in issue #21. The pill is the only
+                      // hit-testable part, so scrolling/tapping the page still
+                      // works around it.
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: BlocBuilder<HomeUiCubit, HomeUiState>(
+                          buildWhen: (previous, current) =>
+                              previous.isToolbarVisible !=
+                              current.isToolbarVisible,
+                          builder: (context, homeUiState) {
+                            return AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 260),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              transitionBuilder: (child, animation) {
+                                final slide = Tween<Offset>(
+                                  begin: const Offset(0, 0.08),
+                                  end: Offset.zero,
+                                ).animate(animation);
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: slide,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: homeUiState.isToolbarVisible
+                                  ? const SizedBox.shrink(
+                                      key: ValueKey('mini_hidden'),
+                                    )
+                                  : MiniUrlBarWrapper(
+                                      key: const ValueKey('toolbar_hidden'),
+                                      activeTabId: activeTab.id,
+                                      controller: _getController(activeTab.id),
+                                      onTap: () => _showSearchPage(context),
+                                    ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 BlocBuilder<HomeUiCubit, HomeUiState>(
@@ -496,11 +578,8 @@ class _HomeViewState extends State<HomeView>
                                 ),
                               ],
                             )
-                          : MiniUrlBarWrapper(
-                              key: const ValueKey('toolbar_hidden'),
-                              activeTabId: activeTab.id,
-                              controller: _getController(activeTab.id),
-                              onTap: () => _showSearchPage(context),
+                          : const SizedBox.shrink(
+                              key: ValueKey('toolbar_hidden_placeholder'),
                             ),
                     );
                   },
@@ -533,7 +612,12 @@ class _HomeViewState extends State<HomeView>
       children: tabState.tabs.map((tab) {
         return Offstage(
           offstage: tab.id != activeTab.id,
-          child: _buildTabPane(context, tab, tab.id == activeTab.id),
+          child: _buildTabPane(
+            context,
+            tab,
+            tab.id == activeTab.id,
+            muted: tabState.isTabMuted(tab.id),
+          ),
         );
       }).toList(),
     );
@@ -550,10 +634,18 @@ class _HomeViewState extends State<HomeView>
         .map(
           (tab) => Offstage(
             offstage: true,
-            child: _buildTabPane(context, tab, false),
+            child: _buildTabPane(
+              context,
+              tab,
+              false,
+              muted: tabState.isTabMuted(tab.id),
+            ),
           ),
         )
         .toList();
+
+    final primaryMuted = tabState.isTabMuted(activeTab.id);
+    final secondaryMuted = tabState.isTabMuted(secondaryTab.id);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -565,12 +657,22 @@ class _HomeViewState extends State<HomeView>
                 children: [
                   Expanded(
                     flex: (ratio * 1000).round(),
-                    child: _buildSplitPane(context, activeTab, true),
+                    child: _buildSplitPane(
+                      context,
+                      activeTab,
+                      true,
+                      muted: primaryMuted,
+                    ),
                   ),
                   _buildSplitDivider(context, isLandscape, constraints),
                   Expanded(
                     flex: ((1 - ratio) * 1000).round(),
-                    child: _buildSplitPane(context, secondaryTab, false),
+                    child: _buildSplitPane(
+                      context,
+                      secondaryTab,
+                      false,
+                      muted: secondaryMuted,
+                    ),
                   ),
                 ],
               )
@@ -578,12 +680,22 @@ class _HomeViewState extends State<HomeView>
                 children: [
                   Expanded(
                     flex: (ratio * 1000).round(),
-                    child: _buildSplitPane(context, activeTab, true),
+                    child: _buildSplitPane(
+                      context,
+                      activeTab,
+                      true,
+                      muted: primaryMuted,
+                    ),
                   ),
                   _buildSplitDivider(context, isLandscape, constraints),
                   Expanded(
                     flex: ((1 - ratio) * 1000).round(),
-                    child: _buildSplitPane(context, secondaryTab, false),
+                    child: _buildSplitPane(
+                      context,
+                      secondaryTab,
+                      false,
+                      muted: secondaryMuted,
+                    ),
                   ),
                 ],
               );
@@ -593,7 +705,12 @@ class _HomeViewState extends State<HomeView>
     );
   }
 
-  Widget _buildSplitPane(BuildContext context, dynamic tab, bool isPrimary) {
+  Widget _buildSplitPane(
+    BuildContext context,
+    dynamic tab,
+    bool isPrimary, {
+    required bool muted,
+  }) {
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(
@@ -601,7 +718,24 @@ class _HomeViewState extends State<HomeView>
           width: isPrimary ? 0.5 : 1,
         ),
       ),
-      child: ClipRect(child: _buildTabPane(context, tab, isPrimary)),
+      child: ClipRect(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: _buildTabPane(context, tab, isPrimary, muted: muted),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: SplitAudioToggle(
+                muted: muted,
+                onToggle: () =>
+                    context.read<TabBloc>().add(SetAudioTabEvent(tab.id)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -642,7 +776,12 @@ class _HomeViewState extends State<HomeView>
     );
   }
 
-  Widget _buildTabPane(BuildContext context, dynamic tab, bool isPrimaryPane) {
+  Widget _buildTabPane(
+    BuildContext context,
+    dynamic tab,
+    bool isPrimaryPane, {
+    bool muted = false,
+  }) {
     if (tab.url.isEmpty) {
       return RepaintBoundary(
         key: ValueKey('empty_boundary_${tab.id}'),
@@ -671,6 +810,7 @@ class _HomeViewState extends State<HomeView>
       key: ValueKey('webview_${tab.id}'),
       activeTab: tab,
       controller: _getController(tab.id),
+      muted: muted,
       pullToRefreshController: isPrimaryPane ? _pullToRefreshController : null,
       onWebViewCreated: (controller) => _setController(tab.id, controller),
       onUpdateVisitedHistory: (controller, url, isReload) {
@@ -734,6 +874,9 @@ class _HomeViewState extends State<HomeView>
               tabId: tab.id,
               isIncognito: currentTab.isIncognito,
             );
+            // Rebuild so the top safe-area strip picks up the freshly captured
+            // page background colour.
+            if (mounted) setState(() {});
           }
           final title = await controller.getTitle();
           if (title != null &&

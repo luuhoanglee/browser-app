@@ -44,6 +44,10 @@ class WebViewPage extends StatefulWidget {
   final Function()? onSwipeBack;
   final Function()? onSwipeForward;
 
+  /// When true, all `<video>`/`<audio>` in this WebView are muted so it never
+  /// grabs Android audio focus — letting other panes keep playing (issue #20).
+  final bool muted;
+
   const WebViewPage({
     super.key,
     required this.activeTab,
@@ -59,6 +63,7 @@ class WebViewPage extends StatefulWidget {
     this.onSwipeBack,
     this.onSwipeForward,
     this.onUpdateVisitedHistory,
+    this.muted = false,
   });
 
   @override
@@ -83,6 +88,9 @@ class _WebViewPageState extends State<WebViewPage>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _hadError = false; // Track if error occurred during current load
   final _websiteRepository = WebsiteRepository();
+
+  /// Kept locally because [widget.controller] can lag a frame behind creation.
+  InAppWebViewController? _controller;
 
   // User-Agent chuẩn để tránh bị rate limit
   static const String _iosUserAgent =
@@ -745,6 +753,7 @@ class _WebViewPageState extends State<WebViewPage>
   }
 
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
+    _controller = controller;
     widget.onWebViewCreated(controller);
 
     // Inject intent blocking script
@@ -759,6 +768,55 @@ class _WebViewPageState extends State<WebViewPage>
           headers: _getHeaders(initialUrl),
         ),
       );
+    }
+    // Establish the mute state for the very first load.
+    await _applyMuted(widget.muted);
+  }
+
+  /// Mutes/unmutes every `<video>`/`<audio>` in the page and keeps enforcing it
+  /// for dynamically added media via a MutationObserver. A muted element does
+  /// not request Android audio focus, so a muted pane never pauses the pane
+  /// that currently owns sound (issue #20).
+  Future<void> _applyMuted(bool muted) async {
+    final controller = _controller;
+    if (controller == null) return;
+    final flag = muted ? 'true' : 'false';
+    try {
+      await controller.evaluateJavascript(
+        source:
+            '''
+(function() {
+  window.__pardixMuted = $flag;
+  function apply() {
+    try {
+      var els = document.querySelectorAll('video, audio');
+      for (var i = 0; i < els.length; i++) { els[i].muted = window.__pardixMuted; }
+    } catch (e) {}
+  }
+  window.__pardixApplyMute = apply;
+  if (!window.__pardixMuteInit) {
+    window.__pardixMuteInit = true;
+    try {
+      // Re-mute media that starts playing or tries to unmute itself.
+      document.addEventListener('play', function(e) {
+        if (window.__pardixMuted && e.target && 'muted' in e.target) e.target.muted = true;
+      }, true);
+      document.addEventListener('volumechange', function(e) {
+        if (window.__pardixMuted && e.target && e.target.muted === false) e.target.muted = true;
+      }, true);
+      var obs = new MutationObserver(function() {
+        if (window.__pardixApplyMute) window.__pardixApplyMute();
+      });
+      var root = document.documentElement || document.body;
+      if (root) obs.observe(root, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+  apply();
+})();
+''',
+      );
+    } catch (e) {
+      AppLogger.warning('WebView', 'Failed to apply mute state', error: e);
     }
   }
 
@@ -894,6 +952,9 @@ class _WebViewPageState extends State<WebViewPage>
     if (urlStr.isNotEmpty && _errorType == WebViewErrorType.none) {
       _websiteRepository.analyzeWebsite(controller, urlStr);
     }
+
+    // A fresh document resets the JS context, so re-establish the mute state.
+    _applyMuted(widget.muted);
 
     widget.onLoadStop(controller, url);
   }
@@ -1163,6 +1224,15 @@ class _WebViewPageState extends State<WebViewPage>
         }
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant WebViewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // React to the pane's audio ownership changing (toggle / tab switch).
+    if (oldWidget.muted != widget.muted) {
+      _applyMuted(widget.muted);
+    }
   }
 
   @override

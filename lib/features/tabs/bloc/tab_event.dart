@@ -59,3 +59,12 @@ class UpdateSplitRatioEvent extends TabEvent {
 
   UpdateSplitRatioEvent(this.ratio);
 }
+
+/// Toggles which pane owns audio (issue #20). Tapping the pane that already has
+/// sound mutes everything; tapping any other pane gives it sound and mutes the
+/// rest, guaranteeing at most one pane is unmuted.
+class SetAudioTabEvent extends TabEvent {
+  final String tabId;
+
+  SetAudioTabEvent(this.tabId);
+}
