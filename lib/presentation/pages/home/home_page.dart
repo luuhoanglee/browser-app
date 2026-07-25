@@ -413,6 +413,14 @@ class _HomeViewState extends State<HomeView>
 
           final isIncognito = activeTab.isIncognito;
 
+          // Colour for the top safe-area strip: the page's own background
+          // colour (captured from the page on load) so the status-bar area
+          // reads as a seamless extension of the page, Safari-style. Falls back
+          // to the scaffold colour until a page reports its colour.
+          final topSafeAreaColor = isIncognito
+              ? const Color(0xFF1A1A2E)
+              : (tabThemeColor(activeTab.id) ?? Colors.white);
+
           return Scaffold(
             backgroundColor: isIncognito
                 ? const Color(0xFF1A1A2E)
@@ -420,10 +428,82 @@ class _HomeViewState extends State<HomeView>
             body: Column(
               children: [
                 Expanded(
-                  child: PageContentWrapper(
-                    activeTab: activeTab,
-                    tabState: tabState,
-                    buildPageContent: _buildPageContent,
+                  child: Stack(
+                    children: [
+                      // Web content is inset below the top safe area so a
+                      // page's top row (header / menu / buttons) is never
+                      // hidden behind the status bar. The strip above is painted
+                      // with the page's own background colour, so it looks like
+                      // a seamless continuation of the page (Safari-style top
+                      // safe area) rather than a hard opaque bar.
+                      Positioned.fill(
+                        child: Column(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeInOut,
+                              width: double.infinity,
+                              height: MediaQuery.paddingOf(context).top,
+                              color: topSafeAreaColor,
+                            ),
+                            Expanded(
+                              child: PageContentWrapper(
+                                activeTab: activeTab,
+                                tabState: tabState,
+                                buildPageContent: _buildPageContent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // When the toolbar is hidden the mini URL pill floats over
+                      // the page content instead of the layout reserving a
+                      // toolbar strip. A reserved strip would expose the
+                      // Scaffold background (white in normal mode) as a band on
+                      // dark pages — the bug in issue #21. The pill is the only
+                      // hit-testable part, so scrolling/tapping the page still
+                      // works around it.
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: BlocBuilder<HomeUiCubit, HomeUiState>(
+                          buildWhen: (previous, current) =>
+                              previous.isToolbarVisible !=
+                              current.isToolbarVisible,
+                          builder: (context, homeUiState) {
+                            return AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 260),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              transitionBuilder: (child, animation) {
+                                final slide = Tween<Offset>(
+                                  begin: const Offset(0, 0.08),
+                                  end: Offset.zero,
+                                ).animate(animation);
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: slide,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: homeUiState.isToolbarVisible
+                                  ? const SizedBox.shrink(
+                                      key: ValueKey('mini_hidden'),
+                                    )
+                                  : MiniUrlBarWrapper(
+                                      key: const ValueKey('toolbar_hidden'),
+                                      activeTabId: activeTab.id,
+                                      controller: _getController(activeTab.id),
+                                      onTap: () => _showSearchPage(context),
+                                    ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 BlocBuilder<HomeUiCubit, HomeUiState>(
@@ -498,11 +578,8 @@ class _HomeViewState extends State<HomeView>
                                 ),
                               ],
                             )
-                          : MiniUrlBarWrapper(
-                              key: const ValueKey('toolbar_hidden'),
-                              activeTabId: activeTab.id,
-                              controller: _getController(activeTab.id),
-                              onTap: () => _showSearchPage(context),
+                          : const SizedBox.shrink(
+                              key: ValueKey('toolbar_hidden_placeholder'),
                             ),
                     );
                   },
@@ -797,6 +874,9 @@ class _HomeViewState extends State<HomeView>
               tabId: tab.id,
               isIncognito: currentTab.isIncognito,
             );
+            // Rebuild so the top safe-area strip picks up the freshly captured
+            // page background colour.
+            if (mounted) setState(() {});
           }
           final title = await controller.getTitle();
           if (title != null &&
