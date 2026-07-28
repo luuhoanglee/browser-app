@@ -1463,8 +1463,6 @@ class _FullScreenSwipeZoneState extends State<_FullScreenSwipeZone> {
         final diffY = endY - _startY!;
         final horizontalDistance = diffX.abs();
         final verticalDistance = diffY.abs();
-        print("diffX, $diffX");
-        print("diffY, $diffY");
 
         final isHorizontalSwipe = horizontalDistance > verticalDistance;
 

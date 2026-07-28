@@ -60,6 +60,15 @@ class UpdateSplitRatioEvent extends TabEvent {
   UpdateSplitRatioEvent(this.ratio);
 }
 
+/// Points the toolbar (URL bar, back/forward, reload, progress, search, media)
+/// at one of the two split panes. Dispatched when the user touches a pane, so
+/// both pages are operable instead of only the primary one.
+class FocusSplitPaneEvent extends TabEvent {
+  final String tabId;
+
+  FocusSplitPaneEvent(this.tabId);
+}
+
 /// Toggles which pane owns audio (issue #20). Tapping the pane that already has
 /// sound mutes everything; tapping any other pane gives it sound and mutes the
 /// rest, guaranteeing at most one pane is unmuted.

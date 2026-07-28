@@ -23,6 +23,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     on<DisableSplitViewEvent>(_onDisableSplitView);
     on<SetSplitSecondaryTabEvent>(_onSetSplitSecondaryTab);
     on<UpdateSplitRatioEvent>(_onUpdateSplitRatio);
+    on<FocusSplitPaneEvent>(_onFocusSplitPane);
     on<SetAudioTabEvent>(_onSetAudioTab);
 
     _init();
@@ -200,6 +201,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
           incognitoModeActiveTabId: savedIncognitoTabId,
           isSplitViewEnabled: false,
           splitSecondaryTabId: null,
+          focusedPaneTabId: null,
           audioTabId: activeTab?.id,
         ),
       );
@@ -230,6 +232,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
           incognitoModeActiveTabId: savedIncognitoTabId,
           isSplitViewEnabled: false,
           splitSecondaryTabId: null,
+          focusedPaneTabId: null,
           audioTabId: activeTab?.id,
         ),
       );
@@ -279,6 +282,11 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       (tab) => tab.id == state.audioTabId,
     );
 
+    // Closing the pane that held the toolbar hands it back to the primary.
+    final focusStillValid =
+        splitStillValid &&
+        updatedTabs.any((tab) => tab.id == state.focusedPaneTabId);
+
     emit(
       state.copyWith(
         tabs: updatedTabs,
@@ -286,6 +294,9 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         activeTabIndex: activeIndex == -1 ? 0 : activeIndex,
         isSplitViewEnabled: splitStillValid,
         splitSecondaryTabId: splitStillValid ? state.splitSecondaryTabId : null,
+        focusedPaneTabId: focusStillValid
+            ? state.focusedPaneTabId
+            : (splitStillValid ? activeTab?.id : null),
         audioTabId: audioStillValid ? state.audioTabId : activeTab?.id,
       ),
     );
@@ -305,6 +316,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     SelectTabEvent event,
     Emitter<TabState> emit,
   ) async {
+    final previousActiveId = state.activeTab?.id;
     repository.setActiveTab(event.tabId);
 
     // Cập nhật lastAccessedAt cho tab được chọn
@@ -320,6 +332,13 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     String? nextSplitSecondaryId = state.splitSecondaryTabId;
     var nextSplitEnabled = state.isSplitViewEnabled;
     if (nextSplitEnabled) {
+      // Picking the tab that is already the secondary pane swaps the two panes
+      // rather than pulling an unrelated tab into the split — the old primary
+      // simply moves to the secondary slot.
+      if (updatedActiveTab?.id == nextSplitSecondaryId) {
+        nextSplitSecondaryId = previousActiveId;
+      }
+
       final candidates = repository
           .getTabs()
           .where(
@@ -346,6 +365,8 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         activeTabIndex: index == -1 ? state.activeTabIndex : index,
         isSplitViewEnabled: nextSplitEnabled,
         splitSecondaryTabId: nextSplitSecondaryId,
+        // Explicitly picking a tab also hands it the toolbar.
+        focusedPaneTabId: nextSplitEnabled ? updatedActiveTab?.id : null,
         // Switching tabs moves audio to the newly focused tab.
         audioTabId: updatedActiveTab?.id,
       ),
@@ -466,6 +487,9 @@ class TabBloc extends Bloc<TabEvent, TabState> {
         isSplitViewEnabled: true,
         splitSecondaryTabId: secondaryTab.id,
         splitRatio: state.splitRatio.clamp(0.25, 0.75),
+        // The primary pane starts with the toolbar; touching the other pane
+        // hands it over (FocusSplitPaneEvent).
+        focusedPaneTabId: activeTab.id,
       ),
     );
 
@@ -484,7 +508,13 @@ class TabBloc extends Bloc<TabEvent, TabState> {
   ) {
     if (!state.isSplitViewEnabled) return;
 
-    emit(state.copyWith(isSplitViewEnabled: false, splitSecondaryTabId: null));
+    emit(
+      state.copyWith(
+        isSplitViewEnabled: false,
+        splitSecondaryTabId: null,
+        focusedPaneTabId: null,
+      ),
+    );
 
     AppLogger.event(
       AnalyticsEvent.splitViewToggled,
@@ -512,8 +542,24 @@ class TabBloc extends Bloc<TabEvent, TabState> {
       state.copyWith(
         isSplitViewEnabled: true,
         splitSecondaryTabId: secondaryTab.id,
+        // The user just chose this page, so point the toolbar at it.
+        focusedPaneTabId: secondaryTab.id,
       ),
     );
+  }
+
+  /// Moves toolbar focus to the touched pane. Only the two visible panes are
+  /// valid targets, so a stale id can never strand the toolbar on a tab the
+  /// user cannot see.
+  void _onFocusSplitPane(FocusSplitPaneEvent event, Emitter<TabState> emit) {
+    if (!state.isSplitViewEnabled) return;
+    if (event.tabId != state.activeTab?.id &&
+        event.tabId != state.splitSecondaryTabId) {
+      return;
+    }
+    if (state.focusedTabId == event.tabId) return;
+
+    emit(state.copyWith(focusedPaneTabId: event.tabId));
   }
 
   void _onUpdateSplitRatio(

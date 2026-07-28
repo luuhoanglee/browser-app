@@ -94,6 +94,7 @@ class _HomeViewState extends State<HomeView>
     with AutomaticKeepAliveClientMixin, StatusBarMixin {
   final Map<String, InAppWebViewController> _controllers = {};
   final Map<String, GlobalKey> _emptyPageKeys = {};
+  final Map<String, GlobalKey> _webViewKeys = {};
   final NavHistoryManager _navManager = NavHistoryManager();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -103,7 +104,9 @@ class _HomeViewState extends State<HomeView>
   int _lastProgress = 0;
   Timer? _progressDebounce;
 
-  PullToRefreshController? _pullToRefreshController;
+  // One controller per tab: in split view both panes are on screen at once, so
+  // a single shared controller would only ever refresh the primary pane.
+  final Map<String, PullToRefreshController> _pullToRefreshControllers = {};
   bool _isMediaSheetOpen = false;
 
   @override
@@ -112,6 +115,23 @@ class _HomeViewState extends State<HomeView>
   InAppWebViewController? _getController(String? tabId) {
     if (tabId == null) return null;
     return _controllers[tabId];
+  }
+
+  PullToRefreshController _getPullToRefreshController(String tabId) {
+    return _pullToRefreshControllers.putIfAbsent(
+      tabId,
+      () => PullToRefreshController(
+        settings: PullToRefreshSettings(color: Colors.blue),
+        onRefresh: () async {
+          final controller = _getController(tabId);
+          if (controller == null) {
+            _pullToRefreshControllers[tabId]?.endRefreshing();
+            return;
+          }
+          await controller.reload();
+        },
+      ),
+    );
   }
 
   void _setController(String tabId, InAppWebViewController controller) {
@@ -125,11 +145,18 @@ class _HomeViewState extends State<HomeView>
     return _emptyPageKeys[tabId]!;
   }
 
+  /// A stable [GlobalKey] per tab. Toggling split view moves a pane's WebView
+  /// to a different place in the widget tree; without a GlobalKey Flutter would
+  /// tear the element down and the page would reload and lose its scroll
+  /// position every time split is turned on or off.
+  GlobalKey _getWebViewKey(String tabId) {
+    return _webViewKeys.putIfAbsent(tabId, () => GlobalKey());
+  }
+
   @override
   void initState() {
     super.initState();
     _loadHistory();
-    _initPullToRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final tab = context.read<TabBloc>().state.activeTab;
@@ -147,23 +174,10 @@ class _HomeViewState extends State<HomeView>
     }
   }
 
-  void _initPullToRefresh() {
-    _pullToRefreshController = PullToRefreshController(
-      settings: PullToRefreshSettings(color: Colors.blue),
-      onRefresh: () async {
-        final controller = _getController(
-          context.read<TabBloc>().state.activeTab?.id,
-        );
-        if (controller != null) {
-          await controller.reload();
-        }
-      },
-    );
-  }
-
   void loadDeepLinkUrl(String url) {
     final bloc = context.read<TabBloc>();
-    final activeTab = bloc.state.activeTab;
+    // In split view the deep link opens in whichever pane the user is driving.
+    final activeTab = bloc.state.focusedTab;
     if (activeTab != null) {
       AppLogger.info('HomePage', 'Loading deep link URL: $url');
       AppLogger.event(
@@ -228,8 +242,11 @@ class _HomeViewState extends State<HomeView>
   ) async {
     final controller = _getController(tabId);
     final bloc = context.read<TabBloc>();
-    final activeTab = bloc.state.activeTab;
-    if (activeTab == null) return;
+    // Navigate the tab that was asked for — in split view that may be the
+    // secondary pane, not the active tab.
+    final tabIndex = bloc.state.tabs.indexWhere((t) => t.id == tabId);
+    if (tabIndex == -1) return;
+    final activeTab = bloc.state.tabs[tabIndex];
 
     if (isForward) {
       final nextUrl = _navManager.navigateForward(tabId);
@@ -372,12 +389,13 @@ class _HomeViewState extends State<HomeView>
     super.build(context);
     return BlocListener<TabBloc, TabState>(
       listenWhen: (prev, curr) =>
-          prev.activeTab?.id != curr.activeTab?.id ||
+          prev.focusedTabId != curr.focusedTabId ||
           prev.isIncognitoMode != curr.isIncognitoMode ||
-          (prev.activeTab?.url.isEmpty ?? true) !=
-              (curr.activeTab?.url.isEmpty ?? true),
+          (prev.focusedTab?.url.isEmpty ?? true) !=
+              (curr.focusedTab?.url.isEmpty ?? true),
       listener: (context, state) {
-        final tab = state.activeTab;
+        // The status bar follows the pane the toolbar is driving.
+        final tab = state.focusedTab;
         if (tab == null) return;
         final isEmptyTab = tab.url.isEmpty;
         updateStatusBar(
@@ -398,6 +416,7 @@ class _HomeViewState extends State<HomeView>
           if (previous.splitSecondaryTabId != current.splitSecondaryTabId) {
             return true;
           }
+          if (previous.focusedTabId != current.focusedTabId) return true;
           if (previous.splitRatio != current.splitRatio) return true;
           if (previous.audioTabId != current.audioTabId) return true;
           final prevUrlEmpty = prevTab?.url.isEmpty ?? true;
@@ -410,6 +429,11 @@ class _HomeViewState extends State<HomeView>
           if (activeTab == null) {
             return const Scaffold(body: SizedBox.shrink());
           }
+
+          // Every toolbar control targets the focused pane. Outside split view
+          // that is just the active tab, so behaviour is unchanged.
+          final toolbarTab = tabState.focusedTab ?? activeTab;
+          final toolbarTabId = toolbarTab.id;
 
           final isIncognito = activeTab.isIncognito;
 
@@ -495,8 +519,8 @@ class _HomeViewState extends State<HomeView>
                                     )
                                   : MiniUrlBarWrapper(
                                       key: const ValueKey('toolbar_hidden'),
-                                      activeTabId: activeTab.id,
-                                      controller: _getController(activeTab.id),
+                                      activeTabId: toolbarTabId,
+                                      controller: _getController(toolbarTabId),
                                       onTap: () => _showSearchPage(context),
                                     ),
                             );
@@ -530,11 +554,11 @@ class _HomeViewState extends State<HomeView>
                               key: const ValueKey('toolbar_visible'),
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                ProgressBarWrapper(activeTabId: activeTab.id),
+                                ProgressBarWrapper(activeTabId: toolbarTabId),
                                 RepaintBoundary(
                                   child: BottomBarWrapper(
-                                    activeTabId: activeTab.id,
-                                    controller: _getController(activeTab.id),
+                                    activeTabId: toolbarTabId,
+                                    controller: _getController(toolbarTabId),
                                     onShowTabs: () => _showTabsSheet(context),
                                     onAddressBarTap: () =>
                                         _showSearchPage(context),
@@ -555,25 +579,25 @@ class _HomeViewState extends State<HomeView>
                                         PerformSearchEvent(query),
                                       );
                                       final bloc = context.read<TabBloc>();
-                                      final currentTab = bloc.state.activeTab;
+                                      final currentTab = bloc.state.focusedTab;
                                       if (currentTab != null) {
                                         _performSearch(currentTab);
                                       }
                                     },
                                     onBack: () => _handleNavigation(
                                       context,
-                                      activeTab.id,
+                                      toolbarTabId,
                                       false,
                                     ),
                                     onForward: () => _handleNavigation(
                                       context,
-                                      activeTab.id,
+                                      toolbarTabId,
                                       true,
                                     ),
                                     canGoBack: () =>
-                                        _canNavigateBack(activeTab.id),
+                                        _canNavigateBack(toolbarTabId),
                                     canGoForward: () =>
-                                        _canNavigateForward(activeTab.id),
+                                        _canNavigateForward(toolbarTabId),
                                   ),
                                 ),
                               ],
@@ -646,94 +670,113 @@ class _HomeViewState extends State<HomeView>
 
     final primaryMuted = tabState.isTabMuted(activeTab.id);
     final secondaryMuted = tabState.isTabMuted(secondaryTab.id);
+    final primaryFocused = tabState.isPaneFocused(activeTab.id);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isLandscape = constraints.maxWidth > constraints.maxHeight;
         final ratio = tabState.splitRatio.clamp(0.25, 0.75);
 
+        final primaryPane = Expanded(
+          flex: (ratio * 1000).round(),
+          child: _buildSplitPane(
+            context,
+            activeTab,
+            muted: primaryMuted,
+            isFocused: primaryFocused,
+          ),
+        );
+        final secondaryPane = Expanded(
+          flex: ((1 - ratio) * 1000).round(),
+          child: _buildSplitPane(
+            context,
+            secondaryTab,
+            muted: secondaryMuted,
+            isFocused: !primaryFocused,
+          ),
+        );
+        final divider = _buildSplitDivider(context, isLandscape, constraints);
+
         final splitLayout = isLandscape
-            ? Row(
-                children: [
-                  Expanded(
-                    flex: (ratio * 1000).round(),
-                    child: _buildSplitPane(
-                      context,
-                      activeTab,
-                      true,
-                      muted: primaryMuted,
-                    ),
-                  ),
-                  _buildSplitDivider(context, isLandscape, constraints),
-                  Expanded(
-                    flex: ((1 - ratio) * 1000).round(),
-                    child: _buildSplitPane(
-                      context,
-                      secondaryTab,
-                      false,
-                      muted: secondaryMuted,
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                children: [
-                  Expanded(
-                    flex: (ratio * 1000).round(),
-                    child: _buildSplitPane(
-                      context,
-                      activeTab,
-                      true,
-                      muted: primaryMuted,
-                    ),
-                  ),
-                  _buildSplitDivider(context, isLandscape, constraints),
-                  Expanded(
-                    flex: ((1 - ratio) * 1000).round(),
-                    child: _buildSplitPane(
-                      context,
-                      secondaryTab,
-                      false,
-                      muted: secondaryMuted,
-                    ),
-                  ),
-                ],
-              );
+            ? Row(children: [primaryPane, divider, secondaryPane])
+            : Column(children: [primaryPane, divider, secondaryPane]);
 
         return Stack(children: [...hiddenTabs, splitLayout]);
       },
     );
   }
 
+  /// One split pane. The focused pane is the one the bottom bar drives, so it
+  /// is marked with an accent ring; touching the other pane moves focus (and
+  /// therefore the whole toolbar) to it.
   Widget _buildSplitPane(
     BuildContext context,
-    dynamic tab,
-    bool isPrimary, {
+    dynamic tab, {
     required bool muted,
+    required bool isFocused,
   }) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: isPrimary ? Colors.blue.withOpacity(0.35) : Colors.orange,
-          width: isPrimary ? 0.5 : 1,
+    // A Listener only observes the pointer — it never claims the gesture, so
+    // taps, scrolls and text selection still reach the WebView underneath.
+    return Listener(
+      behavior: HitTestBehavior.deferToChild,
+      onPointerDown: (_) {
+        final bloc = context.read<TabBloc>();
+        if (bloc.state.focusedTabId != tab.id) {
+          bloc.add(FocusSplitPaneEvent(tab.id));
+        }
+      },
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isFocused
+                ? Colors.blue
+                : Colors.black.withValues(alpha: 0.12),
+            width: isFocused ? 2 : 1,
+          ),
         ),
-      ),
-      child: ClipRect(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: _buildTabPane(context, tab, isPrimary, muted: muted),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: SplitAudioToggle(
-                muted: muted,
-                onToggle: () =>
-                    context.read<TabBloc>().add(SetAudioTabEvent(tab.id)),
+        child: ClipRect(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: _buildTabPane(context, tab, isFocused, muted: muted),
               ),
-            ),
-          ],
+              Positioned(
+                top: 8,
+                right: 8,
+                child: SplitAudioToggle(
+                  muted: muted,
+                  onToggle: () =>
+                      context.read<TabBloc>().add(SetAudioTabEvent(tab.id)),
+                ),
+              ),
+              // Tells the user which page the bottom bar is currently driving.
+              if (isFocused)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'Active',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -776,10 +819,13 @@ class _HomeViewState extends State<HomeView>
     );
   }
 
+  /// [isFocused] marks the pane the toolbar is driving. In split view both
+  /// panes are live; only the focused one may drive shared chrome (status bar
+  /// colour, toolbar auto-hide).
   Widget _buildTabPane(
     BuildContext context,
     dynamic tab,
-    bool isPrimaryPane, {
+    bool isFocused, {
     bool muted = false,
   }) {
     if (tab.url.isEmpty) {
@@ -807,11 +853,13 @@ class _HomeViewState extends State<HomeView>
     }
 
     return WebViewPage(
-      key: ValueKey('webview_${tab.id}'),
+      key: _getWebViewKey(tab.id),
       activeTab: tab,
       controller: _getController(tab.id),
       muted: muted,
-      pullToRefreshController: isPrimaryPane ? _pullToRefreshController : null,
+      // Each pane gets its own controller so pull-to-refresh reloads the page
+      // it was performed on, not whichever tab happens to be active.
+      pullToRefreshController: _getPullToRefreshController(tab.id),
       onWebViewCreated: (controller) => _setController(tab.id, controller),
       onUpdateVisitedHistory: (controller, url, isReload) {
         final bloc = context.read<TabBloc>();
@@ -842,7 +890,7 @@ class _HomeViewState extends State<HomeView>
         }
       },
       onLoadStart: (controller, url) {
-        _resetScrollState();
+        if (isFocused) _resetScrollState();
         final bloc = context.read<TabBloc>();
         final currentTab = bloc.state.tabs.firstWhere(
           (t) => t.id == tab.id,
@@ -858,6 +906,7 @@ class _HomeViewState extends State<HomeView>
         }
       },
       onLoadStop: (controller, url) async {
+        _pullToRefreshControllers[tab.id]?.endRefreshing();
         final bloc = context.read<TabBloc>();
         final currentTab = bloc.state.tabs.firstWhere(
           (t) => t.id == tab.id,
@@ -868,7 +917,7 @@ class _HomeViewState extends State<HomeView>
             urlStr.isNotEmpty &&
             !urlStr.startsWith('intent://') &&
             !UrlUtils.isExternalUrl(urlStr)) {
-          if (tab.url.isNotEmpty && isPrimaryPane) {
+          if (tab.url.isNotEmpty && isFocused) {
             await syncSystemUiFromWebPage(
               controller: controller,
               tabId: tab.id,
@@ -953,7 +1002,12 @@ class _HomeViewState extends State<HomeView>
           );
         });
       },
-      onScrollChanged: (y) => _handleScrollChange(y),
+      // Only the focused pane may collapse/expand the toolbar — otherwise the
+      // other pane's scrolling fights it.
+      onScrollChanged: (y) {
+        if (!isFocused) return;
+        _handleScrollChange(y);
+      },
       onSwipeBack: () => _handleNavigation(context, tab.id, false),
       onSwipeForward: () => _handleNavigation(context, tab.id, true),
     );
@@ -972,6 +1026,13 @@ class _HomeViewState extends State<HomeView>
     if (activeTabId != null) {
       _captureThumbnail(activeTabId);
     }
+    // Both split panes are on screen, so refresh both thumbnails.
+    final secondaryTabId = bloc.state.isSplitViewEnabled
+        ? bloc.state.splitSecondaryTabId
+        : null;
+    if (secondaryTabId != null) {
+      _captureThumbnail(secondaryTabId);
+    }
 
     showModalBottomSheet(
       context: context,
@@ -983,6 +1044,8 @@ class _HomeViewState extends State<HomeView>
           onCloseTab: (tabId) {
             context.read<TabBloc>().add(RemoveTabEvent(tabId));
             _controllers.remove(tabId);
+            _webViewKeys.remove(tabId);
+            _pullToRefreshControllers.remove(tabId);
             if (_isSearching) {
               _searchController.clear();
               setState(() => _isSearching = false);
@@ -1031,7 +1094,7 @@ class _HomeViewState extends State<HomeView>
         history: _history,
         onSelectHistory: (url) {
           final bloc = context.read<TabBloc>();
-          final currentTab = bloc.state.activeTab;
+          final currentTab = bloc.state.focusedTab;
           if (currentTab != null) {
             _navManager.addUrl(currentTab.id, url);
             bloc.add(UpdateTabEvent(currentTab.copyWith(url: url)));
@@ -1118,7 +1181,8 @@ class _HomeViewState extends State<HomeView>
 
   void _showMediaSheet(BuildContext context) {
     final bloc = context.read<TabBloc>();
-    final activeTab = bloc.state.activeTab;
+    // Show the media of the pane the user is driving, not always the primary.
+    final activeTab = bloc.state.focusedTab;
     final controller = _getController(activeTab?.id);
 
     if (controller == null) return;
@@ -1235,7 +1299,8 @@ class _HomeViewState extends State<HomeView>
   void _showSearchPage(BuildContext context) {
     final bloc = context.read<TabBloc>();
     final searchBloc = context.read<SearchBloc>();
-    final currentTab = bloc.state.activeTab;
+    // Typing a URL loads it into the focused pane.
+    final currentTab = bloc.state.focusedTab;
     if (currentTab == null) return;
 
     if (_isSearching) {

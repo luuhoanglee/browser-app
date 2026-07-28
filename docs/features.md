@@ -32,7 +32,7 @@ Handled by `TabBloc` (`lib/features/tabs/bloc/tab_bloc.dart`).
 ## Split View & Multi-Pane Audio
 
 Split-screen browsing driven by `TabBloc` (`isSplitViewEnabled`,
-`splitSecondaryTabId`, `splitRatio`, `audioTabId`).
+`splitSecondaryTabId`, `splitRatio`, `focusedPaneTabId`, `audioTabId`).
 
 ### Split View
 
@@ -41,6 +41,24 @@ Split-screen browsing driven by `TabBloc` (`isSplitViewEnabled`,
 - Both panes are live WebViews and keep independent navigation history
 - Split is only allowed between tabs of the same privacy mode (both normal or
   both incognito)
+
+### Pane Focus
+
+- Touching a pane makes it the **focused pane** (`FocusSplitPaneEvent` →
+  `TabState.focusedPaneTabId`); the focused pane gets an accent ring and an
+  `Active` badge
+- The whole bottom bar acts on the focused pane — URL bar, back/forward, reload,
+  progress bar, search sheet, history sheet and the media gallery. Before this,
+  every control was hard-wired to `activeTab`, so the secondary pane could be
+  seen but not operated
+- Each pane has its own `PullToRefreshController`, so pull-to-refresh reloads the
+  page it was performed on
+- Only the focused pane collapses/expands the toolbar on scroll and drives the
+  status-bar colour, so the two panes no longer fight over shared chrome
+- Picking the secondary pane in the tab sheet **swaps** the two panes instead of
+  pulling an unrelated tab into the split
+- Each tab's WebView is held by a `GlobalKey`, so toggling split on/off moves the
+  pane in the widget tree without reloading the page
 
 ### Multi-Pane Audio (#20)
 

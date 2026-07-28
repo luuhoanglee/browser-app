@@ -13,6 +13,12 @@ class TabState {
   final String? splitSecondaryTabId;
   final double splitRatio;
 
+  /// Id of the split pane the toolbar currently drives (URL bar, back/forward,
+  /// reload, progress, search, media). Without this the bar could only ever
+  /// reach [activeTab], leaving the secondary pane impossible to operate.
+  /// `null` falls back to [activeTab]; it is always ignored outside split view.
+  final String? focusedPaneTabId;
+
   /// Id of the single tab currently allowed to play audio. All other tabs /
   /// split panes are muted so that, on Android, only one media session holds
   /// audio focus — letting multiple videos play their picture at once (issue
@@ -29,6 +35,7 @@ class TabState {
     this.isSplitViewEnabled = false,
     this.splitSecondaryTabId,
     this.splitRatio = 0.5,
+    this.focusedPaneTabId,
     this.audioTabId,
   });
 
@@ -42,6 +49,7 @@ class TabState {
     bool? isSplitViewEnabled,
     Object? splitSecondaryTabId = _unset,
     double? splitRatio,
+    Object? focusedPaneTabId = _unset,
     Object? audioTabId = _unset,
   }) {
     return TabState(
@@ -58,6 +66,9 @@ class TabState {
           ? this.splitSecondaryTabId
           : splitSecondaryTabId as String?,
       splitRatio: splitRatio ?? this.splitRatio,
+      focusedPaneTabId: identical(focusedPaneTabId, _unset)
+          ? this.focusedPaneTabId
+          : focusedPaneTabId as String?,
       audioTabId: identical(audioTabId, _unset)
           ? this.audioTabId
           : audioTabId as String?,
@@ -84,4 +95,27 @@ class TabState {
     }
     return null;
   }
+
+  /// The tab every toolbar control acts on. In split view this is whichever
+  /// pane the user last touched; everywhere else it is simply [activeTab].
+  String? get focusedTabId {
+    if (!isSplitViewEnabled) return activeTab?.id;
+    final id = focusedPaneTabId;
+    if (id == null) return activeTab?.id;
+    // Only the two visible panes may hold focus.
+    if (id != activeTab?.id && id != splitSecondaryTabId) return activeTab?.id;
+    return id;
+  }
+
+  TabEntity? get focusedTab {
+    final id = focusedTabId;
+    if (id == null) return activeTab;
+    for (final tab in tabs) {
+      if (tab.id == id) return tab;
+    }
+    return activeTab;
+  }
+
+  /// True when [tabId] is the pane the toolbar is driving.
+  bool isPaneFocused(String tabId) => tabId == focusedTabId;
 }
