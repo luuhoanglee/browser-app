@@ -1,8 +1,12 @@
 package com.dino.pardix
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebView
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -16,6 +20,8 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        private const val PLATFORM_VIEW_LAYOUT_SETTLE_DELAY_MS = 150L
+
         init {
             // Initialize AdBlockService when class loads
             try {
@@ -90,6 +96,21 @@ class MainActivity : FlutterActivity() {
         setIntent(intent)
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        // Android platform views can retain the previous surface dimensions when
+        // configuration changes happen in quick succession. Request layout once
+        // the window has applied its new bounds, and once more after the platform
+        // view composition has settled.
+        window.decorView.post {
+            refreshWebViewLayout(window.decorView)
+        }
+        window.decorView.postDelayed({
+            refreshWebViewLayout(window.decorView)
+        }, PLATFORM_VIEW_LAYOUT_SETTLE_DELAY_MS)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         deeplinkMethodChannel = null
@@ -110,5 +131,20 @@ class MainActivity : FlutterActivity() {
 
     private fun getInitialLink(): String? {
         return intent?.data?.toString()
+    }
+
+    private fun refreshWebViewLayout(view: View) {
+        view.requestLayout()
+        view.invalidate()
+
+        if (view is WebView) {
+            view.forceLayout()
+        }
+
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                refreshWebViewLayout(view.getChildAt(index))
+            }
+        }
     }
 }

@@ -1349,83 +1349,76 @@ class _WebViewPageState extends State<WebViewPage>
     final initialUrl = _getInitialUrl();
     final isIncognito = widget.activeTab.isIncognito ?? false;
 
-    return RepaintBoundary(
-      child: FutureBuilder<void>(
-        future: _initFuture,
-        builder: (context, snapshot) {
-          return Stack(
-            children: [
-              Opacity(
-                opacity: _errorType == WebViewErrorType.none ? 1.0 : 0.0,
-                child: IgnorePointer(
-                  ignoring: _errorType != WebViewErrorType.none,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Container(
-                          color: isIncognito
-                              ? Colors.black
-                              : Colors.transparent,
-                          child: InAppWebView(
-                            key: ValueKey(widget.activeTab.id),
-                            initialUrlRequest: initialUrl.isEmpty
-                                ? null
-                                : URLRequest(
-                                    url: WebUri(initialUrl),
-                                    headers: _getHeaders(initialUrl),
-                                  ),
-                            initialSettings: _getSettingsForTab(
-                              widget.activeTab,
-                            ),
-                            pullToRefreshController:
-                                widget.pullToRefreshController,
-                            onWebViewCreated: _onWebViewCreated,
-                            onLoadStart: _onLoadStart,
-                            onLoadStop: _onLoadStop,
-                            onLoadResource: _onLoadResourceWithResponse,
-                            onDownloadStart: _onDownloadStart,
-                            onDownloadStartRequest: (controller, request) {
-                              _onDownloadStart(controller, request.url);
-                            },
-                            onTitleChanged: (controller, title) =>
-                                widget.onTitleChanged(controller, title),
-                            onProgressChanged: (controller, progress) =>
-                                widget.onProgressChanged(controller, progress),
-                            onScrollChanged: (controller, x, y) =>
-                                widget.onScrollChanged(y),
-                            shouldInterceptRequest: _shouldInterceptRequest,
-                            shouldInterceptAjaxRequest:
-                                _shouldInterceptAjaxRequest,
-                            shouldInterceptFetchRequest:
-                                _shouldInterceptFetchRequest,
-                            shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
-                            onCreateWindow: _onCreateWindow,
-                            onReceivedError: _onReceivedError,
-                            onReceivedHttpError: _onReceivedHttpError,
-                            onUpdateVisitedHistory:
-                                widget.onUpdateVisitedHistory,
-                          ),
+    return FutureBuilder<void>(
+      future: _initFuture,
+      builder: (context, snapshot) {
+        return Stack(
+          children: [
+            Opacity(
+              opacity: _errorType == WebViewErrorType.none ? 1.0 : 0.0,
+              child: IgnorePointer(
+                ignoring: _errorType != WebViewErrorType.none,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Container(
+                        color: isIncognito ? Colors.black : Colors.transparent,
+                        child: InAppWebView(
+                          key: ValueKey(widget.activeTab.id),
+                          initialUrlRequest: initialUrl.isEmpty
+                              ? null
+                              : URLRequest(
+                                  url: WebUri(initialUrl),
+                                  headers: _getHeaders(initialUrl),
+                                ),
+                          initialSettings: _getSettingsForTab(widget.activeTab),
+                          pullToRefreshController:
+                              widget.pullToRefreshController,
+                          onWebViewCreated: _onWebViewCreated,
+                          onLoadStart: _onLoadStart,
+                          onLoadStop: _onLoadStop,
+                          onLoadResource: _onLoadResourceWithResponse,
+                          onDownloadStart: _onDownloadStart,
+                          onDownloadStartRequest: (controller, request) {
+                            _onDownloadStart(controller, request.url);
+                          },
+                          onTitleChanged: (controller, title) =>
+                              widget.onTitleChanged(controller, title),
+                          onProgressChanged: (controller, progress) =>
+                              widget.onProgressChanged(controller, progress),
+                          onScrollChanged: (controller, x, y) =>
+                              widget.onScrollChanged(y),
+                          shouldInterceptRequest: _shouldInterceptRequest,
+                          shouldInterceptAjaxRequest:
+                              _shouldInterceptAjaxRequest,
+                          shouldInterceptFetchRequest:
+                              _shouldInterceptFetchRequest,
+                          shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
+                          onCreateWindow: _onCreateWindow,
+                          onReceivedError: _onReceivedError,
+                          onReceivedHttpError: _onReceivedHttpError,
+                          onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              if (_errorType == WebViewErrorType.none && !_isDialogShowing)
-                Positioned.fill(
-                  child: _FullScreenSwipeZone(
-                    onSwipeBack: widget.onSwipeBack,
-                    onSwipeForward: widget.onSwipeForward,
-                  ),
+            ),
+            if (_errorType == WebViewErrorType.none && !_isDialogShowing)
+              Positioned.fill(
+                child: _FullScreenSwipeZone(
+                  onSwipeBack: widget.onSwipeBack,
+                  onSwipeForward: widget.onSwipeForward,
                 ),
-              // if (_errorType != WebViewErrorType.none)
-              //   Positioned.fill(
-              //     child: _buildErrorWidget(),
-              //   ),
-            ],
-          );
-        },
-      ),
+              ),
+            // if (_errorType != WebViewErrorType.none)
+            //   Positioned.fill(
+            //     child: _buildErrorWidget(),
+            //   ),
+          ],
+        );
+      },
     );
   }
 }
