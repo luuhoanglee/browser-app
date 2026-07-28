@@ -28,6 +28,11 @@ enum WebViewErrorType {
   genericError,
 }
 
+@visibleForTesting
+String navigatorPlatformForWebView({required bool isIOS}) {
+  return isIOS ? 'iPhone' : 'Linux armv8l';
+}
+
 class WebViewPage extends StatefulWidget {
   final dynamic activeTab;
   final InAppWebViewController? controller;
@@ -423,7 +428,11 @@ class _WebViewPageState extends State<WebViewPage>
   Future<void> _injectAntiDetectScript(
     InAppWebViewController controller,
   ) async {
-    final antiDetectScript = r"""
+    final navigatorPlatform = navigatorPlatformForWebView(
+      isIOS: Platform.isIOS,
+    );
+    final antiDetectScript =
+        r"""
 (function() {
   try {
     const originalEval = window.eval;
@@ -440,7 +449,7 @@ class _WebViewPageState extends State<WebViewPage>
     Object.defineProperty(window, 'outerWidth', { get: () => window.innerWidth });
 
     Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    Object.defineProperty(navigator, 'platform', { get: () => 'iPhone' });
+    Object.defineProperty(navigator, 'platform', { get: () => '__NAVIGATOR_PLATFORM__' });
 
     window.location.reload = function(){};
     window.alert = function(){};
@@ -451,7 +460,8 @@ class _WebViewPageState extends State<WebViewPage>
     console.log("Anti-Detect Error:", e);
   }
 })();
-""";
+"""
+            .replaceFirst('__NAVIGATOR_PLATFORM__', navigatorPlatform);
 
     await controller.addUserScript(
       userScript: UserScript(
