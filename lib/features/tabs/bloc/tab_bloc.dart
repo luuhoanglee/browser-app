@@ -452,9 +452,18 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     final updatedTab = tab.copyWith(loadedResources: updatedResources);
     repository.updateTab(updatedTab);
 
-    if (state.activeTab?.id == event.tabId) {
-      emit(state.copyWith(activeTab: updatedTab));
-    }
+    final updatedTabs = state.tabs
+        .map((item) => item.id == event.tabId ? updatedTab : item)
+        .toList();
+
+    emit(
+      state.copyWith(
+        tabs: updatedTabs,
+        activeTab: state.activeTab?.id == event.tabId
+            ? updatedTab
+            : state.activeTab,
+      ),
+    );
   }
 
   void _onClearLoadedResources(
@@ -467,9 +476,18 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     final updatedTab = tab.copyWith(loadedResources: []);
     repository.updateTab(updatedTab);
 
-    if (state.activeTab?.id == event.tabId) {
-      emit(state.copyWith(activeTab: updatedTab));
-    }
+    final updatedTabs = state.tabs
+        .map((item) => item.id == event.tabId ? updatedTab : item)
+        .toList();
+
+    emit(
+      state.copyWith(
+        tabs: updatedTabs,
+        activeTab: state.activeTab?.id == event.tabId
+            ? updatedTab
+            : state.activeTab,
+      ),
+    );
   }
 
   void _onEnableSplitView(EnableSplitViewEvent event, Emitter<TabState> emit) {
