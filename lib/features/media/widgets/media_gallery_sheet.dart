@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:cached_video_preview/cached_video_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -15,19 +17,31 @@ import '../../../data/services/download_service.dart';
 import 'image_viewer_page.dart';
 import 'audio_player_page.dart';
 import 'video_player_page.dart';
+import '../services/media_metadata_service.dart';
 
-final _imageRegex = RegExp(r'\.(jpg|jpeg|png|gif|webp|svg)$', caseSensitive: false);
-final _audioRegex = RegExp(r'\.(mp3|wav|ogg|aac|flac|m4a|wma)$', caseSensitive: false);
-final _videoRegex = RegExp(r'\.(mp4|webm|mov|avi|mkv|m4v|flv|wmv|3gp|m3u8)$', caseSensitive: false);
+final _imageRegex = RegExp(
+  r'\.(jpg|jpeg|png|gif|webp|svg)$',
+  caseSensitive: false,
+);
+final _audioRegex = RegExp(
+  r'\.(mp3|wav|ogg|aac|flac|m4a|wma)$',
+  caseSensitive: false,
+);
+final _videoRegex = RegExp(
+  r'\.(mp4|webm|mov|avi|mkv|m4v|flv|wmv|3gp|m3u8)$',
+  caseSensitive: false,
+);
 
 class MediaGallerySheet extends StatefulWidget {
   final InAppWebViewController controller;
   final List<LoadedResource> loadedResources;
+  final ScrollController? scrollController;
 
   const MediaGallerySheet({
     super.key,
     required this.controller,
     required this.loadedResources,
+    this.scrollController,
   });
 
   @override
@@ -37,6 +51,7 @@ class MediaGallerySheet extends StatefulWidget {
 class _MediaGallerySheetState extends State<MediaGallerySheet> {
   late MediaBloc _mediaBloc;
   final Set<String> _selectedUrls = {};
+  List<_PageVideoMetadata> _pageVideos = const [];
   bool _isSelectionMode = false;
   bool _wasBatchDownloading = false;
   bool _isQuickSelectionMode = false;
@@ -47,10 +62,48 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _mediaBloc.add(MediaExtractFromResources(widget.loadedResources));
+      _loadPageVideoMetadata();
       // Initialize batch state
       final downloadBloc = context.read<DownloadBloc>();
       _wasBatchDownloading = downloadBloc.state.isBatchDownloading;
     });
+  }
+
+  Future<void> _loadPageVideoMetadata() async {
+    try {
+      final result = await widget.controller.evaluateJavascript(
+        source: '''
+JSON.stringify(Array.from(document.querySelectorAll('video')).map((video) => ({
+  src: video.currentSrc || video.src || '',
+  poster: video.poster || '',
+  width: video.videoWidth || 0,
+  height: video.videoHeight || 0,
+  duration: Number.isFinite(video.duration) ? video.duration : 0
+})));
+''',
+      );
+      final raw = result is String ? result : result?.toString();
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+      final videos = decoded
+          .whereType<Map>()
+          .map(
+            (item) => _PageVideoMetadata(
+              src: item['src']?.toString() ?? '',
+              poster: item['poster']?.toString() ?? '',
+              width: (item['width'] as num?)?.toInt() ?? 0,
+              height: (item['height'] as num?)?.toInt() ?? 0,
+              duration: (item['duration'] as num?)?.toDouble() ?? 0,
+            ),
+          )
+          .toList();
+      if (mounted) {
+        setState(() => _pageVideos = videos);
+      }
+    } catch (_) {
+      // Some pages restrict JavaScript inspection; native preview remains.
+    }
   }
 
   void _setFilter(MediaType? type) {
@@ -128,10 +181,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
 
     final items = _selectedUrls.map((url) {
       final fileName = url.split('/').last;
-      return BatchDownloadItem(
-        url: url,
-        customFileName: fileName,
-      );
+      return BatchDownloadItem(url: url, customFileName: fileName);
     }).toList();
 
     setState(() {
@@ -192,45 +242,45 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
               _buildHeader(),
               // Media list
               Expanded(
-              child: BlocBuilder<MediaBloc, MediaState>(
-                bloc: _mediaBloc,
-                buildWhen: (previous, current) => previous != current,
-                builder: (context, state) {
-                  if (state is MediaLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  } else if (state is MediaError) {
-                    return _buildErrorState(state.message);
-                  } else if (state is MediaLoaded) {
-                    if (state.activeFilter == null) {
-                      return _buildEmptyState();
+                child: BlocBuilder<MediaBloc, MediaState>(
+                  bloc: _mediaBloc,
+                  buildWhen: (previous, current) => previous != current,
+                  builder: (context, state) {
+                    if (state is MediaLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (state is MediaError) {
+                      return _buildErrorState(state.message);
+                    } else if (state is MediaLoaded) {
+                      if (state.activeFilter == null) {
+                        return _buildEmptyState();
+                      }
+
+                      final urls = state.filteredUrls;
+
+                      if (urls.isEmpty) {
+                        return _buildEmptyState();
+                      }
+
+                      return BlocBuilder<DownloadBloc, DownloadState>(
+                        builder: (context, downloadState) {
+                          final completedUrls = downloadState.completed
+                              .where(
+                                (t) => t.status == DownloadStatus.completed,
+                              )
+                              .map((t) => t.url)
+                              .toSet();
+
+                          return _buildMediaList(urls, state, completedUrls);
+                        },
+                      );
                     }
-
-                    final urls = state.filteredUrls;
-
-                    if (urls.isEmpty) {
-                      return _buildEmptyState();
-                    }
-
-                    return BlocBuilder<DownloadBloc, DownloadState>(
-                      builder: (context, downloadState) {
-                        final completedUrls = downloadState.completed
-                            .where((t) => t.status == DownloadStatus.completed)
-                            .map((t) => t.url)
-                            .toSet();
-
-                        return _buildMediaList(urls, state, completedUrls);
-                      },
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+                    return const SizedBox.shrink();
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -240,8 +290,12 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       child: BlocBuilder<MediaBloc, MediaState>(
         bloc: _mediaBloc,
         builder: (context, mediaState) {
-          final activeFilter = mediaState is MediaLoaded ? mediaState.activeFilter : null;
-          final urls = mediaState is MediaLoaded ? mediaState.filteredUrls : <String>[];
+          final activeFilter = mediaState is MediaLoaded
+              ? mediaState.activeFilter
+              : null;
+          final urls = mediaState is MediaLoaded
+              ? mediaState.filteredUrls
+              : <String>[];
 
           return BlocBuilder<DownloadBloc, DownloadState>(
             builder: (context, downloadState) {
@@ -251,7 +305,10 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                   .toSet();
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -260,11 +317,23 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            _buildFilterChip('Images', MediaType.image, activeFilter),
+                            _buildFilterChip(
+                              'Images',
+                              MediaType.image,
+                              activeFilter,
+                            ),
                             const SizedBox(width: 8),
-                            _buildFilterChip('Videos', MediaType.video, activeFilter),
+                            _buildFilterChip(
+                              'Videos',
+                              MediaType.video,
+                              activeFilter,
+                            ),
                             const SizedBox(width: 8),
-                            _buildFilterChip('Audio', MediaType.audio, activeFilter),
+                            _buildFilterChip(
+                              'Audio',
+                              MediaType.audio,
+                              activeFilter,
+                            ),
                           ],
                         ),
                       ),
@@ -291,7 +360,11 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                               color: Colors.blue[600],
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.download, size: 18, color: Colors.white),
+                            child: const Icon(
+                              Icons.download,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       const SizedBox(width: 8),
@@ -304,7 +377,11 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                             color: Colors.red[100],
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.close, size: 18, color: Colors.red[700]),
+                          child: Icon(
+                            Icons.close,
+                            size: 18,
+                            color: Colors.red[700],
+                          ),
                         ),
                       ),
                     ] else ...[
@@ -318,7 +395,11 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                             color: Colors.grey[300],
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.check_box_outline_blank, size: 18, color: Colors.grey[700]),
+                          child: Icon(
+                            Icons.check_box_outline_blank,
+                            size: 18,
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -332,7 +413,11 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                               color: Colors.blue[100],
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(Icons.download, size: 18, color: Colors.blue[700]),
+                            child: Icon(
+                              Icons.download,
+                              size: 18,
+                              color: Colors.blue[700],
+                            ),
                           ),
                         ),
                       const SizedBox(width: 8),
@@ -345,7 +430,11 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
                             color: Colors.grey[300],
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.close, size: 20, color: Colors.grey[700]),
+                          child: Icon(
+                            Icons.close,
+                            size: 20,
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
                     ],
@@ -392,7 +481,11 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
     );
   }
 
-  Widget _buildMediaList(List<String> urls, MediaLoaded state, Set<String> completedUrls) {
+  Widget _buildMediaList(
+    List<String> urls,
+    MediaLoaded state,
+    Set<String> completedUrls,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -411,6 +504,7 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
         // List
         Expanded(
           child: ListView.builder(
+            controller: widget.scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             itemCount: urls.length,
             cacheExtent: 500,
@@ -421,10 +515,12 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
               return _MediaItem(
                 url: url,
                 state: state,
+                pageVideoMetadata: _metadataForVideo(url),
                 onTap: () => _openMedia(url, state),
                 isSelectionMode: _isSelectionMode,
                 isSelected: isSelected,
-                onToggleSelect: (isCompleted) => _toggleUrlSelection(url, isCompleted),
+                onToggleSelect: (isCompleted) =>
+                    _toggleUrlSelection(url, isCompleted),
                 completedUrls: completedUrls,
                 isQuickSelectionMode: _isQuickSelectionMode,
               );
@@ -433,6 +529,23 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
         ),
       ],
     );
+  }
+
+  _PageVideoMetadata? _metadataForVideo(String url) {
+    if (_pageVideos.isEmpty) return null;
+    for (final metadata in _pageVideos) {
+      if (metadata.src == url) return metadata;
+    }
+    if (Uri.tryParse(url)?.path.toLowerCase().endsWith('.m3u8') == true) {
+      return _pageVideos.reduce((current, candidate) {
+        final currentScore =
+            current.duration * 1000000 + current.width * current.height;
+        final candidateScore =
+            candidate.duration * 1000000 + candidate.width * candidate.height;
+        return candidateScore > currentScore ? candidate : current;
+      });
+    }
+    return _pageVideos.length == 1 ? _pageVideos.first : null;
   }
 
   void _openMedia(String url, MediaLoaded state) {
@@ -455,20 +568,14 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => AudioPlayerPage(
-            audioUrl: url,
-          title: fileName,
+          builder: (context) => AudioPlayerPage(audioUrl: url, title: fileName),
         ),
-      ),
-    );
+      );
     } else if (mediaType == 'Video') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => VideoPlayerPage(
-            videoUrl: url,
-          title: fileName,
-          ),
+          builder: (context) => VideoPlayerPage(videoUrl: url, title: fileName),
         ),
       );
     }
@@ -482,7 +589,11 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
     return 'Media';
   }
 
-  Widget _buildFilterChip(String label, MediaType? type, MediaType? activeFilter) {
+  Widget _buildFilterChip(
+    String label,
+    MediaType? type,
+    MediaType? activeFilter,
+  ) {
     final isSelected = activeFilter == type;
     return GestureDetector(
       onTap: () => _setFilter(type),
@@ -510,7 +621,8 @@ class _MediaGallerySheetState extends State<MediaGallerySheet> {
       return true;
     }
     // Special case for zingmp3
-    return url.contains('zmdcdn.me') && url.contains('/audio/') || url.contains('/song/');
+    return url.contains('zmdcdn.me') && url.contains('/audio/') ||
+        url.contains('/song/');
   }
 
   bool _isVideo(String url) {
@@ -542,6 +654,7 @@ class _MediaItem extends StatelessWidget {
   final Function(bool isCompleted) onToggleSelect;
   final Set<String> completedUrls;
   final bool isQuickSelectionMode;
+  final _PageVideoMetadata? pageVideoMetadata;
 
   const _MediaItem({
     required this.url,
@@ -552,6 +665,7 @@ class _MediaItem extends StatelessWidget {
     required this.onToggleSelect,
     required this.completedUrls,
     this.isQuickSelectionMode = false,
+    this.pageVideoMetadata,
   });
 
   /// Get media type from result lists
@@ -600,19 +714,20 @@ class _MediaItem extends StatelessWidget {
     final mediaType = _getMediaTypeFromResult();
     final host = _extractHost(url);
     final isCompleted = completedUrls.contains(url);
-    final showCheckbox = isSelectionMode && !(isQuickSelectionMode && isCompleted);
+    final showCheckbox =
+        isSelectionMode && !(isQuickSelectionMode && isCompleted);
 
     return RepaintBoundary(
       child: GestureDetector(
-        onTap: isSelectionMode
-            ? () => onToggleSelect(isCompleted)
-            : onTap,
+        onTap: isSelectionMode ? () => onToggleSelect(isCompleted) : onTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue[50] : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: isSelected ? Border.all(color: Colors.blue, width: 2) : null,
+            border: isSelected
+                ? Border.all(color: Colors.blue, width: 2)
+                : null,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
@@ -622,7 +737,10 @@ class _MediaItem extends StatelessWidget {
             ],
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
             leading: _buildLeading(url, isImage, mediaType),
             title: Text(
               fileName,
@@ -630,20 +748,69 @@ class _MediaItem extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: Text(
-              host,
-              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  host,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (mediaType == 'Video')
+                  Row(
+                    children: [
+                      if (pageVideoMetadata?.resolution != null) ...[
+                        Text(
+                          pageVideoMetadata!.resolution!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Text(' · '),
+                      ],
+                      if (pageVideoMetadata?.formattedDuration != null) ...[
+                        Text(
+                          pageVideoMetadata!.formattedDuration!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const Text(' · '),
+                      ],
+                      Flexible(
+                        child: FutureBuilder<MediaMetadata>(
+                          future: MediaMetadataService.load(url),
+                          builder: (context, snapshot) {
+                            return Text(
+                              snapshot.data?.displaySize ?? 'Reading size…',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
             trailing: SizedBox(
               width: isSelectionMode ? 40 : null,
               child: showCheckbox
                   ? (isSelected
-                      ? Icon(Icons.check_circle, color: Colors.blue, size: 24)
-                      : Icon(Icons.circle_outlined, color: Colors.grey, size: 24))
-                  : _DownloadButton(
-                      url: url,
-                      fileName: fileName,
-                    ),
+                        ? Icon(Icons.check_circle, color: Colors.blue, size: 24)
+                        : Icon(
+                            Icons.circle_outlined,
+                            color: Colors.grey,
+                            size: 24,
+                          ))
+                  : _DownloadButton(url: url, fileName: fileName),
             ),
           ),
         ),
@@ -710,7 +877,8 @@ class _MediaItem extends StatelessWidget {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                        ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
                         : null,
                   ),
                 ),
@@ -725,6 +893,43 @@ class _MediaItem extends StatelessWidget {
               child: Icon(Icons.image, size: 24, color: Colors.grey[400]),
             );
           },
+        ),
+      );
+    }
+
+    if (mediaType == 'Video') {
+      final poster = pageVideoMetadata?.poster;
+      if (poster != null && poster.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            poster,
+            width: 64,
+            height: 48,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _videoPlaceholder(),
+          ),
+        );
+      }
+
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 64,
+          height: 48,
+          child: CachedVideoPreviewWidget(
+            path: url,
+            type: SourceType.remote,
+            fileImageBuilder: (context, bytes) =>
+                Image.memory(bytes, fit: BoxFit.cover, width: 64, height: 48),
+            remoteImageBuilder: (context, imageUrl) => Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              width: 64,
+              height: 48,
+            ),
+            placeHolder: _videoPlaceholder(),
+          ),
         ),
       );
     }
@@ -746,15 +951,53 @@ class _MediaItem extends StatelessWidget {
       ),
     );
   }
+
+  Widget _videoPlaceholder() {
+    return Container(
+      width: 64,
+      height: 48,
+      color: Colors.grey[200],
+      child: Icon(Icons.videocam, color: Colors.grey[600]),
+    );
+  }
 }
+
+class _PageVideoMetadata {
+  final String src;
+  final String poster;
+  final int width;
+  final int height;
+  final double duration;
+
+  const _PageVideoMetadata({
+    required this.src,
+    required this.poster,
+    required this.width,
+    required this.height,
+    required this.duration,
+  });
+
+  String? get resolution => width > 0 && height > 0 ? '${width}×$height' : null;
+
+  String? get formattedDuration {
+    if (duration <= 0) return null;
+    final totalSeconds = duration.round();
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
+    }
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
 class _DownloadButton extends StatefulWidget {
   final String url;
   final String fileName;
 
-  const _DownloadButton({
-    required this.url,
-    required this.fileName,
-  });
+  const _DownloadButton({required this.url, required this.fileName});
 
   @override
   State<_DownloadButton> createState() => _DownloadButtonState();
@@ -782,7 +1025,9 @@ class _DownloadButtonState extends State<_DownloadButton> {
   void _checkExistingDownload() {
     final bloc = context.read<DownloadBloc>();
     final state = bloc.state;
-    final existingTask = state.downloads.where((t) => t.url == widget.url).lastOrNull;
+    final existingTask = state.downloads
+        .where((t) => t.url == widget.url)
+        .lastOrNull;
 
     if (existingTask != null) {
       if (existingTask.status == DownloadStatus.completed) {
@@ -811,7 +1056,9 @@ class _DownloadButtonState extends State<_DownloadButton> {
   void _subscribeToUpdates(DownloadBloc bloc) {
     _subscription?.cancel();
     _subscription = bloc.stream.listen((state) {
-      final ourTask = state.downloads.where((t) => t.url == widget.url).lastOrNull;
+      final ourTask = state.downloads
+          .where((t) => t.url == widget.url)
+          .lastOrNull;
 
       if (ourTask != null) {
         if (_downloadTaskId == null) {
@@ -821,7 +1068,9 @@ class _DownloadButtonState extends State<_DownloadButton> {
         }
 
         // Handle downloading and pending states (for batch downloads)
-        if ((ourTask.status == DownloadStatus.downloading || ourTask.status == DownloadStatus.pending) && mounted) {
+        if ((ourTask.status == DownloadStatus.downloading ||
+                ourTask.status == DownloadStatus.pending) &&
+            mounted) {
           setState(() {
             _isDownloading = true;
             _progress = ourTask.progress;
@@ -853,7 +1102,6 @@ class _DownloadButtonState extends State<_DownloadButton> {
               duration: const Duration(seconds: 3),
             ),
           );
-
         }
       }
     });

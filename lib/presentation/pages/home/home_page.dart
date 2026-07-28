@@ -1201,26 +1201,7 @@ class _HomeViewState extends State<HomeView>
         context,
         controller,
         loadedResources,
-        0.6,
-      ),
-    ).then((_) => _refreshWebViewForInteraction());
-  }
-
-  void _showMediaSheetExpanded(
-    BuildContext context,
-    InAppWebViewController controller,
-    List<LoadedResource> loadedResources,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _buildMediaSheet(
-        sheetContext,
-        context,
-        controller,
-        loadedResources,
-        0.9,
+        0.62,
       ),
     ).then((_) => _refreshWebViewForInteraction());
   }
@@ -1232,66 +1213,47 @@ class _HomeViewState extends State<HomeView>
     List<LoadedResource> loadedResources,
     double heightFactor,
   ) {
-    final isExpanded = heightFactor > 0.7;
     return BlocProvider.value(
       value: parentContext.read<DownloadBloc>(),
-      child: Container(
-        height: MediaQuery.of(parentContext).size.height * heightFactor,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F9FF),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        ),
-        child: Column(
-          children: [
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragEnd: (details) {
-                if (details.primaryVelocity != null &&
-                    details.primaryVelocity!.abs() > 300) {
-                  Navigator.pop(sheetContext);
-                  if (details.primaryVelocity! < 0 && !isExpanded) {
-                    _showMediaSheetExpanded(
-                      parentContext,
-                      controller,
-                      loadedResources,
-                    );
-                  } else if (details.primaryVelocity! > 0 && isExpanded) {
-                    showModalBottomSheet(
-                      context: parentContext,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (sheetContext) => _buildMediaSheet(
-                        sheetContext,
-                        parentContext,
-                        controller,
-                        loadedResources,
-                        0.6,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: Container(
-                height: 30,
-                alignment: Alignment.center,
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(2),
+      child: DraggableScrollableSheet(
+        initialChildSize: heightFactor,
+        minChildSize: 0.42,
+        maxChildSize: 0.96,
+        snap: true,
+        snapSizes: const [0.62, 0.96],
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FF),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  height: 30,
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
+                Expanded(
+                  child: MediaGallerySheet(
+                    controller: controller,
+                    loadedResources: loadedResources,
+                    scrollController: scrollController,
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: MediaGallerySheet(
-                controller: controller,
-                loadedResources: loadedResources,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
