@@ -6,18 +6,44 @@ class WebViewInterceptor {
   WebViewInterceptor._();
 
   static const Set<String> _safeSchemes = {
-    'http', 'https', 'file', 'data', 'about', 'javascript', 'ws', 'wss'
+    'http',
+    'https',
+    'file',
+    'data',
+    'about',
+    'javascript',
+    'ws',
+    'wss',
   };
 
   static const List<String> _externalSchemes = [
-    'googlechrome://', 'firefox://', 'chrome://', 'edge://', 'opera://',
-    'intent://', 'market://'
+    'googlechrome://',
+    'firefox://',
+    'chrome://',
+    'edge://',
+    'opera://',
+    'intent://',
+    'market://',
   ];
 
   static const List<String> _aggressiveSites = [
-    'fmovies','123movies','putlocker','gomovies','yesmovies',
-    'phimmoi','anime','xmovies','hdmovies','watch','stream',
-    'motphim','phim14','phim3s','bilutv','animehay','aquareader'
+    'fmovies',
+    '123movies',
+    'putlocker',
+    'gomovies',
+    'yesmovies',
+    'phimmoi',
+    'anime',
+    'xmovies',
+    'hdmovies',
+    'watch',
+    'stream',
+    'motphim',
+    'phim14',
+    'phim3s',
+    'bilutv',
+    'animehay',
+    'aquareader',
   ];
 
   static const List<String> _hardBlockedDomains = [
@@ -106,7 +132,7 @@ class WebViewInterceptor {
     'googlevideo.com',
     'youtube.com',
     '*.googlevideo.com',
-'youtubei.googleapis.com',
+    'youtubei.googleapis.com',
     'vimeo.com',
     'vimeocdn.com',
     'dailymotion.com',
@@ -202,6 +228,30 @@ class WebViewInterceptor {
     return _adPatterns.any((pattern) => pattern.hasMatch(url));
   }
 
+  static bool isMediaRequestUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      return false;
+    }
+
+    final host = uri.host.toLowerCase();
+    final path = uri.path.toLowerCase();
+
+    if (host == 'googlevideo.com' || host.endsWith('.googlevideo.com')) {
+      return true;
+    }
+
+    if (path.contains('/hls/') || path.contains('/dash/')) {
+      return true;
+    }
+
+    return path.endsWith('.mp4') ||
+        path.endsWith('.m3u8') ||
+        path.endsWith('.mpd') ||
+        path.endsWith('.webm') ||
+        path.contains('manifest');
+  }
+
   static bool _shouldBlock(String url) {
     final lower = url.toLowerCase();
 
@@ -224,12 +274,7 @@ class WebViewInterceptor {
       return null;
     }
 
-    if (lower.contains('.mp4') ||
-        lower.contains('.m3u8') ||
-        lower.contains('.mpd') ||
-        lower.contains('.webm') ||
-        lower.contains('manifest') ||
-        lower.contains('googlevideo.com')) {
+    if (isMediaRequestUrl(lower)) {
       return null;
     }
 
@@ -242,8 +287,8 @@ class WebViewInterceptor {
   }
 
   static NavigationActionPolicy shouldOverrideUrlLoading(
-      InAppWebViewController controller,
-      NavigationAction action,
+    InAppWebViewController controller,
+    NavigationAction action,
   ) {
     final url = action.request.url.toString();
     final lower = url.toLowerCase();
@@ -291,8 +336,8 @@ class WebViewInterceptor {
   }
 
   static Future<bool> handleCreateWindow(
-      InAppWebViewController controller,
-      CreateWindowAction createWindowAction,
+    InAppWebViewController controller,
+    CreateWindowAction createWindowAction,
   ) async {
     final url = createWindowAction.request.url?.toString() ?? '';
     final lower = url.toLowerCase();
@@ -309,7 +354,9 @@ class WebViewInterceptor {
       return false;
     }
 
-    if (url.isEmpty || lower.startsWith('javascript:') || lower.startsWith('about:blank')) {
+    if (url.isEmpty ||
+        lower.startsWith('javascript:') ||
+        lower.startsWith('about:blank')) {
       print("🔥 [POPUP-KILLED] Empty/JS popup");
       return false;
     }
@@ -318,10 +365,7 @@ class WebViewInterceptor {
     return false;
   }
 
-  static void handleLoadStart(
-      InAppWebViewController controller,
-      WebUri? url,
-  ) {
+  static void handleLoadStart(InAppWebViewController controller, WebUri? url) {
     if (url == null) return;
     final s = url.toString();
     final lower = s.toLowerCase();
@@ -341,7 +385,9 @@ class WebViewInterceptor {
     }
   }
 
-  static Future<void> injectAntiPopupJS(InAppWebViewController controller) async {
+  static Future<void> injectAntiPopupJS(
+    InAppWebViewController controller,
+  ) async {
     // Get base script from ContentBlockerService
     final baseScript = ContentBlockerService.getBlockingScript();
 
@@ -439,6 +485,10 @@ class WebViewInterceptor {
       return null;
     }
 
+    if (isMediaRequestUrl(lower)) {
+      return null;
+    }
+
     if (_shouldBlock(lower)) {
       print("🛑 [BLOCK-AJAX] $url");
       request.action = AjaxRequestAction.ABORT;
@@ -459,9 +509,12 @@ class WebViewInterceptor {
     final url = request.url.toString();
     final lower = url.toLowerCase();
 
+    if (isMediaRequestUrl(lower)) {
+      return request;
+    }
+
     // Skip blocking cho YouTube domain
-    if (
-        lower.contains('youtube.com') ||
+    if (lower.contains('youtube.com') ||
         lower.contains('googlevideo.com') ||
         lower.contains('youtubei.googleapis.com') ||
         lower.contains('ggpht.com') ||
@@ -489,15 +542,32 @@ class WebViewInterceptor {
     final lower = url.toLowerCase();
 
     final analyticsKeywords = [
-      '/analytics', '/track', '/tracking', '/telemetry',
-      '/collect', '/beacon', '/pixel', '/metrics',
-      '/stats', '/monitor',
-      'google-analytics.com', 'googletagmanager.com',
-      'googlesyndication.com', 'doubleclick.net',
-      'facebook.com/tr/', 'fbq', 'fbc',
-      'hotjar.com', 'segment.io', 'mixpanel.com',
-      'amplitude.com', 'fullstory.com', 'clarity.ms',
-      'mouseflow.com', 'inspectlet.com', 'heap.io',
+      '/analytics',
+      '/track',
+      '/tracking',
+      '/telemetry',
+      '/collect',
+      '/beacon',
+      '/pixel',
+      '/metrics',
+      '/stats',
+      '/monitor',
+      'google-analytics.com',
+      'googletagmanager.com',
+      'googlesyndication.com',
+      'doubleclick.net',
+      'facebook.com/tr/',
+      'fbq',
+      'fbc',
+      'hotjar.com',
+      'segment.io',
+      'mixpanel.com',
+      'amplitude.com',
+      'fullstory.com',
+      'clarity.ms',
+      'mouseflow.com',
+      'inspectlet.com',
+      'heap.io',
     ];
 
     for (final keyword in analyticsKeywords) {
