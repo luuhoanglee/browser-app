@@ -1213,14 +1213,19 @@ class _HomeViewState extends State<HomeView>
     List<LoadedResource> loadedResources,
     double heightFactor,
   ) {
+    final isLandscape =
+        MediaQuery.orientationOf(sheetContext) == Orientation.landscape;
+    final initialSize = isLandscape ? 0.94 : heightFactor;
+    final minSize = isLandscape ? 0.72 : 0.42;
+
     return BlocProvider.value(
       value: parentContext.read<DownloadBloc>(),
       child: DraggableScrollableSheet(
-        initialChildSize: heightFactor,
-        minChildSize: 0.42,
+        initialChildSize: initialSize,
+        minChildSize: minSize,
         maxChildSize: 0.96,
         snap: true,
-        snapSizes: const [0.62, 0.96],
+        snapSizes: isLandscape ? const [0.72, 0.94, 0.96] : const [0.62, 0.96],
         builder: (context, scrollController) {
           return Container(
             decoration: BoxDecoration(
@@ -1232,7 +1237,7 @@ class _HomeViewState extends State<HomeView>
             child: Column(
               children: [
                 Container(
-                  height: 30,
+                  height: isLandscape ? 18 : 30,
                   alignment: Alignment.center,
                   child: Container(
                     width: 40,

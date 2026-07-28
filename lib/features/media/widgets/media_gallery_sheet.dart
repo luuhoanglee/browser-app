@@ -286,6 +286,9 @@ JSON.stringify(Array.from(document.querySelectorAll('video')).map((video) => ({
   }
 
   Widget _buildHeader() {
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
     return RepaintBoundary(
       child: BlocBuilder<MediaBloc, MediaState>(
         bloc: _mediaBloc,
@@ -305,9 +308,9 @@ JSON.stringify(Array.from(document.querySelectorAll('video')).map((video) => ({
                   .toSet();
 
               return Container(
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 12,
+                  vertical: isLandscape ? 6 : 12,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

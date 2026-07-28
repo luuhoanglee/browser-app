@@ -60,6 +60,8 @@ class BottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIncognito = activeTab.isIncognito ?? false;
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return RepaintBoundary(
       child: Container(
@@ -70,53 +72,85 @@ class BottomBar extends StatelessWidget {
           bottom: false,
           top: false,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Address bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: _buildAddressBar(context),
-                ),
-                // Navigation buttons
-                SizedBox(
-                  height: 44,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+            padding: EdgeInsets.only(bottom: isLandscape ? 4 : 20),
+            child: isLandscape
+                ? SizedBox(
+                    height: 48,
+                    child: Row(
+                      children: [
+                        _buildNavBackItem(Icons.chevron_left, onBack),
+                        _buildNavForwardItem(Icons.chevron_right, onForward),
+                        _buildNavBarItem(Icons.history, onShowHistory),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: _buildAddressBar(context),
+                          ),
+                        ),
+                        _buildNavBarItem(
+                          Icons.shield_outlined,
+                          onShowWarp,
+                          semanticLabel: 'WARP / 1.1.1.1',
+                        ),
+                        _buildNavBarItem(
+                          Icons.play_arrow,
+                          onShowMedia,
+                          isDisabled: activeTab.url.isEmpty,
+                        ),
+                        _buildNavBarItem(Icons.download, onShowDownload),
+                        _buildNavBarItemWithBadge(
+                          Icons.copy,
+                          onShowTabs,
+                          badgeCount: tabState.filteredTabs.length,
+                          semanticLabel: 'Tabs',
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildNavBackItem(Icons.chevron_left, onBack),
-                      _buildNavForwardItem(Icons.chevron_right, onForward),
-                      _buildNavBarItem(Icons.history, onShowHistory),
-                      _buildNavBarItem(
-                        Icons.shield_outlined,
-                        onShowWarp,
-                        semanticLabel: 'WARP / 1.1.1.1',
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: _buildAddressBar(context),
                       ),
-                      _buildNavBarItem(
-                        Icons.play_arrow,
-                        onShowMedia,
-                        isDisabled: activeTab.url.isEmpty,
-                      ),
-                      _buildNavBarItem(Icons.download, onShowDownload),
-
-                      _buildNavBarItemWithBadge(
-                        Icons.copy,
-                        onShowTabs,
-                        badgeCount: tabState.filteredTabs.length,
-                        semanticLabel: 'Tabs',
-                      ),
+                      SizedBox(height: 44, child: _buildNavigationRow()),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildNavigationRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildNavBackItem(Icons.chevron_left, onBack),
+        _buildNavForwardItem(Icons.chevron_right, onForward),
+        _buildNavBarItem(Icons.history, onShowHistory),
+        _buildNavBarItem(
+          Icons.shield_outlined,
+          onShowWarp,
+          semanticLabel: 'WARP / 1.1.1.1',
+        ),
+        _buildNavBarItem(
+          Icons.play_arrow,
+          onShowMedia,
+          isDisabled: activeTab.url.isEmpty,
+        ),
+        _buildNavBarItem(Icons.download, onShowDownload),
+        _buildNavBarItemWithBadge(
+          Icons.copy,
+          onShowTabs,
+          badgeCount: tabState.filteredTabs.length,
+          semanticLabel: 'Tabs',
+        ),
+      ],
     );
   }
 
