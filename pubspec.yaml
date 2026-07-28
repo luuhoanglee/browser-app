@@ -121,6 +121,9 @@ dependencies:
   # Video player
   video_player: ^2.9.2
   chewie: ^1.8.5
+  cast: ^2.1.0
+  # cast 2.1.0 still uses the Bonsoir 5 discovery API.
+  bonsoir: 5.1.11
 
   # Video thumbnail
   video_thumbnail: ^0.5.3

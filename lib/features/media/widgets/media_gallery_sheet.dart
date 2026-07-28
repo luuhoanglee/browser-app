@@ -10,6 +10,7 @@ import '../bloc/media_bloc.dart';
 import '../bloc/media_event.dart';
 import '../bloc/media_state.dart';
 import '../../../core/enum/media_type.dart';
+import '../../../core/logger/app_logger.dart';
 import '../../download/bloc/download_bloc.dart';
 import '../../download/bloc/download_event.dart';
 import '../../download/bloc/download_state.dart';
@@ -551,14 +552,14 @@ JSON.stringify(Array.from(document.querySelectorAll('video')).map((video) => ({
     return _pageVideos.length == 1 ? _pageVideos.first : null;
   }
 
-  void _openMedia(String url, MediaLoaded state) {
+  Future<void> _openMedia(String url, MediaLoaded state) async {
     final fileName = url.split('/').last;
     final mediaType = _getMediaTypeFromResult(url, state);
 
     if (mediaType == 'Image') {
       final imageUrls = state.result.images;
       final index = imageUrls.indexOf(url);
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ImageViewerPage(
@@ -568,18 +569,88 @@ JSON.stringify(Array.from(document.querySelectorAll('video')).map((video) => ({
         ),
       );
     } else if (mediaType == 'Audio') {
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => AudioPlayerPage(audioUrl: url, title: fileName),
         ),
       );
     } else if (mediaType == 'Video') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VideoPlayerPage(videoUrl: url, title: fileName),
-        ),
+      final playingVideoIndexes = await _pauseWebVideos();
+      if (!mounted) return;
+      try {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                VideoPlayerPage(videoUrl: url, title: fileName),
+          ),
+        );
+      } finally {
+        await _resumeWebVideos(playingVideoIndexes);
+      }
+    }
+  }
+
+  Future<List<int>> _pauseWebVideos() async {
+    try {
+      final result = await widget.controller.evaluateJavascript(
+        source: '''
+(() => {
+  const videos = Array.from(document.querySelectorAll('video'));
+  const playing = [];
+  videos.forEach((video, index) => {
+    if (!video.paused && !video.ended) playing.push(index);
+    video.pause();
+  });
+  return JSON.stringify(playing);
+})();
+''',
+      );
+      final indexes = parsePlayingVideoIndexes(result);
+      if (indexes.isNotEmpty || result != null) {
+        AppLogger.debug(
+          'MediaGallery',
+          'Paused page videos before opening App Player',
+          params: {'playingVideoCount': indexes.length},
+        );
+        return indexes;
+      }
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'MediaGallery',
+        'Could not pause web video before opening App Player',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+    return const [];
+  }
+
+  Future<void> _resumeWebVideos(List<int> indexes) async {
+    if (indexes.isEmpty) return;
+    try {
+      await widget.controller.evaluateJavascript(
+        source:
+            '''
+(() => {
+  const videos = Array.from(document.querySelectorAll('video'));
+  const indexes = ${jsonEncode(indexes)};
+  indexes.forEach((index) => videos[index]?.play().catch(() => {}));
+})();
+''',
+      );
+      AppLogger.debug(
+        'MediaGallery',
+        'Resumed page videos after closing App Player',
+        params: {'playingVideoCount': indexes.length},
+      );
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        'MediaGallery',
+        'Could not resume web video after closing App Player',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
   }
@@ -645,6 +716,19 @@ JSON.stringify(Array.from(document.querySelectorAll('video')).map((video) => ({
         return 'Media';
     }
   }
+}
+
+List<int> parsePlayingVideoIndexes(Object? value) {
+  Object? decoded = value;
+  if (value is String) {
+    try {
+      decoded = jsonDecode(value);
+    } catch (_) {
+      return const [];
+    }
+  }
+  if (decoded is! List) return const [];
+  return decoded.whereType<num>().map((index) => index.toInt()).toList();
 }
 
 /// Separate widget for media items to enable proper rebuilding

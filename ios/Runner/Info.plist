@@ -38,6 +38,13 @@
 	<string>Permission is required to save downloaded files.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Allows you to record voice notes.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_googlecast._tcp</string>
+		<string>_CC1AD845._googlecast._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Pardix uses the local network to discover Cast-enabled TVs and streaming devices.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Permission is required to save photos to the photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
