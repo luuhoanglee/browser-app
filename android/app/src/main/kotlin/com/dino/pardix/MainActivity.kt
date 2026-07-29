@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.RenderMode
+import io.flutter.embedding.android.FlutterView
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
@@ -22,6 +23,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val PLATFORM_VIEW_LAYOUT_SETTLE_DELAY_MS = 150L
+        private const val FLUTTER_LAYOUT_SETTLE_DELAY_MS = 500L
 
         init {
             // Initialize AdBlockService when class loads
@@ -107,11 +109,14 @@ class MainActivity : FlutterActivity() {
         // the window has applied its new bounds, and once more after the platform
         // view composition has settled.
         window.decorView.post {
-            refreshWebViewLayout(window.decorView)
+            refreshEmbeddedViewLayout()
         }
         window.decorView.postDelayed({
-            refreshWebViewLayout(window.decorView)
+            refreshEmbeddedViewLayout()
         }, PLATFORM_VIEW_LAYOUT_SETTLE_DELAY_MS)
+        window.decorView.postDelayed({
+            refreshEmbeddedViewLayout()
+        }, FLUTTER_LAYOUT_SETTLE_DELAY_MS)
     }
 
     override fun onDestroy() {
@@ -137,6 +142,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun refreshWebViewLayout(view: View) {
+        view.forceLayout()
         view.requestLayout()
         view.invalidate()
 
@@ -149,5 +155,38 @@ class MainActivity : FlutterActivity() {
                 refreshWebViewLayout(view.getChildAt(index))
             }
         }
+    }
+
+    private fun refreshEmbeddedViewLayout() {
+        val contentView = findViewById<ViewGroup>(android.R.id.content) ?: return
+        refreshWebViewLayout(contentView)
+
+        val flutterView = findFlutterView(contentView) ?: return
+        val targetWidth = contentView.width
+        val targetHeight = contentView.height
+        if (targetWidth <= 0 || targetHeight <= 0) return
+
+        flutterView.layoutParams?.let { params ->
+            params.width = ViewGroup.LayoutParams.MATCH_PARENT
+            params.height = ViewGroup.LayoutParams.MATCH_PARENT
+            flutterView.layoutParams = params
+        }
+        flutterView.measure(
+            View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(targetHeight, View.MeasureSpec.EXACTLY)
+        )
+        flutterView.layout(0, 0, targetWidth, targetHeight)
+        flutterView.requestApplyInsets()
+        flutterEngine?.renderer?.surfaceChanged(targetWidth, targetHeight)
+    }
+
+    private fun findFlutterView(view: View): FlutterView? {
+        if (view is FlutterView) return view
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                findFlutterView(view.getChildAt(index))?.let { return it }
+            }
+        }
+        return null
     }
 }
