@@ -63,64 +63,62 @@ class BottomBar extends StatelessWidget {
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
 
-    return RepaintBoundary(
-      child: Container(
-        decoration: BoxDecoration(
-          color: isIncognito ? Colors.grey[900] : Colors.white,
-        ),
-        child: SafeArea(
-          bottom: false,
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.only(bottom: isLandscape ? 4 : 20),
-            child: isLandscape
-                ? SizedBox(
-                    height: 48,
-                    child: Row(
-                      children: [
-                        _buildNavBackItem(Icons.chevron_left, onBack),
-                        _buildNavForwardItem(Icons.chevron_right, onForward),
-                        _buildNavBarItem(Icons.history, onShowHistory),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: _buildAddressBar(context),
-                          ),
-                        ),
-                        _buildNavBarItem(
-                          Icons.shield_outlined,
-                          onShowWarp,
-                          semanticLabel: 'WARP / 1.1.1.1',
-                        ),
-                        _buildNavBarItem(
-                          Icons.play_arrow,
-                          onShowMedia,
-                          isDisabled: activeTab.url.isEmpty,
-                        ),
-                        _buildNavBarItem(Icons.download, onShowDownload),
-                        _buildNavBarItemWithBadge(
-                          Icons.copy,
-                          onShowTabs,
-                          badgeCount: tabState.filteredTabs.length,
-                          semanticLabel: 'Tabs',
-                        ),
-                      ],
-                    ),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
+    return Container(
+      decoration: BoxDecoration(
+        color: isIncognito ? Colors.grey[900] : Colors.white,
+      ),
+      child: SafeArea(
+        bottom: false,
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: isLandscape ? 4 : 20),
+          child: isLandscape
+              ? SizedBox(
+                  height: 48,
+                  child: Row(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                      _buildNavBackItem(Icons.chevron_left, onBack),
+                      _buildNavForwardItem(Icons.chevron_right, onForward),
+                      _buildNavBarItem(Icons.history, onShowHistory),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: _buildAddressBar(context),
                         ),
-                        child: _buildAddressBar(context),
                       ),
-                      SizedBox(height: 44, child: _buildNavigationRow()),
+                      _buildNavBarItem(
+                        Icons.shield_outlined,
+                        onShowWarp,
+                        semanticLabel: 'WARP / 1.1.1.1',
+                      ),
+                      _buildNavBarItem(
+                        Icons.play_arrow,
+                        onShowMedia,
+                        isDisabled: activeTab.url.isEmpty,
+                      ),
+                      _buildNavBarItem(Icons.download, onShowDownload),
+                      _buildNavBarItemWithBadge(
+                        Icons.copy,
+                        onShowTabs,
+                        badgeCount: tabState.filteredTabs.length,
+                        semanticLabel: 'Tabs',
+                      ),
                     ],
                   ),
-          ),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: _buildAddressBar(context),
+                    ),
+                    SizedBox(height: 44, child: _buildNavigationRow()),
+                  ],
+                ),
         ),
       ),
     );

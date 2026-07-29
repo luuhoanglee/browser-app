@@ -96,6 +96,9 @@ class _WebViewPageState extends State<WebViewPage>
 
   /// Kept locally because [widget.controller] can lag a frame behind creation.
   InAppWebViewController? _controller;
+  final InAppWebViewKeepAlive _webViewKeepAlive = InAppWebViewKeepAlive();
+  bool _isInFullscreen = false;
+  Orientation? _fullscreenEntryOrientation;
 
   // User-Agent chuẩn để tránh bị rate limit
   static const String _iosUserAgent =
@@ -186,6 +189,7 @@ class _WebViewPageState extends State<WebViewPage>
         javaScriptCanOpenWindowsAutomatically: false,
         supportMultipleWindows: false,
         hardwareAcceleration: true,
+        useHybridComposition: false,
         allowsInlineMediaPlayback: true,
         mediaPlaybackRequiresUserGesture: false,
         userAgent: _androidUserAgent,
@@ -210,6 +214,7 @@ class _WebViewPageState extends State<WebViewPage>
         javaScriptCanOpenWindowsAutomatically: false,
         supportMultipleWindows: false,
         hardwareAcceleration: true,
+        useHybridComposition: false,
         allowsInlineMediaPlayback: true,
         mediaPlaybackRequiresUserGesture: false,
         userAgent: _androidUserAgent,
@@ -763,8 +768,14 @@ class _WebViewPageState extends State<WebViewPage>
   }
 
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
+    final isReattachedAfterLayoutChange = _controller != null;
     _controller = controller;
     widget.onWebViewCreated(controller);
+
+    if (isReattachedAfterLayoutChange) {
+      await _applyMuted(widget.muted);
+      return;
+    }
 
     // Inject intent blocking script
     await _injectBlockIntentScript(controller);
@@ -1248,7 +1259,24 @@ class _WebViewPageState extends State<WebViewPage>
   @override
   void dispose() {
     _connectivitySubscription?.cancel();
+    unawaited(InAppWebViewController.disposeKeepAlive(_webViewKeepAlive));
     super.dispose();
+  }
+
+  void _onEnterFullscreen(InAppWebViewController controller) {
+    if (!mounted) return;
+    setState(() {
+      _isInFullscreen = true;
+      _fullscreenEntryOrientation = MediaQuery.orientationOf(context);
+    });
+  }
+
+  void _onExitFullscreen(InAppWebViewController controller) {
+    if (!mounted) return;
+    setState(() {
+      _isInFullscreen = false;
+      _fullscreenEntryOrientation = null;
+    });
   }
 
   Widget _buildErrorWidget() {
@@ -1358,6 +1386,10 @@ class _WebViewPageState extends State<WebViewPage>
 
     final initialUrl = _getInitialUrl();
     final isIncognito = widget.activeTab.isIncognito ?? false;
+    final orientation = MediaQuery.orientationOf(context);
+    final platformViewOrientation = _isInFullscreen
+        ? (_fullscreenEntryOrientation ?? orientation)
+        : orientation;
 
     return FutureBuilder<void>(
       future: _initFuture,
@@ -1374,7 +1406,10 @@ class _WebViewPageState extends State<WebViewPage>
                       child: Container(
                         color: isIncognito ? Colors.black : Colors.transparent,
                         child: InAppWebView(
-                          key: ValueKey(widget.activeTab.id),
+                          key: ValueKey(
+                            '${widget.activeTab.id}-${platformViewOrientation.name}',
+                          ),
+                          keepAlive: _webViewKeepAlive,
                           initialUrlRequest: initialUrl.isEmpty
                               ? null
                               : URLRequest(
@@ -1405,6 +1440,8 @@ class _WebViewPageState extends State<WebViewPage>
                               _shouldInterceptFetchRequest,
                           shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
                           onCreateWindow: _onCreateWindow,
+                          onEnterFullscreen: _onEnterFullscreen,
+                          onExitFullscreen: _onExitFullscreen,
                           onReceivedError: _onReceivedError,
                           onReceivedHttpError: _onReceivedHttpError,
                           onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
