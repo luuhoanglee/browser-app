@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../domain/entities/tab_entity.dart';
+import '../../domain/entities/saved_page_entity.dart';
 import '../../features/quick_access/models/quick_access_site.dart';
+import '../../core/logger/app_logger.dart';
 
 class StorageService {
   static const String _tabsKey = 'cached_tabs';
@@ -10,6 +12,7 @@ class StorageService {
   static const String _historyKey = 'browser_history';
   static const String _searchHistoryKey = 'search_history';
   static const String _quickAccessKey = 'quick_access_sites';
+  static const String _savedPagesKey = 'saved_pages';
   static const int _maxHistorySize = 100; // Giới hạn 100 mục lịch sử
 
   // Debounce timers to avoid excessive disk writes
@@ -257,6 +260,38 @@ class StorageService {
           .toList();
     } catch (e) {
       print('❌ Error loading quick access sites: $e');
+      return [];
+    }
+  }
+
+  static Future<void> saveSavedPages(List<SavedPageEntity> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _savedPagesKey,
+      jsonEncode(items.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  static Future<List<SavedPageEntity>> loadSavedPages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_savedPagesKey);
+      if (raw == null || raw.isEmpty) return [];
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+      return decoded
+          .whereType<Map>()
+          .map((item) => SavedPageEntity.fromJson(
+                Map<String, dynamic>.from(item),
+              ))
+          .toList();
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Storage',
+        'Unable to load saved pages',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }

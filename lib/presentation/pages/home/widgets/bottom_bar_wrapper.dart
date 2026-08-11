@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:browser_app/features/tabs/bloc/tab_bloc.dart';
 import 'package:browser_app/features/tabs/bloc/tab_state.dart';
+import 'package:browser_app/domain/entities/saved_page_entity.dart';
+import 'package:browser_app/features/library/bloc/saved_page_bloc.dart';
+import 'package:browser_app/features/library/bloc/saved_page_state.dart';
 import 'bottom_bar.dart';
 
 /// BlocBuilder wrapper that rebuilds [BottomBar] only when the active tab's
@@ -16,6 +19,8 @@ class BottomBarWrapper extends StatelessWidget {
   final VoidCallback onShowDownload;
   final VoidCallback onShowMedia;
   final VoidCallback onShowWarp;
+  final VoidCallback onShowSavedPages;
+  final VoidCallback onToggleBookmark;
   final bool isSearching;
   final bool isMediaSheetOpen;
   final TextEditingController searchController;
@@ -36,6 +41,8 @@ class BottomBarWrapper extends StatelessWidget {
     required this.onShowDownload,
     required this.onShowMedia,
     required this.onShowWarp,
+    required this.onShowSavedPages,
+    required this.onToggleBookmark,
     required this.isSearching,
     required this.isMediaSheetOpen,
     required this.searchController,
@@ -82,25 +89,34 @@ class BottomBarWrapper extends StatelessWidget {
           (t) => t.id == activeTabId,
           orElse: () => tabState.activeTab!,
         );
-        return BottomBar(
-          activeTab: activeTab,
-          tabState: tabState,
-          controller: controller,
-          onShowTabs: onShowTabs,
-          onAddressBarTap: onAddressBarTap,
-          onShowHistory: onShowHistory,
-          onShowDownload: onShowDownload,
-          onShowMedia: onShowMedia,
-          onShowWarp: onShowWarp,
-          isSearching: isSearching,
-          isMediaSheetOpen: isMediaSheetOpen,
-          searchController: searchController,
-          searchFocusNode: searchFocusNode,
-          onSearch: onSearch,
-          onBack: onBack,
-          onForward: onForward,
-          canGoBack: canGoBack,
-          canGoForward: canGoForward,
+        return BlocBuilder<SavedPageBloc, SavedPageState>(
+          buildWhen: (previous, current) => previous.items != current.items,
+          builder: (context, savedState) => BottomBar(
+            activeTab: activeTab,
+            tabState: tabState,
+            controller: controller,
+            onShowTabs: onShowTabs,
+            onAddressBarTap: onAddressBarTap,
+            onShowHistory: onShowHistory,
+            onShowDownload: onShowDownload,
+            onShowMedia: onShowMedia,
+            onShowWarp: onShowWarp,
+            onShowSavedPages: onShowSavedPages,
+            onToggleBookmark: onToggleBookmark,
+            isBookmarked: savedState.containsUrl(
+              activeTab.url,
+              SavedPageCollection.bookmarks,
+            ),
+            isSearching: isSearching,
+            isMediaSheetOpen: isMediaSheetOpen,
+            searchController: searchController,
+            searchFocusNode: searchFocusNode,
+            onSearch: onSearch,
+            onBack: onBack,
+            onForward: onForward,
+            canGoBack: canGoBack,
+            canGoForward: canGoForward,
+          ),
         );
       },
     );

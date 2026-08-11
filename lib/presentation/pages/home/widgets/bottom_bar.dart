@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import '../../../../core/resources/app_colors.dart';
+import '../../../../core/resources/app_strings.dart';
 
 class BottomBar extends StatelessWidget {
   final dynamic activeTab;
@@ -11,6 +13,9 @@ class BottomBar extends StatelessWidget {
   final VoidCallback onShowDownload;
   final VoidCallback onShowMedia;
   final VoidCallback onShowWarp;
+  final VoidCallback onShowSavedPages;
+  final VoidCallback onToggleBookmark;
+  final bool isBookmarked;
 
   final bool isSearching;
   final bool isMediaSheetOpen;
@@ -33,6 +38,9 @@ class BottomBar extends StatelessWidget {
     required this.onShowDownload,
     required this.onShowMedia,
     required this.onShowWarp,
+    required this.onShowSavedPages,
+    required this.onToggleBookmark,
+    required this.isBookmarked,
     required this.isSearching,
     required this.isMediaSheetOpen,
     required this.searchController,
@@ -80,6 +88,11 @@ class BottomBar extends StatelessWidget {
                       _buildNavBackItem(Icons.chevron_left, onBack),
                       _buildNavForwardItem(Icons.chevron_right, onForward),
                       _buildNavBarItem(Icons.history, onShowHistory),
+                      _buildNavBarItem(
+                        Icons.collections_bookmark_outlined,
+                        onShowSavedPages,
+                        semanticLabel: AppStrings.savedPages,
+                      ),
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -131,6 +144,11 @@ class BottomBar extends StatelessWidget {
         _buildNavBackItem(Icons.chevron_left, onBack),
         _buildNavForwardItem(Icons.chevron_right, onForward),
         _buildNavBarItem(Icons.history, onShowHistory),
+        _buildNavBarItem(
+          Icons.collections_bookmark_outlined,
+          onShowSavedPages,
+          semanticLabel: AppStrings.savedPages,
+        ),
         _buildNavBarItem(
           Icons.shield_outlined,
           onShowWarp,
@@ -253,6 +271,21 @@ class BottomBar extends StatelessWidget {
               ),
             ),
             if (showUrl)
+              IconButton(
+                tooltip: isBookmarked
+                    ? AppStrings.removeBookmark
+                    : AppStrings.saveBookmark,
+                onPressed: isIncognito ? null : onToggleBookmark,
+                visualDensity: VisualDensity.compact,
+                iconSize: 18,
+                icon: Icon(
+                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: isBookmarked
+                      ? AppColors.greenPrimary
+                      : (isIncognito ? Colors.grey[400] : Colors.grey[600]),
+                ),
+              ),
+            if (showUrl)
               GestureDetector(
                 onTap: () => controller?.reload(),
                 child: Container(
@@ -297,7 +330,7 @@ class BottomBar extends StatelessWidget {
         child: GestureDetector(
           onTap: (isActive && !isDisabled) ? onTap : null,
           child: Container(
-            width: 50,
+            width: 44,
             alignment: Alignment.center,
             child: Icon(icon, size: 22, color: iconColor),
           ),
@@ -326,7 +359,7 @@ class BottomBar extends StatelessWidget {
       child: GestureDetector(
         onTap: isActive ? onTap : null,
         child: Container(
-          width: 50,
+          width: 44,
           alignment: Alignment.center,
           child: Stack(
             clipBehavior: Clip.none,

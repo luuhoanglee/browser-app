@@ -1,11 +1,33 @@
-
-
-import 'package:browser_app/core/enum/connect_network/connect_network.dart' show DisconnectType;
+import 'package:browser_app/core/enum/connect_network/connect_network.dart'
+    show DisconnectType;
 
 class AppStrings {
-  static String titleMessage = 'Message';
-  static String confirmText = 'Confirm';
-  static String cancelText = 'Cancel';
+  static const String titleMessage = 'Message';
+  static const String confirmText = 'Confirm';
+  static const String cancelText = 'Cancel';
+  static const String savedPages = 'Saved pages';
+  static const String bookmarks = 'Bookmarks';
+  static const String readingList = 'Reading List';
+  static const String saveBookmark = 'Save bookmark';
+  static const String removeBookmark = 'Remove bookmark';
+  static const String addToReadingList = 'Add to Reading List';
+  static const String searchSavedPages = 'Search saved pages';
+  static const String noSavedPages = 'Nothing saved yet';
+  static const String importBookmarks = 'Import HTML';
+  static const String exportBookmarks = 'Export HTML';
+  static const String editSavedPage = 'Edit saved page';
+  static const String title = 'Title';
+  static const String folder = 'Folder';
+  static const String save = 'Save';
+  static const String delete = 'Delete';
+  static const String markRead = 'Mark as read';
+  static const String markUnread = 'Mark as unread';
+  static const String incognitoSaveBlocked =
+      'Saved pages are disabled in Incognito mode.';
+  static const String importOrExport = 'Import or export';
+  static const String allFolders = 'All folders';
+  static const String alreadySaved = 'Already saved';
+  static const String savedPagesExported = 'Saved pages exported.';
 
   static String getDisconnectMessage(DisconnectType type) {
     switch (type) {

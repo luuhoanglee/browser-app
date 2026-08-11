@@ -46,6 +46,10 @@ abstract final class AnalyticsEvent {
   static const String mediaViewed = 'media_viewed';
   static const String mediaDownloaded = 'media_downloaded';
 
+  // ── Saved pages events ─────────────────────────────────
+  static const String bookmarkSaved = 'bookmark_saved';
+  static const String readingListSaved = 'reading_list_saved';
+
   // ── Ad block events ────────────────────────────────────
   static const String adBlocked = 'ad_blocked';
 

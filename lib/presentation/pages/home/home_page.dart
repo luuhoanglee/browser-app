@@ -10,12 +10,17 @@ import 'package:browser_app/core/logger/app_logger.dart';
 import 'package:browser_app/core/logger/analytics_utils.dart';
 import 'package:browser_app/core/utils/url_utils.dart';
 import '../../../data/repositories/tab_repository_impl.dart';
+import '../../../data/repositories/saved_page_repository_impl.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../features/tabs/bloc/tab_bloc.dart';
 import '../../../features/tabs/bloc/tab_event.dart';
 import '../../../features/tabs/bloc/tab_state.dart';
 import '../../../features/quick_access/bloc/quick_access_bloc.dart';
 import '../../../features/quick_access/bloc/quick_access_event.dart';
+import '../../../features/library/bloc/saved_page_bloc.dart';
+import '../../../features/library/bloc/saved_page_event.dart';
+import '../../../features/library/widgets/saved_pages_sheet.dart';
+import '../../../domain/entities/saved_page_entity.dart';
 import 'widgets/history_sheet.dart';
 import 'widgets/bottom_bar_wrapper.dart';
 import 'widgets/mini_url_bar_wrapper.dart';
@@ -49,6 +54,11 @@ class HomePage extends StatelessWidget {
         BlocProvider(create: (context) => SearchBloc()),
         BlocProvider(create: (context) => DownloadBloc()),
         BlocProvider(create: (context) => HomeUiCubit()),
+        BlocProvider(
+          create: (context) =>
+              SavedPageBloc(SavedPageRepositoryImpl())
+                ..add(const SavedPagesLoadEvent()),
+        ),
         BlocProvider(
           create: (context) =>
               QuickAccessBloc()..add(const QuickAccessLoadEvent()),
@@ -569,6 +579,10 @@ class _HomeViewState extends State<HomeView>
                                     onShowMedia: () => _showMediaSheet(context),
                                     onShowWarp: () =>
                                         WarpSupportSheet.show(context),
+                                    onShowSavedPages: () =>
+                                        _showSavedPagesSheet(context),
+                                    onToggleBookmark: () =>
+                                        _toggleBookmark(context, toolbarTab),
                                     isSearching: _isSearching,
                                     isMediaSheetOpen: _isMediaSheetOpen,
                                     searchController: _searchController,
@@ -1114,6 +1128,58 @@ class _HomeViewState extends State<HomeView>
         },
       ),
     ).then((_) => _refreshWebViewForInteraction());
+  }
+
+  void _toggleBookmark(BuildContext context, dynamic tab) {
+    if (tab.url.isEmpty || tab.isIncognito == true) return;
+    final bloc = context.read<SavedPageBloc>();
+    final normalizedUrl = SavedPageBloc.normalizeUrl(tab.url);
+    final existing = bloc.state.items.where(
+      (item) =>
+          item.collection == SavedPageCollection.bookmarks &&
+          SavedPageBloc.normalizeUrl(item.url) == normalizedUrl,
+    );
+    if (existing.isNotEmpty) {
+      bloc.add(SavedPageRemoveEvent(existing.first.id));
+    } else {
+      bloc.add(
+        SavedPageAddEvent(
+          title: tab.title,
+          url: tab.url,
+          collection: SavedPageCollection.bookmarks,
+        ),
+      );
+    }
+  }
+
+  void _showSavedPagesSheet(BuildContext context) {
+    final tabBloc = context.read<TabBloc>();
+    final currentTab = tabBloc.state.focusedTab;
+    if (currentTab == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => BlocProvider.value(
+        value: context.read<SavedPageBloc>(),
+        child: SavedPagesSheet(
+          currentTitle: currentTab.title,
+          currentUrl: currentTab.url,
+          isIncognito: currentTab.isIncognito,
+          onOpen: (url) {
+            _openUrlInTab(currentTab, url);
+            Navigator.pop(sheetContext);
+          },
+        ),
+      ),
+    ).then((_) => _refreshWebViewForInteraction());
+  }
+
+  void _openUrlInTab(dynamic tab, String url) {
+    final bloc = context.read<TabBloc>();
+    _navManager.addUrl(tab.id, url);
+    bloc.add(UpdateTabEvent(tab.copyWith(url: url)));
+    _getController(tab.id)?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
   }
 
   void _showDownloadSheet(BuildContext context) {

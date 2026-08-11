@@ -1,5 +1,20 @@
 # Features
 
+## Bookmarks & Reading List
+
+Handled by `SavedPageBloc` (`lib/features/library/bloc/saved_page_bloc.dart`).
+
+- Save or remove the focused tab directly from the address bar.
+- Manage Bookmarks and Reading List from the Saved Pages sheet.
+- Organize entries with folders and filter by title, URL, collection, or folder.
+- Mark Reading List entries as read/unread.
+- Import and export Netscape-compatible bookmark HTML files; Pardix metadata
+  preserves Reading List, folder, and read state on round trips.
+- Equivalent URLs are deduplicated inside each collection.
+- Saved pages are persisted through `StorageService`; saving is disabled in
+  incognito mode.
+- In split view, opening or saving acts on the focused pane.
+
 ## Tab Management
 
 Handled by `TabBloc` (`lib/features/tabs/bloc/tab_bloc.dart`).
