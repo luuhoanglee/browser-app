@@ -4,6 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:browser_app/core/services/foreground_download_service.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
+import 'package:browser_app/core/resources/app_strings.dart';
+import 'package:browser_app/data/services/download_file_validator.dart';
 
 class DownloadTask {
   final String id;
@@ -56,8 +59,12 @@ class DownloadTask {
       status: status ?? this.status,
       progress: progress ?? this.progress,
       createdAt: createdAt ?? this.createdAt,
-      completedAt: clearErrorMessage != null ? null : completedAt ?? this.completedAt,
-      errorMessage: clearErrorMessage != null ? null : errorMessage ?? this.errorMessage,
+      completedAt: clearErrorMessage != null
+          ? null
+          : completedAt ?? this.completedAt,
+      errorMessage: clearErrorMessage != null
+          ? null
+          : errorMessage ?? this.errorMessage,
     );
   }
 
@@ -122,7 +129,8 @@ class DownloadService {
   final Map<String, CancelToken> _cancelTokens = {};
   final List<DownloadTask> _downloads = [];
   static const String _storageKey = 'downloads_list';
-  final ForegroundDownloadService _foregroundService = ForegroundDownloadService();
+  final ForegroundDownloadService _foregroundService =
+      ForegroundDownloadService();
 
   List<DownloadTask> get downloads => List.unmodifiable(_downloads);
 
@@ -143,7 +151,7 @@ class DownloadService {
         }
       }
     } catch (e) {
-      print('[DOWNLOAD] Failed to load downloads: $e');
+      AppLogger.warning('Download', 'Failed to load downloads', error: e);
     }
   }
 
@@ -158,10 +166,12 @@ class DownloadService {
   Future<void> _saveDownloads() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final downloadsJson = jsonEncode(_downloads.map((t) => t.toJson()).toList());
+      final downloadsJson = jsonEncode(
+        _downloads.map((t) => t.toJson()).toList(),
+      );
       await prefs.setString(_storageKey, downloadsJson);
     } catch (e) {
-      print('[DOWNLOAD] Failed to save downloads: $e');
+      AppLogger.warning('Download', 'Failed to save downloads', error: e);
     }
   }
 
@@ -242,7 +252,9 @@ class DownloadService {
     // is against Google Play policy for a browser's core download feature.
     Directory directory;
     if (Platform.isAndroid) {
-      directory = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+      directory =
+          await getExternalStorageDirectory() ??
+          await getApplicationDocumentsDirectory();
     } else {
       directory = await getApplicationDocumentsDirectory();
     }
@@ -280,10 +292,9 @@ class DownloadService {
     // Follow redirects to get the final URL
     String finalUrl = url;
     String? fileNameFromHeaders;
+    int? expectedContentLength;
 
     try {
-
-
       final response = await _dio.head(
         url,
         options: Options(
@@ -294,10 +305,8 @@ class DownloadService {
         ),
       );
 
-
       // Check if redirected
       final realUri = response.realUri.toString();
-
 
       if (realUri != url && realUri.isNotEmpty) {
         finalUrl = realUri;
@@ -307,7 +316,9 @@ class DownloadService {
       final contentDisposition = response.headers['content-disposition']?.first;
 
       if (contentDisposition != null) {
-        final filenameRegex = RegExp(r'''filename[^;=\n]*=((['"]).*?\2|[^;\n]*)''');
+        final filenameRegex = RegExp(
+          r'''filename[^;=\n]*=((['"]).*?\2|[^;\n]*)''',
+        );
         final matches = filenameRegex.allMatches(contentDisposition);
         if (matches.isNotEmpty) {
           var match = matches.first.group(1);
@@ -321,14 +332,29 @@ class DownloadService {
 
       // Check content type
       final contentType = response.headers['content-type']?.first;
+      expectedContentLength = int.tryParse(
+        response.headers['content-length']?.first ?? '',
+      );
+      if (customFileName == null &&
+          fileNameFromHeaders == null &&
+          contentType != null) {
+        final inferredExtension = _extensionForContentType(contentType);
+        final urlName = _extractFileNameFromUrl(finalUrl);
+        if (_extractFileExtension(urlName).isEmpty &&
+            inferredExtension.isNotEmpty) {
+          fileNameFromHeaders = 'download_$_generateId()$inferredExtension';
+        }
+      }
     } catch (e) {
-      print('[DOWNLOAD] HEAD request failed: $e');
-      print('[DOWNLOAD] Error type: ${e.runtimeType}');
+      AppLogger.warning('Download', 'HEAD request failed', error: e);
       // Continue with original URL
     }
 
     // Determine filename and sanitize it
-    String fileName = customFileName ?? fileNameFromHeaders ?? _extractFileNameFromUrl(finalUrl);
+    String fileName =
+        customFileName ??
+        fileNameFromHeaders ??
+        _extractFileNameFromUrl(finalUrl);
     fileName = _sanitizeFileName(fileName);
 
     final downloadDir = await _getDownloadDirectory();
@@ -344,6 +370,18 @@ class DownloadService {
 
     _addDownload(task);
     onStatusChange?.call(task);
+
+    if (DownloadFileValidator.isHlsUrl(finalUrl)) {
+      final failedTask = task.copyWith(
+        status: DownloadStatus.failed,
+        errorMessage: AppStrings.hlsOfflineUnsupported,
+      );
+      final taskIndex = _downloads.indexWhere((item) => item.id == id);
+      _updateDownload(taskIndex, failedTask);
+      onStatusChange?.call(failedTask);
+      return failedTask;
+    }
+
     await _foregroundService.initialize();
     await _foregroundService.startForegroundService();
 
@@ -351,18 +389,21 @@ class DownloadService {
     _cancelTokens[id] = cancelToken;
 
     try {
+      final partialPath = '$filePath.part';
+      final partialFile = File(partialPath);
+      if (await partialFile.exists()) {
+        await partialFile.delete();
+      }
       await _dio.download(
         finalUrl,
-        filePath,
+        partialPath,
         cancelToken: cancelToken,
         options: Options(
           followRedirects: true,
           maxRedirects: 5,
           receiveTimeout: const Duration(minutes: 5),
           sendTimeout: const Duration(minutes: 5),
-          headers: {
-            'Connection': 'keep-alive',
-          },
+          headers: {'Connection': 'keep-alive'},
         ),
         onReceiveProgress: (received, total) {
           if (total > 0) {
@@ -384,20 +425,32 @@ class DownloadService {
               _downloads[index] = updatedTask;
               onProgress?.call(received, total);
               onStatusChange?.call(updatedTask);
-
-              final percentage = (progress * 100).toInt();
             }
           } else {
-            print('[DOWNLOAD] Received: ${_formatBytes(received)} (total unknown)');
+            AppLogger.verbose(
+              'Download',
+              'Received $received bytes; total size is unknown',
+            );
           }
         },
       );
 
       final index = _downloads.indexWhere((t) => t.id == id);
       if (index != -1) {
+        final actualBytes = await partialFile.length();
+        final knownTotal = _downloads[index].totalBytes > 0
+            ? _downloads[index].totalBytes
+            : expectedContentLength;
+        DownloadFileValidator.verifyLength(
+          actual: actualBytes,
+          expected: knownTotal,
+        );
+        await partialFile.rename(filePath);
         final completedTask = _downloads[index].copyWith(
           status: DownloadStatus.completed,
           progress: 1.0,
+          totalBytes: actualBytes,
+          downloadedBytes: actualBytes,
           completedAt: DateTime.now(),
         );
         _updateDownload(index, completedTask);
@@ -405,8 +458,12 @@ class DownloadService {
       }
     } catch (e) {
       if (_isCancelError(e)) {
-        final index = _downloads.indexWhere((t) => t.id == id);
+        AppLogger.info('Download', 'Download paused or cancelled');
       } else {
+        final partialFile = File('$filePath.part');
+        if (await partialFile.exists()) {
+          await partialFile.delete();
+        }
         final index = _downloads.indexWhere((t) => t.id == id);
         if (index != -1) {
           final failedTask = _downloads[index].copyWith(
@@ -425,6 +482,23 @@ class DownloadService {
     return _downloads.firstWhere((t) => t.id == id);
   }
 
+  String _extensionForContentType(String contentType) {
+    final normalized = contentType.split(';').first.trim().toLowerCase();
+    const extensions = <String, String>{
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/webp': '.webp',
+      'image/svg+xml': '.svg',
+      'video/mp4': '.mp4',
+      'video/webm': '.webm',
+      'audio/mpeg': '.mp3',
+      'audio/mp4': '.m4a',
+      'application/pdf': '.pdf',
+    };
+    return extensions[normalized] ?? '';
+  }
+
   bool _isCancelError(dynamic error) {
     if (error is DioException) {
       return error.type == DioExceptionType.cancel;
@@ -433,22 +507,10 @@ class DownloadService {
         error.toString().contains('canceled');
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
-
   void pauseDownload(String id) {
-  
     final index = _downloads.indexWhere((t) => t.id == id);
 
     if (index != -1) {
-      final task = _downloads[index];
-
       _cancelTokens[id]?.cancel();
 
       final pausedTask = _downloads[index].copyWith(
@@ -456,7 +518,7 @@ class DownloadService {
       );
       _updateDownload(index, pausedTask);
     } else {
-      print('[SERVICE] Task not found with ID: $id');
+      AppLogger.warning('Download', 'Pause ignored: task $id was not found');
     }
   }
 
@@ -472,9 +534,7 @@ class DownloadService {
     if (task.status != DownloadStatus.paused) return null;
 
     // Update to pending first
-    final pendingTask = task.copyWith(
-      status: DownloadStatus.pending,
-    );
+    final pendingTask = task.copyWith(status: DownloadStatus.pending);
     _updateDownload(index, pendingTask);
     onStatusChange?.call(pendingTask);
     await _foregroundService.initialize();
@@ -484,18 +544,21 @@ class DownloadService {
     _cancelTokens[id] = cancelToken;
 
     try {
+      final partialPath = '${task.filePath}.part';
+      final partialFile = File(partialPath);
+      if (await partialFile.exists()) {
+        await partialFile.delete();
+      }
       await _dio.download(
         task.url,
-        task.filePath,
+        partialPath,
         cancelToken: cancelToken,
         options: Options(
           followRedirects: true,
           maxRedirects: 5,
           receiveTimeout: const Duration(minutes: 5),
           sendTimeout: const Duration(minutes: 5),
-          headers: {
-            'Connection': 'keep-alive',
-          },
+          headers: {'Connection': 'keep-alive'},
         ),
         onReceiveProgress: (received, total) {
           if (total > 0) {
@@ -526,20 +589,35 @@ class DownloadService {
       // Completed
       final completedIndex = _downloads.indexWhere((t) => t.id == id);
       if (completedIndex != -1) {
+        final actualBytes = await partialFile.length();
+        final knownTotal = _downloads[completedIndex].totalBytes;
+        DownloadFileValidator.verifyLength(
+          actual: actualBytes,
+          expected: knownTotal > 0 ? knownTotal : null,
+        );
+        final destination = File(task.filePath);
+        if (await destination.exists()) {
+          await destination.delete();
+        }
+        await partialFile.rename(task.filePath);
         final completedTask = _downloads[completedIndex].copyWith(
           status: DownloadStatus.completed,
           progress: 1.0,
+          totalBytes: actualBytes,
+          downloadedBytes: actualBytes,
           completedAt: DateTime.now(),
         );
         _updateDownload(completedIndex, completedTask);
         onStatusChange?.call(completedTask);
       }
     } catch (e) {
-
-
       if (_isCancelError(e)) {
-        print('[DOWNLOAD] Resume cancelled by user');
+        AppLogger.info('Download', 'Resume cancelled by user');
       } else {
+        final partialFile = File('${task.filePath}.part');
+        if (await partialFile.exists()) {
+          await partialFile.delete();
+        }
         final failedIndex = _downloads.indexWhere((t) => t.id == id);
         if (failedIndex != -1) {
           final failedTask = _downloads[failedIndex].copyWith(
@@ -572,6 +650,10 @@ class DownloadService {
           if (file.existsSync()) {
             file.deleteSync();
           }
+          final partialFile = File('${task.filePath}.part');
+          if (partialFile.existsSync()) {
+            partialFile.deleteSync();
+          }
         }
       } catch (_) {}
 
@@ -587,6 +669,10 @@ class DownloadService {
         final file = File(task.filePath);
         if (file.existsSync()) {
           file.deleteSync();
+        }
+        final partialFile = File('${task.filePath}.part');
+        if (partialFile.existsSync()) {
+          partialFile.deleteSync();
         }
       } catch (_) {}
       _removeDownload(index);
@@ -625,9 +711,11 @@ class DownloadService {
 
   List<DownloadTask> getActiveDownloads() {
     return _downloads
-        .where((t) =>
-            t.status == DownloadStatus.downloading ||
-            t.status == DownloadStatus.pending)
+        .where(
+          (t) =>
+              t.status == DownloadStatus.downloading ||
+              t.status == DownloadStatus.pending,
+        )
         .toList();
   }
 
@@ -665,4 +753,3 @@ class DownloadService {
     }
   }
 }
-

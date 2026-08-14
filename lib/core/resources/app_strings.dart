@@ -39,6 +39,9 @@ class AppStrings {
   static const String copyLink = 'Copy link';
   static const String openExternally = 'Open in another app';
   static const String linkCopied = 'Link copied.';
+  static const String downloadQueued = 'Download added to the queue.';
+  static const String hlsOfflineUnsupported =
+      'Offline HLS download is not supported for this stream yet.';
 
   static String getDisconnectMessage(DisconnectType type) {
     switch (type) {

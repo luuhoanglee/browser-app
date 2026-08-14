@@ -65,6 +65,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     DownloadStartEvent event,
     Emitter<DownloadState> emit,
   ) async {
+    String? taskId;
     AppLogger.event(
       AnalyticsEvent.downloadStarted,
       params: {
@@ -79,19 +80,12 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
         event.url,
         customFileName: event.customFileName,
         onProgress: (downloaded, total) {
-          // Get latest task ID
-          final currentDownloads = _downloadService.downloads;
-          if (currentDownloads.isNotEmpty) {
-            add(
-              DownloadProgressEvent(
-                currentDownloads.last.id,
-                downloaded,
-                total,
-              ),
-            );
+          if (taskId != null) {
+            add(DownloadProgressEvent(taskId!, downloaded, total));
           }
         },
         onStatusChange: (updatedTask) {
+          taskId ??= updatedTask.id;
           add(DownloadUpdateEvent(updatedTask));
         },
       ),
@@ -102,17 +96,21 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     DownloadPauseEvent event,
     Emitter<DownloadState> emit,
   ) async {
-    print('[BLOC] Pause requested for ID: ${event.id}');
+    AppLogger.debug('DownloadBloc', 'Pause requested for ${event.id}');
     _downloadService.pauseDownload(event.id);
     AppLogger.event(AnalyticsEvent.downloadPaused);
-    print(
-      '[BLOC] Pause completed, current downloads in service: ${_downloadService.downloads.length}',
+    AppLogger.debug(
+      'DownloadBloc',
+      'Pause completed; ${_downloadService.downloads.length} downloads remain',
     );
     // Emit updated state from service
     final updatedDownloads = List<DownloadTask>.from(
       _downloadService.downloads,
     );
-    print('[BLOC] Emitting state with ${updatedDownloads.length} downloads');
+    AppLogger.debug(
+      'DownloadBloc',
+      'Emitting ${updatedDownloads.length} downloads',
+    );
     emit(state.copyWith(downloads: updatedDownloads));
   }
 
@@ -361,7 +359,10 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
 
       // Show batch completion notification
       if (total > 0) {
-        print('[BATCH] Complete: $completed/$total succeeded, $failed failed');
+        AppLogger.info(
+          'DownloadBloc',
+          'Batch complete: $completed/$total succeeded, $failed failed',
+        );
         _notificationService.onBatchDownloadComplete(
           total: total,
           completed: completed,
