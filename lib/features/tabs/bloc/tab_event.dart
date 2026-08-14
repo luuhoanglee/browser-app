@@ -38,6 +38,8 @@ class ClearLoadedResourcesEvent extends TabEvent {
   ClearLoadedResourcesEvent(this.tabId);
 }
 
+class ResetNormalSessionEvent extends TabEvent {}
+
 class ToggleIncognitoModeEvent extends TabEvent {}
 
 class EnableSplitViewEvent extends TabEvent {

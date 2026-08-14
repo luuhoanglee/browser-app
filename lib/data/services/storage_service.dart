@@ -13,6 +13,7 @@ class StorageService {
   static const String _searchHistoryKey = 'search_history';
   static const String _quickAccessKey = 'quick_access_sites';
   static const String _savedPagesKey = 'saved_pages';
+  static const String _sessionOpenKey = 'browser_session_open';
   static const int _maxHistorySize = 100; // Giới hạn 100 mục lịch sử
 
   // Debounce timers to avoid excessive disk writes
@@ -25,10 +26,15 @@ class StorageService {
   // Rate limiting: track last save time to avoid too frequent writes
   static DateTime? _lastTabsSaveTime;
   static DateTime? _lastHistorySaveTime;
-  static const Duration _minSaveInterval = Duration(seconds: 2); // Minimum 2s between saves
+  static const Duration _minSaveInterval = Duration(
+    seconds: 2,
+  ); // Minimum 2s between saves
 
   // Save tabs to cache (debounced to avoid blocking UI)
-  static Future<void> saveTabs(List<TabEntity> tabs, String? activeTabId) async {
+  static Future<void> saveTabs(
+    List<TabEntity> tabs,
+    String? activeTabId,
+  ) async {
     // Rate limiting: skip if saved recently (within 2 seconds)
     final now = DateTime.now();
     if (_lastTabsSaveTime != null &&
@@ -52,14 +58,21 @@ class StorageService {
         final prefs = await SharedPreferences.getInstance();
 
         // Convert tabs to JSON (off-main-thread via Timer)
-        final List<Map<String, dynamic>> tabsJson = _pendingTabs!.where((tab) => !tab.isIncognito).map((tab) => {
-          'id': tab.id,
-          'url': tab.url,
-          'title': tab.title,
-          'index': tab.index,
-          'isLoading': tab.isLoading,
-          'thumbnail': tab.thumbnail != null ? base64Encode(tab.thumbnail!) : null,
-        }).toList();
+        final List<Map<String, dynamic>> tabsJson = _pendingTabs!
+            .where((tab) => !tab.isIncognito)
+            .map(
+              (tab) => {
+                'id': tab.id,
+                'url': tab.url,
+                'title': tab.title,
+                'index': tab.index,
+                'isLoading': tab.isLoading,
+                'thumbnail': tab.thumbnail != null
+                    ? base64Encode(tab.thumbnail!)
+                    : null,
+              },
+            )
+            .toList();
 
         await prefs.setString(_tabsKey, jsonEncode(tabsJson));
 
@@ -77,6 +90,59 @@ class StorageService {
     });
   }
 
+  /// Writes a complete normal-mode session snapshot immediately. A single
+  /// JSON value avoids a partially-written tab list after process death.
+  static Future<void> checkpointSession(
+    List<TabEntity> tabs,
+    String? activeTabId,
+  ) async {
+    _tabsSaveDebounce?.cancel();
+    final normalTabs = tabs.where((tab) => !tab.isIncognito).toList();
+    final snapshot = <String, dynamic>{
+      'version': 1,
+      'savedAt': DateTime.now().toUtc().toIso8601String(),
+      'activeTabId': normalTabs.any((tab) => tab.id == activeTabId)
+          ? activeTabId
+          : (normalTabs.isEmpty ? null : normalTabs.first.id),
+      'tabs': normalTabs.map(_tabToJson).toList(),
+    };
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tabsKey, jsonEncode(snapshot));
+    final checkpointActiveId = snapshot['activeTabId'] as String?;
+    if (checkpointActiveId == null) {
+      await prefs.remove(_activeTabKey);
+    } else {
+      await prefs.setString(_activeTabKey, checkpointActiveId);
+    }
+    _pendingTabs = null;
+    _pendingActiveTabId = null;
+    _lastTabsSaveTime = DateTime.now();
+  }
+
+  static Map<String, dynamic> _tabToJson(TabEntity tab) => {
+    'id': tab.id,
+    'url': tab.url,
+    'title': tab.title,
+    'index': tab.index,
+    'isLoading': false,
+    'thumbnail': tab.thumbnail != null ? base64Encode(tab.thumbnail!) : null,
+  };
+
+  static Future<bool> wasLastSessionInterrupted() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_sessionOpenKey) ?? false;
+  }
+
+  static Future<void> markSessionStarted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_sessionOpenKey, true);
+  }
+
+  static Future<void> markSessionCleanExit() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_sessionOpenKey, false);
+  }
+
   // Load tabs from cache
   static Future<List<TabEntity>> loadTabs() async {
     try {
@@ -88,16 +154,25 @@ class StorageService {
         return [];
       }
 
-      final List<dynamic> decoded = jsonDecode(tabsJson);
-      final tabs = decoded.map((item) => TabEntity(
-        id: item['id'],
-        url: item['url'],
-        title: item['title'],
-        index: item['index'],
-        isLoading: item['isLoading'] ?? false,
-        thumbnail: item['thumbnail'] != null ? base64Decode(item['thumbnail']) : null,
-        isIncognito: item['isIncognito'] ?? false,
-      )).toList();
+      final decodedValue = jsonDecode(tabsJson);
+      final List<dynamic> decoded = decodedValue is Map<String, dynamic>
+          ? (decodedValue['tabs'] as List<dynamic>? ?? const [])
+          : decodedValue as List<dynamic>;
+      final tabs = decoded
+          .map(
+            (item) => TabEntity(
+              id: item['id'],
+              url: item['url'],
+              title: item['title'],
+              index: item['index'],
+              isLoading: item['isLoading'] ?? false,
+              thumbnail: item['thumbnail'] != null
+                  ? base64Decode(item['thumbnail'])
+                  : null,
+              isIncognito: item['isIncognito'] ?? false,
+            ),
+          )
+          .toList();
 
       print('✅ Loaded ${tabs.length} tabs from cache');
       return tabs;
@@ -281,9 +356,9 @@ class StorageService {
       if (decoded is! List) return [];
       return decoded
           .whereType<Map>()
-          .map((item) => SavedPageEntity.fromJson(
-                Map<String, dynamic>.from(item),
-              ))
+          .map(
+            (item) => SavedPageEntity.fromJson(Map<String, dynamic>.from(item)),
+          )
           .toList();
     } catch (error, stackTrace) {
       AppLogger.error(

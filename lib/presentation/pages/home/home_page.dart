@@ -20,6 +20,8 @@ import '../../../features/quick_access/bloc/quick_access_event.dart';
 import '../../../features/library/bloc/saved_page_bloc.dart';
 import '../../../features/library/bloc/saved_page_event.dart';
 import '../../../features/library/widgets/saved_pages_sheet.dart';
+import '../../../features/page_tools/bloc/page_tools_cubit.dart';
+import '../../../features/page_tools/widgets/page_tools_sheet.dart';
 import '../../../domain/entities/saved_page_entity.dart';
 import 'widgets/history_sheet.dart';
 import 'widgets/bottom_bar_wrapper.dart';
@@ -54,6 +56,7 @@ class HomePage extends StatelessWidget {
         BlocProvider(create: (context) => SearchBloc()),
         BlocProvider(create: (context) => DownloadBloc()),
         BlocProvider(create: (context) => HomeUiCubit()),
+        BlocProvider(create: (context) => PageToolsCubit()),
         BlocProvider(
           create: (context) =>
               SavedPageBloc(SavedPageRepositoryImpl())
@@ -101,7 +104,7 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView>
-    with AutomaticKeepAliveClientMixin, StatusBarMixin {
+    with AutomaticKeepAliveClientMixin, StatusBarMixin, WidgetsBindingObserver {
   final Map<String, InAppWebViewController> _controllers = {};
   final Map<String, GlobalKey> _emptyPageKeys = {};
   final Map<String, GlobalKey> _webViewKeys = {};
@@ -118,6 +121,7 @@ class _HomeViewState extends State<HomeView>
   // a single shared controller would only ever refresh the primary pane.
   final Map<String, PullToRefreshController> _pullToRefreshControllers = {};
   bool _isMediaSheetOpen = false;
+  static const int _maxResidentWebViews = 3;
 
   @override
   bool get wantKeepAlive => true;
@@ -166,6 +170,8 @@ class _HomeViewState extends State<HomeView>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeSessionRecovery();
     _loadHistory();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -205,11 +211,62 @@ class _HomeViewState extends State<HomeView>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollDebounce?.cancel();
     _progressDebounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initializeSessionRecovery() async {
+    final interrupted = await StorageService.wasLastSessionInterrupted();
+    await StorageService.markSessionStarted();
+    if (!interrupted || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Tabs restored after an unexpected exit.'),
+          action: SnackBarAction(
+            label: 'Start fresh',
+            onPressed: () {
+              context.read<TabBloc>().add(ResetNormalSessionEvent());
+            },
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      final tabState = context.read<TabBloc>().state;
+      unawaited(
+        StorageService.checkpointSession(tabState.tabs, tabState.activeTab?.id),
+      );
+    }
+    if (state == AppLifecycleState.detached) {
+      unawaited(StorageService.markSessionCleanExit());
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    final tabState = context.read<TabBloc>().state;
+    final visibleIds = <String?>{
+      tabState.activeTab?.id,
+      if (tabState.isSplitViewEnabled) tabState.splitSecondaryTabId,
+    };
+    for (final tab in tabState.tabs) {
+      if (!visibleIds.contains(tab.id) && tab.loadedResources.isNotEmpty) {
+        context.read<TabBloc>().add(ClearLoadedResourcesEvent(tab.id));
+      }
+    }
+    AppLogger.info('HomePage', 'Trimmed background tab resources');
   }
 
   Future<void> _loadHistory() async {
@@ -545,80 +602,92 @@ class _HomeViewState extends State<HomeView>
                       previous.isToolbarVisible != current.isToolbarVisible,
                   builder: (context, homeUiState) {
                     final isToolbarVisible = homeUiState.isToolbarVisible;
-                    return AnimatedSwitcher(
+                    return AnimatedSize(
                       duration: const Duration(milliseconds: 260),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        final slide = Tween<Offset>(
-                          begin: const Offset(0, 0.08),
-                          end: Offset.zero,
-                        ).animate(animation);
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(position: slide, child: child),
-                        );
-                      },
-                      child: isToolbarVisible
-                          ? Column(
-                              key: const ValueKey('toolbar_visible'),
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ProgressBarWrapper(activeTabId: toolbarTabId),
-                                RepaintBoundary(
-                                  child: BottomBarWrapper(
-                                    activeTabId: toolbarTabId,
-                                    controller: _getController(toolbarTabId),
-                                    onShowTabs: () => _showTabsSheet(context),
-                                    onAddressBarTap: () =>
-                                        _showSearchPage(context),
-                                    onShowHistory: () =>
-                                        _showHistorySheet(context),
-                                    onShowDownload: () =>
-                                        _showDownloadSheet(context),
-                                    onShowMedia: () => _showMediaSheet(context),
-                                    onShowWarp: () =>
-                                        WarpSupportSheet.show(context),
-                                    onShowSavedPages: () =>
-                                        _showSavedPagesSheet(context),
-                                    onToggleBookmark: () =>
-                                        _toggleBookmark(context, toolbarTab),
-                                    isSearching: _isSearching,
-                                    isMediaSheetOpen: _isMediaSheetOpen,
-                                    searchController: _searchController,
-                                    searchFocusNode: _searchFocusNode,
-                                    onSearch: (query) {
-                                      _searchController.text = query;
-                                      context.read<SearchBloc>().add(
-                                        PerformSearchEvent(query),
-                                      );
-                                      final bloc = context.read<TabBloc>();
-                                      final currentTab = bloc.state.focusedTab;
-                                      if (currentTab != null) {
-                                        _performSearch(currentTab);
-                                      }
-                                    },
-                                    onBack: () => _handleNavigation(
-                                      context,
-                                      toolbarTabId,
-                                      false,
-                                    ),
-                                    onForward: () => _handleNavigation(
-                                      context,
-                                      toolbarTabId,
-                                      true,
-                                    ),
-                                    canGoBack: () =>
-                                        _canNavigateBack(toolbarTabId),
-                                    canGoForward: () =>
-                                        _canNavigateForward(toolbarTabId),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : const SizedBox.shrink(
-                              key: ValueKey('toolbar_hidden_placeholder'),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.bottomCenter,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          final slide = Tween<Offset>(
+                            begin: const Offset(0, 0.08),
+                            end: Offset.zero,
+                          ).animate(animation);
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: slide,
+                              child: child,
                             ),
+                          );
+                        },
+                        child: isToolbarVisible
+                            ? Column(
+                                key: const ValueKey('toolbar_visible'),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ProgressBarWrapper(activeTabId: toolbarTabId),
+                                  RepaintBoundary(
+                                    child: BottomBarWrapper(
+                                      activeTabId: toolbarTabId,
+                                      controller: _getController(toolbarTabId),
+                                      onShowTabs: () => _showTabsSheet(context),
+                                      onAddressBarTap: () =>
+                                          _showSearchPage(context),
+                                      onShowHistory: () =>
+                                          _showHistorySheet(context),
+                                      onShowDownload: () =>
+                                          _showDownloadSheet(context),
+                                      onShowMedia: () =>
+                                          _showMediaSheet(context),
+                                      onShowWarp: () =>
+                                          WarpSupportSheet.show(context),
+                                      onShowSavedPages: () =>
+                                          _showSavedPagesSheet(context),
+                                      onShowPageTools: () =>
+                                          _showPageToolsSheet(context),
+                                      onToggleBookmark: () =>
+                                          _toggleBookmark(context, toolbarTab),
+                                      isSearching: _isSearching,
+                                      isMediaSheetOpen: _isMediaSheetOpen,
+                                      searchController: _searchController,
+                                      searchFocusNode: _searchFocusNode,
+                                      onSearch: (query) {
+                                        _searchController.text = query;
+                                        context.read<SearchBloc>().add(
+                                          PerformSearchEvent(query),
+                                        );
+                                        final bloc = context.read<TabBloc>();
+                                        final currentTab =
+                                            bloc.state.focusedTab;
+                                        if (currentTab != null) {
+                                          _performSearch(currentTab);
+                                        }
+                                      },
+                                      onBack: () => _handleNavigation(
+                                        context,
+                                        toolbarTabId,
+                                        false,
+                                      ),
+                                      onForward: () => _handleNavigation(
+                                        context,
+                                        toolbarTabId,
+                                        true,
+                                      ),
+                                      canGoBack: () =>
+                                          _canNavigateBack(toolbarTabId),
+                                      canGoForward: () =>
+                                          _canNavigateForward(toolbarTabId),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : const SizedBox.shrink(
+                                key: ValueKey('toolbar_hidden_placeholder'),
+                              ),
+                      ),
                     );
                   },
                 ),
@@ -646,8 +715,12 @@ class _HomeViewState extends State<HomeView>
       return _buildSplitPageContent(context, activeTab, secondaryTab, tabState);
     }
 
+    final residentIds = _residentTabIds(tabState, activeTab.id);
     return Stack(
       children: tabState.tabs.map((tab) {
+        if (!residentIds.contains(tab.id)) {
+          return SizedBox.shrink(key: ValueKey('evicted_${tab.id}'));
+        }
         return Offstage(
           offstage: tab.id != activeTab.id,
           child: _buildTabPane(
@@ -667,8 +740,18 @@ class _HomeViewState extends State<HomeView>
     dynamic secondaryTab,
     TabState tabState,
   ) {
+    final residentIds = _residentTabIds(
+      tabState,
+      activeTab.id,
+      secondaryTabId: secondaryTab.id,
+    );
     final hiddenTabs = tabState.tabs
-        .where((tab) => tab.id != activeTab.id && tab.id != secondaryTab.id)
+        .where(
+          (tab) =>
+              tab.id != activeTab.id &&
+              tab.id != secondaryTab.id &&
+              residentIds.contains(tab.id),
+        )
         .map(
           (tab) => Offstage(
             offstage: true,
@@ -718,6 +801,32 @@ class _HomeViewState extends State<HomeView>
         return Stack(children: [...hiddenTabs, splitLayout]);
       },
     );
+  }
+
+  /// Keeps visible panes plus the most recently used background tabs alive.
+  /// Older WebViews are removed from the tree; their lightweight tab entity
+  /// (URL, title and thumbnail) remains and recreates the page when selected.
+  Set<String> _residentTabIds(
+    TabState state,
+    String activeTabId, {
+    String? secondaryTabId,
+  }) {
+    final visible = <String>{
+      activeTabId,
+      if (secondaryTabId != null) secondaryTabId,
+    };
+    final candidates =
+        state.tabs.where((tab) => !visible.contains(tab.id)).toList()
+          ..sort((a, b) {
+            final aTime =
+                a.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime =
+                b.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bTime.compareTo(aTime);
+          });
+    final remaining = (_maxResidentWebViews - visible.length).clamp(0, 2);
+    visible.addAll(candidates.take(remaining).map((tab) => tab.id));
+    return visible;
   }
 
   /// One split pane. The focused pane is the one the bottom bar drives, so it
@@ -874,7 +983,17 @@ class _HomeViewState extends State<HomeView>
       // Each pane gets its own controller so pull-to-refresh reloads the page
       // it was performed on, not whichever tab happens to be active.
       pullToRefreshController: _getPullToRefreshController(tab.id),
-      onWebViewCreated: (controller) => _setController(tab.id, controller),
+      onWebViewCreated: (controller) async {
+        _setController(tab.id, controller);
+        await controller.setSettings(
+          settings: InAppWebViewSettings(
+            preferredContentMode: tab.desktopMode
+                ? UserPreferredContentMode.DESKTOP
+                : UserPreferredContentMode.RECOMMENDED,
+            textZoom: tab.textZoom,
+          ),
+        );
+      },
       onUpdateVisitedHistory: (controller, url, isReload) {
         final bloc = context.read<TabBloc>();
         final currentTab = bloc.state.tabs.firstWhere(
@@ -1022,12 +1141,83 @@ class _HomeViewState extends State<HomeView>
         if (!isFocused) return;
         _handleScrollChange(y);
       },
+      onFindResultReceived: (activeMatch, matchCount) {
+        context.read<PageToolsCubit>().updateFindResult(
+          tab.id,
+          activeMatch,
+          matchCount,
+        );
+      },
       onSwipeBack: () => _handleNavigation(context, tab.id, false),
       onSwipeForward: () => _handleNavigation(context, tab.id, true),
     );
   }
 
   // ── Sheet helpers ────────────────────────────────────────────────────────────
+
+  void _showPageToolsSheet(BuildContext context) {
+    final tabBloc = context.read<TabBloc>();
+    final tab = tabBloc.state.focusedTab;
+    final controller = _getController(tab?.id);
+    if (tab == null || controller == null || tab.url.isEmpty) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => BlocProvider.value(
+        value: context.read<PageToolsCubit>(),
+        child: PageToolsSheet(
+          tab: tab,
+          controller: controller,
+          onDesktopModeChanged: (enabled) async {
+            final current = tabBloc.state.tabs.firstWhere(
+              (item) => item.id == tab.id,
+              orElse: () => tab,
+            );
+            tabBloc.add(
+              UpdateTabEvent(
+                current.copyWith(desktopMode: enabled),
+                forceUpdate: true,
+                skipCache: true,
+              ),
+            );
+            await controller.setSettings(
+              settings: InAppWebViewSettings(
+                preferredContentMode: enabled
+                    ? UserPreferredContentMode.DESKTOP
+                    : UserPreferredContentMode.RECOMMENDED,
+                textZoom: current.textZoom,
+              ),
+            );
+            await controller.reload();
+            if (sheetContext.mounted) Navigator.pop(sheetContext);
+          },
+          onTextZoomChanged: (zoom) async {
+            final current = tabBloc.state.tabs.firstWhere(
+              (item) => item.id == tab.id,
+              orElse: () => tab,
+            );
+            tabBloc.add(
+              UpdateTabEvent(
+                current.copyWith(textZoom: zoom),
+                forceUpdate: true,
+                skipCache: true,
+              ),
+            );
+            await controller.setSettings(
+              settings: InAppWebViewSettings(
+                preferredContentMode: current.desktopMode
+                    ? UserPreferredContentMode.DESKTOP
+                    : UserPreferredContentMode.RECOMMENDED,
+                textZoom: zoom,
+              ),
+            );
+          },
+        ),
+      ),
+    ).then((_) => _refreshWebViewForInteraction());
+  }
 
   void _showTabsSheet(BuildContext context) {
     if (_isSearching) {

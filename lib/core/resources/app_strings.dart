@@ -28,6 +28,17 @@ class AppStrings {
   static const String allFolders = 'All folders';
   static const String alreadySaved = 'Already saved';
   static const String savedPagesExported = 'Saved pages exported.';
+  static const String pageTools = 'Page tools';
+  static const String findInPage = 'Find in page';
+  static const String previousMatch = 'Previous match';
+  static const String nextMatch = 'Next match';
+  static const String desktopSite = 'Desktop site';
+  static const String textZoom = 'Text zoom';
+  static const String reset = 'Reset';
+  static const String sharePage = 'Share page';
+  static const String copyLink = 'Copy link';
+  static const String openExternally = 'Open in another app';
+  static const String linkCopied = 'Link copied.';
 
   static String getDisconnectMessage(DisconnectType type) {
     switch (type) {

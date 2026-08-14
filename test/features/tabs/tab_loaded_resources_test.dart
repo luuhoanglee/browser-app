@@ -56,4 +56,34 @@ void main() {
       isEmpty,
     );
   });
+
+  test('loaded resources are deduplicated and capped per tab', () async {
+    final bloc = await newBloc();
+    addTearDown(bloc.close);
+    final tabId = bloc.state.activeTab!.id;
+
+    for (var index = 0; index < TabBloc.maxLoadedResourcesPerTab + 5; index++) {
+      bloc.add(
+        AddLoadedResourceEvent(
+          tabId,
+          LoadedResource(url: WebUri('https://cdn.example.com/$index.mp4')),
+        ),
+      );
+    }
+    bloc.add(
+      AddLoadedResourceEvent(
+        tabId,
+        LoadedResource(url: WebUri('https://cdn.example.com/204.mp4')),
+      ),
+    );
+    await settle();
+
+    final resources = bloc.state.activeTab!.loadedResources;
+    expect(resources, hasLength(TabBloc.maxLoadedResourcesPerTab));
+    expect(resources.first.url.toString(), endsWith('/5.mp4'));
+    expect(
+      resources.where((item) => item.url.toString().endsWith('/204.mp4')),
+      hasLength(1),
+    );
+  });
 }

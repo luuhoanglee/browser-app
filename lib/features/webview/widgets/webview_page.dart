@@ -43,6 +43,8 @@ class WebViewPage extends StatefulWidget {
   final Function(InAppWebViewController, String?) onTitleChanged;
   final Function(InAppWebViewController, int) onProgressChanged;
   final Function(int) onScrollChanged;
+  final void Function(int activeMatchOrdinal, int numberOfMatches)?
+  onFindResultReceived;
   final Function(String)? onUrlUpdated;
   final Function(InAppWebViewController, WebUri?, bool?)?
   onUpdateVisitedHistory;
@@ -64,6 +66,7 @@ class WebViewPage extends StatefulWidget {
     required this.onTitleChanged,
     required this.onProgressChanged,
     required this.onScrollChanged,
+    this.onFindResultReceived,
     this.onUrlUpdated,
     this.onSwipeBack,
     this.onSwipeForward,
@@ -1433,6 +1436,20 @@ class _WebViewPageState extends State<WebViewPage>
                               widget.onProgressChanged(controller, progress),
                           onScrollChanged: (controller, x, y) =>
                               widget.onScrollChanged(y),
+                          onFindResultReceived:
+                              (
+                                controller,
+                                activeMatchOrdinal,
+                                numberOfMatches,
+                                isDoneCounting,
+                              ) {
+                                if (isDoneCounting) {
+                                  widget.onFindResultReceived?.call(
+                                    activeMatchOrdinal,
+                                    numberOfMatches,
+                                  );
+                                }
+                              },
                           shouldInterceptRequest: _shouldInterceptRequest,
                           shouldInterceptAjaxRequest:
                               _shouldInterceptAjaxRequest,

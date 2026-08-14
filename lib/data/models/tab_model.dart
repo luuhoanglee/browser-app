@@ -11,6 +11,8 @@ class TabModel extends TabEntity {
     super.loadProgress = 0,
     super.lastAccessedAt,
     super.isIncognito = false,
+    super.desktopMode = false,
+    super.textZoom = 100,
   });
 
   factory TabModel.fromEntity(TabEntity entity) {
@@ -24,6 +26,8 @@ class TabModel extends TabEntity {
       loadProgress: entity.loadProgress,
       lastAccessedAt: entity.lastAccessedAt,
       isIncognito: entity.isIncognito,
+      desktopMode: entity.desktopMode,
+      textZoom: entity.textZoom,
     );
   }
 

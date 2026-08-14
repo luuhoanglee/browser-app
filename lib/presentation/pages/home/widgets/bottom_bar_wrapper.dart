@@ -20,6 +20,7 @@ class BottomBarWrapper extends StatelessWidget {
   final VoidCallback onShowMedia;
   final VoidCallback onShowWarp;
   final VoidCallback onShowSavedPages;
+  final VoidCallback onShowPageTools;
   final VoidCallback onToggleBookmark;
   final bool isSearching;
   final bool isMediaSheetOpen;
@@ -42,6 +43,7 @@ class BottomBarWrapper extends StatelessWidget {
     required this.onShowMedia,
     required this.onShowWarp,
     required this.onShowSavedPages,
+    required this.onShowPageTools,
     required this.onToggleBookmark,
     required this.isSearching,
     required this.isMediaSheetOpen,
@@ -102,6 +104,7 @@ class BottomBarWrapper extends StatelessWidget {
             onShowMedia: onShowMedia,
             onShowWarp: onShowWarp,
             onShowSavedPages: onShowSavedPages,
+            onShowPageTools: onShowPageTools,
             onToggleBookmark: onToggleBookmark,
             isBookmarked: savedState.containsUrl(
               activeTab.url,

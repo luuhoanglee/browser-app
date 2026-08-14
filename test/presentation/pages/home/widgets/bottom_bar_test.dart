@@ -29,6 +29,7 @@ void main() {
             onShowMedia: () {},
             onShowWarp: () {},
             onShowSavedPages: () {},
+            onShowPageTools: () {},
             onToggleBookmark: () {},
             isBookmarked: false,
             isSearching: false,

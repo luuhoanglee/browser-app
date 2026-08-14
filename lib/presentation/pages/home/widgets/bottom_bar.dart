@@ -14,6 +14,7 @@ class BottomBar extends StatelessWidget {
   final VoidCallback onShowMedia;
   final VoidCallback onShowWarp;
   final VoidCallback onShowSavedPages;
+  final VoidCallback onShowPageTools;
   final VoidCallback onToggleBookmark;
   final bool isBookmarked;
 
@@ -39,6 +40,7 @@ class BottomBar extends StatelessWidget {
     required this.onShowMedia,
     required this.onShowWarp,
     required this.onShowSavedPages,
+    required this.onShowPageTools,
     required this.onToggleBookmark,
     required this.isBookmarked,
     required this.isSearching,
@@ -73,13 +75,14 @@ class BottomBar extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isIncognito ? Colors.grey[900] : Colors.white,
+        color: isIncognito ? Colors.grey[900] : AppColors.white,
       ),
       child: SafeArea(
-        bottom: false,
         top: false,
         child: Padding(
-          padding: EdgeInsets.only(bottom: isLandscape ? 4 : 20),
+          // SafeArea owns the system inset. This padding is only visual
+          // spacing, so rotation never leaves the old bottom inset behind.
+          padding: EdgeInsets.only(bottom: isLandscape ? 4 : 8),
           child: isLandscape
               ? SizedBox(
                   height: 48,
@@ -92,6 +95,12 @@ class BottomBar extends StatelessWidget {
                         Icons.collections_bookmark_outlined,
                         onShowSavedPages,
                         semanticLabel: AppStrings.savedPages,
+                      ),
+                      _buildNavBarItem(
+                        Icons.more_horiz,
+                        onShowPageTools,
+                        isDisabled: activeTab.url.isEmpty,
+                        semanticLabel: AppStrings.pageTools,
                       ),
                       Expanded(
                         child: Padding(
@@ -148,6 +157,12 @@ class BottomBar extends StatelessWidget {
           Icons.collections_bookmark_outlined,
           onShowSavedPages,
           semanticLabel: AppStrings.savedPages,
+        ),
+        _buildNavBarItem(
+          Icons.more_horiz,
+          onShowPageTools,
+          isDisabled: activeTab.url.isEmpty,
+          semanticLabel: AppStrings.pageTools,
         ),
         _buildNavBarItem(
           Icons.shield_outlined,

@@ -5,10 +5,12 @@ import 'package:browser_app/core/logger/app_logger.dart';
 import '../../../../data/models/tab_model.dart';
 import '../../../../data/repositories/tab_repository_impl.dart';
 import '../../../../data/services/storage_service.dart';
+import '../../../../domain/entities/tab_entity.dart';
 import 'tab_event.dart';
 import 'tab_state.dart';
 
 class TabBloc extends Bloc<TabEvent, TabState> {
+  static const int maxLoadedResourcesPerTab = 200;
   final TabRepositoryImpl repository;
 
   TabBloc(this.repository) : super(const TabState()) {
@@ -18,6 +20,7 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     on<UpdateTabEvent>(_onUpdateTab);
     on<AddLoadedResourceEvent>(_onAddLoadedResource);
     on<ClearLoadedResourcesEvent>(_onClearLoadedResources);
+    on<ResetNormalSessionEvent>(_onResetNormalSession);
     on<ToggleIncognitoModeEvent>(_onToggleIncognitoMode);
     on<EnableSplitViewEvent>(_onEnableSplitView);
     on<DisableSplitViewEvent>(_onDisableSplitView);
@@ -448,6 +451,12 @@ class TabBloc extends Bloc<TabEvent, TabState> {
     // Add new resource
     final updatedResources = List<LoadedResource>.from(tab.loadedResources);
     updatedResources.add(event.resource);
+    if (updatedResources.length > maxLoadedResourcesPerTab) {
+      updatedResources.removeRange(
+        0,
+        updatedResources.length - maxLoadedResourcesPerTab,
+      );
+    }
 
     final updatedTab = tab.copyWith(loadedResources: updatedResources);
     repository.updateTab(updatedTab);
@@ -488,6 +497,31 @@ class TabBloc extends Bloc<TabEvent, TabState> {
             : state.activeTab,
       ),
     );
+  }
+
+  Future<void> _onResetNormalSession(
+    ResetNormalSessionEvent event,
+    Emitter<TabState> emit,
+  ) async {
+    for (final tab in List<TabEntity>.from(repository.getTabs())) {
+      if (!tab.isIncognito) repository.removeTab(tab.id);
+    }
+    final newTab = TabModel.create(index: repository.getTabs().length);
+    repository.addTab(newTab);
+    repository.setActiveTab(newTab.id);
+    emit(
+      state.copyWith(
+        tabs: repository.getTabs(),
+        activeTab: newTab,
+        activeTabIndex: repository.getTabIndex(newTab.id),
+        isIncognitoMode: false,
+        isSplitViewEnabled: false,
+        splitSecondaryTabId: null,
+        focusedPaneTabId: null,
+        audioTabId: newTab.id,
+      ),
+    );
+    await StorageService.checkpointSession(repository.getTabs(), newTab.id);
   }
 
   void _onEnableSplitView(EnableSplitViewEvent event, Emitter<TabState> emit) {
