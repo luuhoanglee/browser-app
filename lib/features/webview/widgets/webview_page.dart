@@ -103,16 +103,6 @@ class _WebViewPageState extends State<WebViewPage>
   bool _isInFullscreen = false;
   Orientation? _fullscreenEntryOrientation;
 
-  // User-Agent chuẩn để tránh bị rate limit
-  static const String _iosUserAgent =
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) '
-      'AppleWebKit/605.1.15 (KHTML, like Gecko) '
-      'Version/17.2 Mobile/15E148 Safari/604.1';
-
-  static const String _androidUserAgent =
-      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
-
   static Future<void> _initializeCache() async {
     if (_isInitialized) return;
 
@@ -138,8 +128,6 @@ class _WebViewPageState extends State<WebViewPage>
         cacheEnabled: true,
         databaseEnabled: true,
         domStorageEnabled: true,
-        userAgent: _iosUserAgent,
-        applicationNameForUserAgent: '',
         contentBlockers: blockers,
       );
 
@@ -164,8 +152,6 @@ class _WebViewPageState extends State<WebViewPage>
         clearSessionCache: true, // Clear session cache (cookies) for incognito
         databaseEnabled: false, // Disable database for incognito
         domStorageEnabled: false, // Disable DOM storage for incognito
-        userAgent: _iosUserAgent,
-        applicationNameForUserAgent: '',
         contentBlockers: blockers,
       );
       print(
@@ -195,8 +181,6 @@ class _WebViewPageState extends State<WebViewPage>
         useHybridComposition: false,
         allowsInlineMediaPlayback: true,
         mediaPlaybackRequiresUserGesture: false,
-        userAgent: _androidUserAgent,
-        applicationNameForUserAgent: '',
         cacheEnabled: true,
         clearCache: false,
         databaseEnabled: true,
@@ -220,8 +204,6 @@ class _WebViewPageState extends State<WebViewPage>
         useHybridComposition: false,
         allowsInlineMediaPlayback: true,
         mediaPlaybackRequiresUserGesture: false,
-        userAgent: _androidUserAgent,
-        applicationNameForUserAgent: '',
         cacheEnabled: false, // Disable cache for incognito
         clearCache: true, // Clear cache on start
         clearSessionCache: true, // Clear session cache (cookies) for incognito

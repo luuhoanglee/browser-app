@@ -61,5 +61,47 @@ void main() {
       expect(result, same(request));
       expect(result?.action, AjaxRequestAction.ABORT);
     });
+
+    test('allows TikTok challenge and runtime domains', () async {
+      final challengeRequest = AjaxRequest(
+        url: WebUri(
+          'https://mon.tiktokv.com/track/challenge?campaign_id=bootstrap',
+        ),
+      );
+      final runtimeRequest = FetchRequest(
+        url: WebUri(
+          'https://sf16-website-login.neutral.ttwstatic.com/'
+          'obj/tiktok_web_login_static/obj/waf-aiso/challenge.js',
+        ),
+      );
+
+      final ajaxResult = await WebViewInterceptor.shouldInterceptAjaxRequest(
+        challengeRequest,
+      );
+      final fetchResult = await WebViewInterceptor.shouldInterceptFetchRequest(
+        runtimeRequest,
+      );
+
+      expect(ajaxResult, isNull);
+      expect(challengeRequest.action, AjaxRequestAction.PROCEED);
+      expect(fetchResult, isNull);
+      expect(runtimeRequest.action, FetchRequestAction.PROCEED);
+    });
+
+    test('allows the first-party TikTok feed request', () async {
+      final request = FetchRequest(
+        url: WebUri(
+          'https://www.tiktok.com/api/recommend/item_list/'
+          '?browser_platform=iPhone&referer=&region=VN',
+        ),
+      );
+
+      final result = await WebViewInterceptor.shouldInterceptFetchRequest(
+        request,
+      );
+
+      expect(result, isNull);
+      expect(request.action, FetchRequestAction.PROCEED);
+    });
   });
 }

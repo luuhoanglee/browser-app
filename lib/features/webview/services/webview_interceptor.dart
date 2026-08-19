@@ -159,6 +159,15 @@ class WebViewInterceptor {
     'twimg.com',
     'instagram.com',
 
+    // TikTok runtime and anti-bot challenge assets
+    'tiktok.com',
+    'tiktokcdn.com',
+    'tiktokv.com',
+    'ttwstatic.com',
+    'byteoversea.com',
+    'ibytedtos.com',
+    'muscdn.com',
+
     // Payment gateways
     'stripe.com',
     'paypal.com',
@@ -508,6 +517,10 @@ class WebViewInterceptor {
   ) async {
     final url = request.url.toString();
     final lower = url.toLowerCase();
+
+    if (_isWhitelisted(lower)) {
+      return null;
+    }
 
     if (isMediaRequestUrl(lower)) {
       return request;
