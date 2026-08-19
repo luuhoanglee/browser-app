@@ -113,7 +113,7 @@ class APIListResponse<T> extends BaseAPIResponseWrapper<Response, List<T>> {
 class ErrorResponse extends BaseAPIResponseWrapper<Response, dynamic> {
   String? message;
   late SatrepsErrorType error;
-  DioError? dioError;
+  DioException? dioError;
 
   ErrorResponse.fromSatreps(Response? originalResponse)
       : super(

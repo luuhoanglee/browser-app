@@ -18,7 +18,11 @@ class ContentBlockerService {
     'cloudfront.net', 'fastly.com', 'fastly.net',
     'akamai.com', 'akamaihd.net', 'akamaized.net',
     'jwplayer.com', 'jwpcdn.com',
-    'vimeocdn.com', 'vimeo.com', 'dailymotioncdn.net', 'dailymotion.com', 'dmcdn.net',
+    'vimeocdn.com',
+    'vimeo.com',
+    'dailymotioncdn.net',
+    'dailymotion.com',
+    'dmcdn.net',
     'twitch.tv', 'ttvnw.net',
 
     // JS / Fonts / Images
@@ -30,6 +34,10 @@ class ContentBlockerService {
     'facebook.com', 'fbcdn.net',
     'twitter.com', 'twimg.com',
     'instagram.com',
+
+    // TikTok runtime and anti-bot challenge assets
+    'tiktok.com', 'tiktokcdn.com', 'tiktokv.com',
+    'ttwstatic.com', 'byteoversea.com', 'ibytedtos.com', 'muscdn.com',
 
     // VN
     'fshare.vn', 'cdn.fshare.vn',
@@ -124,24 +132,60 @@ class ContentBlockerService {
   // ============================================================
 
   static const Set<String> safeSchemes = {
-    'http', 'https', 'file', 'data', 'about', 'javascript', 'ws', 'wss'
+    'http',
+    'https',
+    'file',
+    'data',
+    'about',
+    'javascript',
+    'ws',
+    'wss',
   };
 
   static const List<String> externalSchemes = [
-    'googlechrome://', 'firefox://', 'chrome://', 'edge://', 'opera://',
-    'intent://', 'market://'
+    'googlechrome://',
+    'firefox://',
+    'chrome://',
+    'edge://',
+    'opera://',
+    'intent://',
+    'market://',
   ];
 
   static const List<String> aggressiveSites = [
-    'fmovies','123movies','putlocker','gomovies','yesmovies',
-    'phimmoi','anime','xmovies','hdmovies','watch','stream',
-    'motphim','phim14','phim3s','bilutv','animehay','aquareader'
+    'fmovies',
+    '123movies',
+    'putlocker',
+    'gomovies',
+    'yesmovies',
+    'phimmoi',
+    'anime',
+    'xmovies',
+    'hdmovies',
+    'watch',
+    'stream',
+    'motphim',
+    'phim14',
+    'phim3s',
+    'bilutv',
+    'animehay',
+    'aquareader',
   ];
 
   static const List<String> adPaths = [
-    '/ads', '/ad/', '/advert', '/popup', '/popunder',
-    '/banner', '/tracking', '/analytics', '/pixel',
-    '/beacon', '/telemetry', '/click', '/promo',
+    '/ads',
+    '/ad/',
+    '/advert',
+    '/popup',
+    '/popunder',
+    '/banner',
+    '/tracking',
+    '/analytics',
+    '/pixel',
+    '/beacon',
+    '/telemetry',
+    '/click',
+    '/promo',
     '/sponsored',
   ];
 
@@ -159,8 +203,15 @@ class ContentBlockerService {
   ];
 
   static const List<String> safePaths = [
-    '/api', '/cdn-cgi', '/rum', '/images', '/video',
-    '/stream', '/hls', '/dash', '/manifest'
+    '/api',
+    '/cdn-cgi',
+    '/rum',
+    '/images',
+    '/video',
+    '/stream',
+    '/hls',
+    '/dash',
+    '/manifest',
   ];
 
   static final Set<String> customWhitelist = {};
@@ -173,50 +224,49 @@ class ContentBlockerService {
   }
 
   static bool shouldBlockUrl(String url) {
-  if (url.isEmpty) return false;
-  final lower = url.toLowerCase();
-  if (lower.contains("youtube.com") ||
-    lower.contains("youtubei.googleapis.com") ||
-    lower.contains("googlevideo.com") ||
-    lower.contains("ytimg.com")) {
-  return false;
-}
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+    if (lower.contains("youtube.com") ||
+        lower.contains("youtubei.googleapis.com") ||
+        lower.contains("googlevideo.com") ||
+        lower.contains("ytimg.com")) {
+      return false;
+    }
 
-  if (isWhitelisted(lower)) return false;
+    if (isWhitelisted(lower)) return false;
 
-  if (_matchesAny(lower, blockedAdDomains)) {
-    print("🚫 [AdBlock] $url");
-    return true;
-  }
-
-  if (_matchesAny(lower, safePaths)) return false;
-
-  // ❌ Disable adPaths for YouTube
-  if (lower.contains("youtube.com") || lower.contains("googlevideo.com")) {
-    // skip adPaths
-  } else if (_matchesAny(lower, adPaths)) {
-    print("🚫 [AdBlock Path] $url");
-    return true;
-  }
-
-  if (_matchesAdPattern(lower)) {
-    print("🚫 [AdBlock Pattern] $url");
-    return true;
-  }
-
-  if (_patternLoader.isLoaded && _patternLoader.matches(lower)) {
-    // skip for youtube
-    if (!lower.contains("youtube.com") &&
-        !lower.contains("youtubei.googleapis.com") &&
-        !lower.contains("googlevideo.com")) {
-      print("🚫 [AdBlock FilePattern] $url");
+    if (_matchesAny(lower, blockedAdDomains)) {
+      print("🚫 [AdBlock] $url");
       return true;
     }
+
+    if (_matchesAny(lower, safePaths)) return false;
+
+    // ❌ Disable adPaths for YouTube
+    if (lower.contains("youtube.com") || lower.contains("googlevideo.com")) {
+      // skip adPaths
+    } else if (_matchesAny(lower, adPaths)) {
+      print("🚫 [AdBlock Path] $url");
+      return true;
+    }
+
+    if (_matchesAdPattern(lower)) {
+      print("🚫 [AdBlock Pattern] $url");
+      return true;
+    }
+
+    if (_patternLoader.isLoaded && _patternLoader.matches(lower)) {
+      // skip for youtube
+      if (!lower.contains("youtube.com") &&
+          !lower.contains("youtubei.googleapis.com") &&
+          !lower.contains("googlevideo.com")) {
+        print("🚫 [AdBlock FilePattern] $url");
+        return true;
+      }
+    }
+
+    return false;
   }
-
-  return false;
-}
-
 
   static bool isWhitelisted(String url) {
     final lower = url.toLowerCase();
@@ -280,7 +330,7 @@ class ContentBlockerService {
       return NavigationActionPolicy.CANCEL;
     }
 
-      if (shouldBlockUrl(lower)) {
+    if (shouldBlockUrl(lower)) {
       final isUserClick = _isUserGesture(action);
 
       if (!isUserClick) {
@@ -333,7 +383,9 @@ class ContentBlockerService {
       return false;
     }
 
-    if (url.isEmpty || lower.startsWith('javascript:') || lower.startsWith('about:blank')) {
+    if (url.isEmpty ||
+        lower.startsWith('javascript:') ||
+        lower.startsWith('about:blank')) {
       print("🔥 [POPUP-KILLED] Empty/JS popup");
       return false;
     }
@@ -342,10 +394,7 @@ class ContentBlockerService {
     return false;
   }
 
-  static void handleLoadStart(
-    InAppWebViewController controller,
-    WebUri? url,
-  ) {
+  static void handleLoadStart(InAppWebViewController controller, WebUri? url) {
     if (url == null) return;
     final s = url.toString();
     final lower = s.toLowerCase();
@@ -364,7 +413,9 @@ class ContentBlockerService {
     }
   }
 
-  static Future<void> injectAntiPopupJS(InAppWebViewController controller) async {
+  static Future<void> injectAntiPopupJS(
+    InAppWebViewController controller,
+  ) async {
     final baseScript = getBlockingScript();
 
     const extraScript = '''

@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/logger/analytics_event.dart';
+import '../../../../core/logger/analytics_utils.dart';
+import '../../../../core/logger/app_logger.dart';
 import '../services/content_blocker_service.dart';
 import '../services/ios_content_blocker_service.dart';
 import '../services/webview_interceptor.dart';
+import '../repositories/website_repository.dart';
 import '../../tabs/bloc/tab_bloc.dart';
 import '../../tabs/bloc/tab_event.dart';
 import '../../../features/download/bloc/download_bloc.dart';
@@ -24,6 +28,11 @@ enum WebViewErrorType {
   genericError,
 }
 
+@visibleForTesting
+String navigatorPlatformForWebView({required bool isIOS}) {
+  return isIOS ? 'iPhone' : 'Linux armv8l';
+}
+
 class WebViewPage extends StatefulWidget {
   final dynamic activeTab;
   final InAppWebViewController? controller;
@@ -34,10 +43,17 @@ class WebViewPage extends StatefulWidget {
   final Function(InAppWebViewController, String?) onTitleChanged;
   final Function(InAppWebViewController, int) onProgressChanged;
   final Function(int) onScrollChanged;
+  final void Function(int activeMatchOrdinal, int numberOfMatches)?
+  onFindResultReceived;
   final Function(String)? onUrlUpdated;
-  final Function(InAppWebViewController, WebUri?, bool?)? onUpdateVisitedHistory;
+  final Function(InAppWebViewController, WebUri?, bool?)?
+  onUpdateVisitedHistory;
   final Function()? onSwipeBack;
   final Function()? onSwipeForward;
+
+  /// When true, all `<video>`/`<audio>` in this WebView are muted so it never
+  /// grabs Android audio focus — letting other panes keep playing (issue #20).
+  final bool muted;
 
   const WebViewPage({
     super.key,
@@ -50,46 +66,50 @@ class WebViewPage extends StatefulWidget {
     required this.onTitleChanged,
     required this.onProgressChanged,
     required this.onScrollChanged,
+    this.onFindResultReceived,
     this.onUrlUpdated,
     this.onSwipeBack,
     this.onSwipeForward,
     this.onUpdateVisitedHistory,
+    this.muted = false,
   });
 
   @override
   State<WebViewPage> createState() => _WebViewPageState();
 }
 
-class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClientMixin {
+class _WebViewPageState extends State<WebViewPage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   static InAppWebViewSettings? _cachedSettings;
+  static InAppWebViewSettings? _incognitoSettings;
   static bool _isInitialized = false;
   static Future<void>? _initFuture;
 
-  // Error state tracking
+  /// Cache for extracted descriptions - avoids re-extracting for same URL
+  static final Set<String> _extractedDescriptions = {};
   WebViewErrorType _errorType = WebViewErrorType.none;
   String? _errorMessage;
   bool _isOffline = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _hadError = false; // Track if error occurred during current load
+  final _websiteRepository = WebsiteRepository();
 
-  // User-Agent chuẩn để tránh bị rate limit
-  static const String _iosUserAgent =
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) '
-      'AppleWebKit/605.1.15 (KHTML, like Gecko) '
-      'Version/17.2 Mobile/15E148 Safari/604.1';
-
-  static const String _androidUserAgent =
-      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+  /// Kept locally because [widget.controller] can lag a frame behind creation.
+  InAppWebViewController? _controller;
+  final InAppWebViewKeepAlive _webViewKeepAlive = InAppWebViewKeepAlive();
+  bool _isInFullscreen = false;
+  Orientation? _fullscreenEntryOrientation;
 
   static Future<void> _initializeCache() async {
     if (_isInitialized) return;
 
     if (Platform.isIOS) {
-      final blockers = IOSContentBlockerService.getContentBlockers();   
+      final blockers = IOSContentBlockerService.getContentBlockers();
+
+      // Normal mode settings
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -108,11 +128,35 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         cacheEnabled: true,
         databaseEnabled: true,
         domStorageEnabled: true,
-        userAgent: _iosUserAgent,
-        applicationNameForUserAgent: '',
         contentBlockers: blockers,
       );
-      print('[iOS] Settings initialized with ${blockers.length} content blockers');
+
+      // Incognito mode settings - no cache, no storage
+      _incognitoSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: false,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: false,
+        hardwareAcceleration: true,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        allowsLinkPreview: false,
+        cacheEnabled: false, // Disable cache for incognito
+        clearCache: true, // Clear cache on start
+        clearSessionCache: true, // Clear session cache (cookies) for incognito
+        databaseEnabled: false, // Disable database for incognito
+        domStorageEnabled: false, // Disable DOM storage for incognito
+        contentBlockers: blockers,
+      );
+      print(
+        '[iOS] Settings initialized with ${blockers.length} content blockers (including incognito mode)',
+      );
     } else {
       try {
         await ContentBlockerService.initialize();
@@ -121,6 +165,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         debugPrint('[Android] Failed to initialize ContentBlocker: $e');
       }
 
+      // Normal mode settings
       _cachedSettings = InAppWebViewSettings(
         disallowOverScroll: false,
         useShouldOverrideUrlLoading: true,
@@ -133,20 +178,50 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         javaScriptCanOpenWindowsAutomatically: false,
         supportMultipleWindows: false,
         hardwareAcceleration: true,
+        useHybridComposition: false,
         allowsInlineMediaPlayback: true,
         mediaPlaybackRequiresUserGesture: false,
-        userAgent: _androidUserAgent,
-        applicationNameForUserAgent: '',
         cacheEnabled: true,
         clearCache: false,
         databaseEnabled: true,
         domStorageEnabled: true,
         contentBlockers: ContentBlockerService.createAdBlockers(),
       );
-      debugPrint('[Android] Settings initialized');
+
+      // Incognito mode settings - no cache, no storage
+      _incognitoSettings = InAppWebViewSettings(
+        disallowOverScroll: false,
+        useShouldOverrideUrlLoading: true,
+        useOnLoadResource: true,
+        useOnDownloadStart: true,
+        useShouldInterceptRequest: true,
+        useShouldInterceptAjaxRequest: true,
+        useShouldInterceptFetchRequest: true,
+        javaScriptEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: false,
+        supportMultipleWindows: false,
+        hardwareAcceleration: true,
+        useHybridComposition: false,
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserGesture: false,
+        cacheEnabled: false, // Disable cache for incognito
+        clearCache: true, // Clear cache on start
+        clearSessionCache: true, // Clear session cache (cookies) for incognito
+        databaseEnabled: false, // Disable database for incognito
+        domStorageEnabled: false, // Disable DOM storage for incognito
+        contentBlockers: ContentBlockerService.createAdBlockers(),
+      );
+      debugPrint('[Android] Settings initialized (including incognito mode)');
     }
 
     _isInitialized = true;
+  }
+
+  static InAppWebViewSettings _getSettingsForTab(dynamic tab) {
+    if (tab != null && tab.isIncognito == true) {
+      return _incognitoSettings ?? _cachedSettings ?? InAppWebViewSettings();
+    }
+    return _cachedSettings ?? InAppWebViewSettings();
   }
 
   /// Parse intent:// URL thành https:// URL
@@ -185,7 +260,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         urlLower.startsWith('firefox://') ||
         urlLower.startsWith('chrome://') ||
         urlLower.startsWith('edge://') ||
-        urlLower.startsWith('opera://');
+        urlLower.startsWith('opera://') ||
+        urlLower.startsWith('x-safari-');
   }
 
   /// Kiểm tra URL có phải custom scheme không (không phải http/https)
@@ -245,11 +321,52 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     return url;
   }
 
+  bool _isDialogShowing = false;
+
+  /// Show confirmation dialog before opening external app
+  Future<bool> _showOpenExternalAppDialog(String url) async {
+    setState(() => _isDialogShowing = true);
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Open external app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Open'),
+          ),
+        ],
+      ),
+    );
+
+    setState(() => _isDialogShowing = false);
+
+    final controller = widget.controller;
+    if (controller != null) {
+      controller.canGoBack().then((canGoBack) {
+        if (canGoBack) {
+          controller.goBack();
+          Future.delayed(const Duration(milliseconds: 50), () {
+            controller.goForward();
+          });
+        }
+      });
+    }
+    return result ?? false;
+  }
+
   Map<String, String> _getHeaders(String url) {
     final uri = Uri.parse(url);
 
     return {
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,'
+      'Accept':
+          'text/html,application/xhtml+xml,application/xml;q=0.9,'
           'image/avif,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
@@ -264,7 +381,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     };
   }
 
-  Future<void> _injectBlockIntentScript(InAppWebViewController controller) async {
+  Future<void> _injectBlockIntentScript(
+    InAppWebViewController controller,
+  ) async {
     const blockIntentScript = '''
       (function() {
         const originalLocation = window.location;
@@ -296,12 +415,357 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     );
   }
 
+  Future<void> _injectAntiDetectScript(
+    InAppWebViewController controller,
+  ) async {
+    final navigatorPlatform = navigatorPlatformForWebView(
+      isIOS: Platform.isIOS,
+    );
+    final antiDetectScript =
+        r"""
+(function() {
+  try {
+    const originalEval = window.eval;
+    // window.eval = function(code) {
+    //   if (typeof code === 'string' && code.includes('debugger')) return;
+    //   return originalEval(code);
+    // };
+
+    ['log','warn','error','info','debug','trace','clear'].forEach(m => {
+      console[m] = function(){};
+    });
+
+    Object.defineProperty(window, 'outerHeight', { get: () => window.innerHeight });
+    Object.defineProperty(window, 'outerWidth', { get: () => window.innerWidth });
+
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    Object.defineProperty(navigator, 'platform', { get: () => '__NAVIGATOR_PLATFORM__' });
+
+    window.location.reload = function(){};
+    window.alert = function(){};
+    window.confirm = function(){ return true; };
+
+    console.log("✅ Anti-Detect script injected");
+  } catch(e) {
+    console.log("Anti-Detect Error:", e);
+  }
+})();
+"""
+            .replaceFirst('__NAVIGATOR_PLATFORM__', navigatorPlatform);
+
+    await controller.addUserScript(
+      userScript: UserScript(
+        source: antiDetectScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        contentWorld: ContentWorld.PAGE,
+      ),
+    );
+  }
+
+  Future<void> _injectYouTubeAdBlocker(
+    InAppWebViewController controller,
+  ) async {
+    const youtubeAdScript = r'''
+      (function() {
+        if (!window.location.hostname.includes('youtube.com')) {
+          return;
+        }
+
+        console.log('[YouTube-AdBlocker] Initializing Enhanced v2.0...');
+
+        // Statistics tracking
+        var stats = {
+          total: 0,
+          fetch: 0,
+          xhr: 0,
+          cosmetic: 0,
+          player: 0
+        };
+
+        // Comprehensive ad domains and patterns (like uBlock filter lists)
+        const adPatterns = [
+          // Ad servers
+          'doubleclick.net',
+          'googlesyndication.com',
+          'googleadservices.com',
+          'google-analytics.com',
+          'googletagmanager.com',
+          'googletagservices.com',
+
+          // YouTube specific
+          '/pagead/',
+          '/api/stats/ads',
+          '/api/stats/atr',
+          '/api/stats/qoe',
+          '/ptracking',
+          '/get_video_info',
+          '/youtubei/v1/player/ad',
+          '/youtubei/v1/next',
+          'ad_break',
+          'adformat',
+          'ad_flags',
+          'ad_video_id',
+
+          // Tracking
+          '/log_event',
+          '/log_interaction',
+          'doubleclick',
+          'ad_pod',
+          'adunit'
+        ];
+
+        // Check if URL contains ad patterns
+        function isAdRequest(url) {
+          if (typeof url !== 'string') return false;
+          const lowerUrl = url.toLowerCase();
+          return adPatterns.some(pattern => lowerUrl.includes(pattern.toLowerCase()));
+        }
+
+        // ===== NETWORK BLOCKING (like uBlock) =====
+
+        // Block Fetch API
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = args[0];
+          if (isAdRequest(url)) {
+            return Promise.reject(new Error('Blocked by AdBlocker'));
+          }
+          return originalFetch.apply(this, args);
+        };
+
+        // Block XMLHttpRequest
+        const originalXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (isAdRequest(url)) {
+            this.abort();
+            return;
+          }
+          return originalXHROpen.apply(this, [method, url, ...rest]);
+        };
+
+        // Block XMLHttpRequest send as backup
+        const originalXHRSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function(...args) {
+          if (this._blocked) return;
+          return originalXHRSend.apply(this, args);
+        };
+
+        // ===== PLAYER MODIFICATION (like uBlock) =====
+
+        // Hijack player response to remove ads
+        function removeAdsFromPlayerResponse(playerResponse) {
+          if (!playerResponse) return playerResponse;
+
+          try {
+            // Remove ad placements
+            if (playerResponse.adPlacements) {
+              delete playerResponse.adPlacements;
+              stats.player++;
+            }
+            if (playerResponse.ads) {
+              delete playerResponse.ads;
+              stats.player++;
+            }
+            if (playerResponse.adSlots) {
+              delete playerResponse.adSlots;
+              stats.player++;
+            }
+
+            // Remove playerAds
+            if (playerResponse.playerAds) {
+              delete playerResponse.playerAds;
+              stats.player++;
+            }
+
+            // Clean playbackTracking
+            if (playerResponse.playbackTracking) {
+              const tracking = playerResponse.playbackTracking;
+              delete tracking.videostatsPlaybackUrl;
+              delete tracking.videostatsDelayplayUrl;
+              delete tracking.videostatsWatchtimeUrl;
+              delete tracking.ptrackingUrl;
+              delete tracking.qoeUrl;
+              delete tracking.atrUrl;
+            }
+          } catch(e) {
+            console.log('[YouTube-AdBlocker] Player response clean error:', e.message);
+          }
+
+          return playerResponse;
+        }
+
+        // Intercept JSON parse for player responses
+        const originalParse = JSON.parse;
+        JSON.parse = function(text, ...args) {
+          const result = originalParse.apply(this, [text, ...args]);
+
+          if (result && typeof result === 'object') {
+            // Check if this is a player response
+            if (result.adPlacements || result.playerAds || result.ads) {
+              removeAdsFromPlayerResponse(result);
+            }
+
+            // Check nested responses
+            if (result.playerResponse) {
+              removeAdsFromPlayerResponse(result.playerResponse);
+            }
+          }
+
+          return result;
+        };
+
+        // ===== COSMETIC FILTERING (like uBlock) =====
+
+        // CSS to hide ad elements
+        const adBlockCSS = `
+          /* Video ads */
+          .video-ads,
+          .ytp-ad-module,
+          .ytp-ad-overlay-container,
+          .ytp-ad-image-overlay,
+          .ytp-ad-text-overlay,
+
+          /* Display ads */
+          #masthead-ad,
+          #player-ads,
+          #watch-branded-actions,
+          .ytd-merch-shelf-renderer,
+          .ytd-ad-slot-renderer,
+          ytd-display-ad-renderer,
+          ytd-video-masthead-ad-v3-renderer,
+          ytd-statement-banner-renderer,
+          ytd-ad-slot-renderer,
+          yt-mealbar-promo-renderer,
+
+          /* Sidebar ads */
+          #right-tabs > .ytd-item-section-renderer,
+          ytd-compact-promoted-video-renderer,
+
+          /* Banner ads */
+          ytd-banner-promo-renderer,
+          ytd-promoted-sparkles-web-renderer,
+
+          /* In-feed ads */
+          ytd-ad-slot-renderer,
+          ytd-in-feed-ad-layout-renderer,
+
+          /* Overlay ads */
+          .ytp-ce-element,
+          .ytp-cards-teaser,
+
+          /* Popup ads */
+          tp-yt-paper-dialog.ytd-popup-container,
+          ytd-popup-container
+          {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            width: 0 !important;
+            pointer-events: none !important;
+          }
+        `;
+
+        // Inject CSS
+        function injectCSS() {
+          const style = document.createElement('style');
+          style.id = 'youtube-adblocker-style';
+          style.textContent = adBlockCSS;
+          document.head.appendChild(style);
+          console.log('[YouTube-AdBlocker] CSS injected');
+        }
+
+        // Remove ad elements from DOM
+        function removeAdElements() {
+          const selectors = [
+            '.video-ads',
+            '.ytp-ad-module',
+            '.ytp-ad-overlay-container',
+            'ytd-display-ad-renderer',
+            'ytd-ad-slot-renderer',
+            'ytd-promoted-sparkles-web-renderer',
+            'ytd-compact-promoted-video-renderer',
+            'ytd-banner-promo-renderer',
+            'ytd-in-feed-ad-layout-renderer'
+          ];
+
+          let removed = 0;
+          selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              if (el && el.parentNode) {
+                el.parentNode.removeChild(el);
+                removed++;
+              }
+            });
+          });
+
+          if (removed > 0) {
+            stats.cosmetic += removed;
+          }
+        }
+
+        // ===== MUTATION OBSERVER (like uBlock) =====
+
+        // Watch for dynamically added ad elements
+        const observer = new MutationObserver(function(mutations) {
+          removeAdElements();
+        });
+
+        // Start observing when DOM is ready
+        function startObserver() {
+          if (document.body) {
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
+            console.log('[YouTube-AdBlocker] DOM observer started');
+          } else {
+            setTimeout(startObserver, 100);
+          }
+        }
+
+        // ===== INITIALIZATION =====
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            injectCSS();
+            removeAdElements();
+            startObserver();
+          });
+        } else {
+          injectCSS();
+          removeAdElements();
+          startObserver();
+        }
+        console.log('[YouTube-AdBlocker] Enhanced v2.0 Active!');
+      })();
+    ''';
+
+    await controller.addUserScript(
+      userScript: UserScript(
+        source: youtubeAdScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        contentWorld: ContentWorld.PAGE,
+      ),
+    );
+  }
+
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
+    final isReattachedAfterLayoutChange = _controller != null;
+    _controller = controller;
     widget.onWebViewCreated(controller);
+
+    if (isReattachedAfterLayoutChange) {
+      await _applyMuted(widget.muted);
+      return;
+    }
 
     // Inject intent blocking script
     await _injectBlockIntentScript(controller);
-
+    await _injectAntiDetectScript(controller);
+    await _injectYouTubeAdBlocker(controller);
     final initialUrl = _getInitialUrl();
     if (initialUrl.isNotEmpty) {
       await controller.loadUrl(
@@ -310,6 +774,55 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
           headers: _getHeaders(initialUrl),
         ),
       );
+    }
+    // Establish the mute state for the very first load.
+    await _applyMuted(widget.muted);
+  }
+
+  /// Mutes/unmutes every `<video>`/`<audio>` in the page and keeps enforcing it
+  /// for dynamically added media via a MutationObserver. A muted element does
+  /// not request Android audio focus, so a muted pane never pauses the pane
+  /// that currently owns sound (issue #20).
+  Future<void> _applyMuted(bool muted) async {
+    final controller = _controller;
+    if (controller == null) return;
+    final flag = muted ? 'true' : 'false';
+    try {
+      await controller.evaluateJavascript(
+        source:
+            '''
+(function() {
+  window.__pardixMuted = $flag;
+  function apply() {
+    try {
+      var els = document.querySelectorAll('video, audio');
+      for (var i = 0; i < els.length; i++) { els[i].muted = window.__pardixMuted; }
+    } catch (e) {}
+  }
+  window.__pardixApplyMute = apply;
+  if (!window.__pardixMuteInit) {
+    window.__pardixMuteInit = true;
+    try {
+      // Re-mute media that starts playing or tries to unmute itself.
+      document.addEventListener('play', function(e) {
+        if (window.__pardixMuted && e.target && 'muted' in e.target) e.target.muted = true;
+      }, true);
+      document.addEventListener('volumechange', function(e) {
+        if (window.__pardixMuted && e.target && e.target.muted === false) e.target.muted = true;
+      }, true);
+      var obs = new MutationObserver(function() {
+        if (window.__pardixApplyMute) window.__pardixApplyMute();
+      });
+      var root = document.documentElement || document.body;
+      if (root) obs.observe(root, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+  apply();
+})();
+''',
+      );
+    } catch (e) {
+      AppLogger.warning('WebView', 'Failed to apply mute state', error: e);
     }
   }
 
@@ -323,7 +836,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     // Filter media resources only
     if (!MediaUtils.isMedia(url)) return;
 
-    print('[Resource] Media detected: $url');
+    // print('[Resource] Media detected: $url');
 
     // Get the tab ID from activeTab
     final tabId = widget.activeTab?.id;
@@ -335,10 +848,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     }
   }
 
-  void _onDownloadStart(
-    InAppWebViewController controller,
-    Uri url,
-  ) {
+  void _onDownloadStart(InAppWebViewController controller, Uri url) {
     final urlStr = url.toString();
     final fileName = urlStr.split('/').last;
 
@@ -356,7 +866,12 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     if (mounted) {
       try {
         final downloadBloc = context.read<DownloadBloc>();
-        downloadBloc.add(DownloadStartEvent(urlStr, customFileName: fileName.isNotEmpty ? fileName : null));
+        downloadBloc.add(
+          DownloadStartEvent(
+            urlStr,
+            customFileName: fileName.isNotEmpty ? fileName : null,
+          ),
+        );
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -439,6 +954,14 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     // Clear error when page loads successfully
     _clearError();
 
+    // Call Oxodb API when website loads successfully
+    if (urlStr.isNotEmpty && _errorType == WebViewErrorType.none) {
+      _websiteRepository.analyzeWebsite(controller, urlStr);
+    }
+
+    // A fresh document resets the JS context, so re-establish the mute state.
+    _applyMuted(widget.muted);
+
     widget.onLoadStop(controller, url);
   }
 
@@ -463,19 +986,44 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       return NavigationActionPolicy.CANCEL;
     }
 
-    // Handle custom schemes - convert to https
     if (_isCustomScheme(url)) {
-      final httpsUrl = _convertCustomSchemeToHttps(url);
-      if (httpsUrl != null) {
-        await controller.loadUrl(
-          urlRequest: URLRequest(
-            url: WebUri(httpsUrl),
-            headers: _getHeaders(httpsUrl),
-          ),
-        );
-        return NavigationActionPolicy.CANCEL;
+      final shouldOpen = await _showOpenExternalAppDialog(url);
+      if (shouldOpen) {
+        try {
+          final launched = await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          );
+          if (launched) {
+            AppLogger.event(
+              AnalyticsEvent.externalAppOpened,
+              params: AnalyticsUtils.navigationParams(url),
+            );
+          }
+          if (!launched) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('No app found to open this link'),
+                  duration: Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cannot open app: $e'),
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       }
-      // If conversion fails, block the URL
       return NavigationActionPolicy.CANCEL;
     }
 
@@ -490,7 +1038,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     }
 
     // Android: Use interceptor
-    return WebViewInterceptor.shouldOverrideUrlLoading(controller, navigationAction);
+    return WebViewInterceptor.shouldOverrideUrlLoading(
+      controller,
+      navigationAction,
+    );
   }
 
   Future<bool> _onCreateWindow(
@@ -500,7 +1051,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     if (Platform.isIOS) {
       return true;
     }
-    return await WebViewInterceptor.handleCreateWindow(controller, createWindowAction);
+    return await WebViewInterceptor.handleCreateWindow(
+      controller,
+      createWindowAction,
+    );
   }
 
   WebResourceResponse? _shouldInterceptRequest(
@@ -561,7 +1115,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     } else if (response.statusCode != null && response.statusCode! >= 500) {
       _setError(WebViewErrorType.connectionRefused, 'Server error');
     } else {
-      _setError(WebViewErrorType.genericError, 'Failed to load page (code ${response.statusCode})');
+      _setError(
+        WebViewErrorType.genericError,
+        'Failed to load page (code ${response.statusCode})',
+      );
     }
   }
 
@@ -591,10 +1148,13 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     } else if (error.type == WebResourceErrorType.TIMEOUT) {
       errorType = WebViewErrorType.timeout;
       message = 'Connection timeout';
-    } else if (error.type == WebResourceErrorType.NETWORK_CONNECTION_LOST || error.description.toString().contains('connection was lost')) {
+    } else if (error.type == WebResourceErrorType.NETWORK_CONNECTION_LOST ||
+        error.description.toString().contains('connection was lost')) {
       errorType = WebViewErrorType.noInternet;
       message = 'Network connection lost';
-    } else if (_isOffline && (error.description.toString().contains('INTERNET') || error.description.toString().contains('network'))) {
+    } else if (_isOffline &&
+        (error.description.toString().contains('INTERNET') ||
+            error.description.toString().contains('network'))) {
       errorType = WebViewErrorType.noInternet;
       message = 'No internet connection';
     } else {
@@ -603,11 +1163,20 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     }
 
     _setError(errorType, message);
+    AppLogger.event(
+      AnalyticsEvent.pageLoadError,
+      params: {
+        ...AnalyticsUtils.navigationParams(url),
+        AnalyticsParam.errorType: errorType.name,
+      },
+    );
   }
 
   Future<void> _checkConnectivity() async {
     final results = await Connectivity().checkConnectivity();
-    final isOffline = results.every((result) => result == ConnectivityResult.none);
+    final isOffline = results.every(
+      (result) => result == ConnectivityResult.none,
+    );
     if (_isOffline != isOffline) {
       setState(() {
         _isOffline = isOffline;
@@ -645,10 +1214,12 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     super.initState();
     _initFuture ??= _initializeCache();
     _checkConnectivity();
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      final isOffline = results.every((result) => result == ConnectivityResult.none);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
+      final isOffline = results.every(
+        (result) => result == ConnectivityResult.none,
+      );
       setState(() {
         _isOffline = isOffline;
         if (isOffline) {
@@ -662,9 +1233,35 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   }
 
   @override
+  void didUpdateWidget(covariant WebViewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // React to the pane's audio ownership changing (toggle / tab switch).
+    if (oldWidget.muted != widget.muted) {
+      _applyMuted(widget.muted);
+    }
+  }
+
+  @override
   void dispose() {
     _connectivitySubscription?.cancel();
+    unawaited(InAppWebViewController.disposeKeepAlive(_webViewKeepAlive));
     super.dispose();
+  }
+
+  void _onEnterFullscreen(InAppWebViewController controller) {
+    if (!mounted) return;
+    setState(() {
+      _isInFullscreen = true;
+      _fullscreenEntryOrientation = MediaQuery.orientationOf(context);
+    });
+  }
+
+  void _onExitFullscreen(InAppWebViewController controller) {
+    if (!mounted) return;
+    setState(() {
+      _isInFullscreen = false;
+      _fullscreenEntryOrientation = null;
+    });
   }
 
   Widget _buildErrorWidget() {
@@ -735,10 +1332,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
               const SizedBox(height: 12),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -758,7 +1352,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -773,71 +1370,101 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     super.build(context);
 
     final initialUrl = _getInitialUrl();
+    final isIncognito = widget.activeTab.isIncognito ?? false;
+    final orientation = MediaQuery.orientationOf(context);
+    final platformViewOrientation = _isInFullscreen
+        ? (_fullscreenEntryOrientation ?? orientation)
+        : orientation;
 
-    return RepaintBoundary(
-      child: FutureBuilder<void>(
-        future: _initFuture,
-        builder: (context, snapshot) {
-          return Stack(
-            children: [
-              Opacity(
-                opacity: _errorType == WebViewErrorType.none ? 1.0 : 0.0,
-                child: IgnorePointer(
-                  ignoring: _errorType != WebViewErrorType.none,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
+    return FutureBuilder<void>(
+      future: _initFuture,
+      builder: (context, snapshot) {
+        return Stack(
+          children: [
+            Opacity(
+              opacity: _errorType == WebViewErrorType.none ? 1.0 : 0.0,
+              child: IgnorePointer(
+                ignoring: _errorType != WebViewErrorType.none,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Container(
+                        color: isIncognito ? Colors.black : Colors.transparent,
                         child: InAppWebView(
-                      key: ValueKey(widget.activeTab.id),
-                      initialUrlRequest: initialUrl.isEmpty
-                          ? null
-                          : URLRequest(
-                              url: WebUri(initialUrl),
-                              headers: _getHeaders(initialUrl),
-                            ),
-                      initialSettings: _cachedSettings,
-                      pullToRefreshController: widget.pullToRefreshController,
-                      onWebViewCreated: _onWebViewCreated,
-                      onLoadStart: _onLoadStart,
-                      onLoadStop: _onLoadStop,
-                      onLoadResource: _onLoadResourceWithResponse,
-                      onDownloadStart: _onDownloadStart,
-                      onDownloadStartRequest: (controller, request) {
-                        _onDownloadStart(controller, request.url);
-                      },
-                      onTitleChanged: (controller, title) => widget.onTitleChanged(controller, title),
-                      onProgressChanged: (controller, progress) =>
-                          widget.onProgressChanged(controller, progress),
-                      onScrollChanged: (controller, x, y) => widget.onScrollChanged(y),
-                      shouldInterceptRequest: _shouldInterceptRequest,
-                      shouldInterceptAjaxRequest: _shouldInterceptAjaxRequest,
-                      shouldInterceptFetchRequest: _shouldInterceptFetchRequest,
-                      shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
-                      onCreateWindow: _onCreateWindow,
-                      onReceivedError: _onReceivedError,
-                      onReceivedHttpError: _onReceivedHttpError,
-                      onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
-                    ),
+                          key: ValueKey(
+                            '${widget.activeTab.id}-${platformViewOrientation.name}',
+                          ),
+                          keepAlive: _webViewKeepAlive,
+                          initialUrlRequest: initialUrl.isEmpty
+                              ? null
+                              : URLRequest(
+                                  url: WebUri(initialUrl),
+                                  headers: _getHeaders(initialUrl),
+                                ),
+                          initialSettings: _getSettingsForTab(widget.activeTab),
+                          pullToRefreshController:
+                              widget.pullToRefreshController,
+                          onWebViewCreated: _onWebViewCreated,
+                          onLoadStart: _onLoadStart,
+                          onLoadStop: _onLoadStop,
+                          onLoadResource: _onLoadResourceWithResponse,
+                          onDownloadStart: _onDownloadStart,
+                          onDownloadStartRequest: (controller, request) {
+                            _onDownloadStart(controller, request.url);
+                          },
+                          onTitleChanged: (controller, title) =>
+                              widget.onTitleChanged(controller, title),
+                          onProgressChanged: (controller, progress) =>
+                              widget.onProgressChanged(controller, progress),
+                          onScrollChanged: (controller, x, y) =>
+                              widget.onScrollChanged(y),
+                          onFindResultReceived:
+                              (
+                                controller,
+                                activeMatchOrdinal,
+                                numberOfMatches,
+                                isDoneCounting,
+                              ) {
+                                if (isDoneCounting) {
+                                  widget.onFindResultReceived?.call(
+                                    activeMatchOrdinal,
+                                    numberOfMatches,
+                                  );
+                                }
+                              },
+                          shouldInterceptRequest: _shouldInterceptRequest,
+                          shouldInterceptAjaxRequest:
+                              _shouldInterceptAjaxRequest,
+                          shouldInterceptFetchRequest:
+                              _shouldInterceptFetchRequest,
+                          shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
+                          onCreateWindow: _onCreateWindow,
+                          onEnterFullscreen: _onEnterFullscreen,
+                          onExitFullscreen: _onExitFullscreen,
+                          onReceivedError: _onReceivedError,
+                          onReceivedHttpError: _onReceivedHttpError,
+                          onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              if (_errorType == WebViewErrorType.none)
-                Positioned.fill(
-                  child: _FullScreenSwipeZone(
-                    onSwipeBack: widget.onSwipeBack,
-                    onSwipeForward: widget.onSwipeForward,
-                  ),
+            ),
+            if (_errorType == WebViewErrorType.none && !_isDialogShowing)
+              Positioned.fill(
+                child: _FullScreenSwipeZone(
+                  onSwipeBack: widget.onSwipeBack,
+                  onSwipeForward: widget.onSwipeForward,
                 ),
-              // if (_errorType != WebViewErrorType.none)
-              //   Positioned.fill(
-              //     child: _buildErrorWidget(),
-              //   ),
-            ],
-          );
-        },
-      ),
+              ),
+            // if (_errorType != WebViewErrorType.none)
+            //   Positioned.fill(
+            //     child: _buildErrorWidget(),
+            //   ),
+          ],
+        );
+      },
     );
   }
 }
@@ -846,10 +1473,7 @@ class _FullScreenSwipeZone extends StatefulWidget {
   final VoidCallback? onSwipeBack;
   final VoidCallback? onSwipeForward;
 
-  const _FullScreenSwipeZone({
-    this.onSwipeBack,
-    this.onSwipeForward,
-  });
+  const _FullScreenSwipeZone({this.onSwipeBack, this.onSwipeForward});
 
   @override
   State<_FullScreenSwipeZone> createState() => _FullScreenSwipeZoneState();

@@ -1,13 +1,54 @@
+import 'dart:async' show runZonedGuarded;
+import 'dart:io';
+import 'package:browser_app/core/resources/app_colors.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart'
+    show FirebaseCrashlytics;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:browser_app/core/logger/analytics_event.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
+import 'package:browser_app/core/services/local_notification_service.dart';
+import 'package:browser_app/data/services/download_notification_service.dart';
 import 'presentation/pages/home/home_page.dart';
+import 'package:browser_app/core/services/fcm/firebase_service.dart';
 
-void main() {
-  runApp(const BrowserApp());
+void main() async {
+  runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+
+      await FirebaseService.initializeFirebase();
+
+      _initBackgroundServices();
+
+      runApp(const BrowserApp());
+    },
+    (error, stack) {
+      AppLogger.fatal(
+        'App',
+        'Unhandled zone error',
+        error: error,
+        stackTrace: stack,
+      );
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    },
+  );
 }
 
-// GlobalKey để truy cập HomeView từ bên ngoài
-final GlobalKey<HomeViewWrapperState> homeViewKey = GlobalKey<HomeViewWrapperState>();
+void _initBackgroundServices() {
+  Future.microtask(() async {
+    try {
+      await LocalNotificationService().initialize();
+      await DownloadNotificationService().initialize();
+      await FirebaseService.createDeviceToken();
+    } catch (e, s) {
+      AppLogger.error('App', 'Background init failed', error: e, stackTrace: s);
+    }
+  });
+}
+
+final GlobalKey<HomeViewWrapperState> homeViewKey =
+    GlobalKey<HomeViewWrapperState>();
 
 class BrowserApp extends StatefulWidget {
   const BrowserApp({super.key});
@@ -17,26 +58,40 @@ class BrowserApp extends StatefulWidget {
 }
 
 class _BrowserAppState extends State<BrowserApp> {
-  static const _channel = MethodChannel('com.dino.blackdogbrowser.browser_app/deeplink');
+  static const _channel = MethodChannel('com.dino.pardix/deeplink');
+
+  final _lifecycleAnalyticsObserver = _AppLifecycleAnalyticsObserver();
   String? _initialLink;
 
   @override
   void initState() {
     super.initState();
-    _initDeepLinkListener();
-    _getInitialLink();
+    WidgetsBinding.instance.addObserver(_lifecycleAnalyticsObserver);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initDeepLinkListener();
+      _getInitialLink();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(_lifecycleAnalyticsObserver);
+    super.dispose();
   }
 
   Future<void> _getInitialLink() async {
     try {
       final String? link = await _channel.invokeMethod('getInitialLink');
       if (link != null && mounted) {
-        setState(() {
-          _initialLink = link;
-        });
+        setState(() => _initialLink = link);
       }
-    } catch (e) {
-      print('❌ Error getting initial link: $e');
+    } catch (e, s) {
+      AppLogger.warning(
+        'App',
+        'Failed to get initial deep link',
+        error: e,
+        stackTrace: s,
+      );
     }
   }
 
@@ -44,8 +99,6 @@ class _BrowserAppState extends State<BrowserApp> {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'onDeepLink') {
         final String url = call.arguments as String;
-        print('🔗 Deep link received (app running): $url');
-        // Load URL vào HomeView
         homeViewKey.currentState?.loadDeepLinkUrl(url);
       }
     });
@@ -56,14 +109,17 @@ class _BrowserAppState extends State<BrowserApp> {
     return MaterialApp(
       title: 'Browser App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home: HomePage(
-        key: homeViewKey,
-        initialUrl: _initialLink,
-      ),
+      theme: ThemeData(useMaterial3: true),
+      home: HomePage(key: homeViewKey, initialUrl: _initialLink),
     );
+  }
+}
+
+class _AppLifecycleAnalyticsObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AppLogger.event(AnalyticsEvent.appForegrounded);
+    }
   }
 }

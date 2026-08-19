@@ -8,6 +8,21 @@ import '../bloc/download_event.dart';
 import '../bloc/download_state.dart';
 import '../../../data/services/download_service.dart';
 
+enum DownloadTab { all, active, completed }
+
+extension DownloadTabExtension on DownloadTab {
+  String get label {
+    switch (this) {
+      case DownloadTab.all:
+        return 'All';
+      case DownloadTab.active:
+        return 'Active';
+      case DownloadTab.completed:
+        return 'Completed';
+    }
+  }
+}
+
 class DownloadSheet extends StatefulWidget {
   final double heightFactor;
   final VoidCallback onClose;
@@ -25,6 +40,8 @@ class DownloadSheet extends StatefulWidget {
 }
 
 class _DownloadSheetState extends State<DownloadSheet> {
+  DownloadTab _selectedTab = DownloadTab.all;
+
   Future<void> _openFile(BuildContext context, String filePath, String fileName) async {
     print('[DOWNLOAD_SHEET] Opening file: $fileName');
     print('[DOWNLOAD_SHEET] Path: $filePath');
@@ -71,7 +88,6 @@ class _DownloadSheetState extends State<DownloadSheet> {
       child: Column(
         children: [
           _buildDragHandle(isExpanded),
-          _buildBatchProgress(),
           _buildHeader(),
           Expanded(
             child: BlocBuilder<DownloadBloc, DownloadState>(
@@ -121,78 +137,6 @@ class _DownloadSheetState extends State<DownloadSheet> {
     );
   }
 
-  Widget _buildBatchProgress() {
-    return BlocBuilder<DownloadBloc, DownloadState>(
-      builder: (context, state) {
-        if (!state.isBatchDownloading) {
-          return const SizedBox.shrink();
-        }
-
-        final progress = state.batchProgress;
-        final completed = state.batchCompletedCount;
-        final total = state.batchTotalCount;
-        final failed = state.batchFailedCount;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            border: Border(
-              bottom: BorderSide(color: Colors.blue[200]!, width: 1),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.download, size: 16, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Batch Download',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '$completed / $total completed',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
-              ),
-              if (failed > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    '$failed failed',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.red[700],
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: progress,
-                backgroundColor: Colors.blue[100],
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[700]!),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildHeader() {
     return BlocBuilder<DownloadBloc, DownloadState>(
@@ -238,23 +182,9 @@ class _DownloadSheetState extends State<DownloadSheet> {
               ),
               Row(
                 children: [
-                  if (state.isBatchDownloading) ...[
-                    _buildBatchControlButton(Icons.pause, () {
-                      context.read<DownloadBloc>().add(DownloadBatchPauseEvent());
-                    }),
-                    const SizedBox(width: 8),
-                    _buildBatchControlButton(Icons.play_arrow, () {
-                      context.read<DownloadBloc>().add(DownloadBatchResumeEvent());
-                    }),
-                    const SizedBox(width: 8),
-                    _buildBatchControlButton(Icons.close, () {
-                      context.read<DownloadBloc>().add(DownloadBatchCancelEvent());
-                    }),
-                    const SizedBox(width: 8),
-                  ],
                   if (state.completed.isNotEmpty)
                     _buildClearButton('Clear Completed', () {
-                      context.read<DownloadBloc>().add(DownloadClearCompletedEvent());
+                      _showClearCompletedDialog(context);
                     }),
                   const SizedBox(width: 8),
                   GestureDetector(
@@ -278,19 +208,29 @@ class _DownloadSheetState extends State<DownloadSheet> {
     );
   }
 
-  Widget _buildBatchControlButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Colors.blue[100],
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, size: 18, color: Colors.blue[700]),
+
+  Future<void> _showClearCompletedDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear Completed'),
+        content: const Text('Are you sure you want to remove all completed downloads?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
       ),
     );
+
+    if (confirmed == true && context.mounted) {
+      context.read<DownloadBloc>().add(DownloadClearCompletedEvent());
+    }
   }
 
   Widget _buildClearButton(String label, VoidCallback onTap) {
@@ -344,36 +284,64 @@ class _DownloadSheetState extends State<DownloadSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          _buildTabChip('All', state.downloads.length, true),
-          const SizedBox(width: 8),
-          _buildTabChip('Active', state.active.length, false),
-          const SizedBox(width: 8),
-          _buildTabChip('Completed', state.completed.length, false),
+          for (final tab in DownloadTab.values) ...[
+            _buildTabChip(tab.label, _getCountForTab(tab, state), _selectedTab == tab),
+            if (tab != DownloadTab.completed) const SizedBox(width: 8),
+          ],
         ],
       ),
     );
   }
 
+  int _getCountForTab(DownloadTab tab, DownloadState state) {
+    switch (tab) {
+      case DownloadTab.all:
+        return state.downloads.length;
+      case DownloadTab.active:
+        return state.active.length;
+      case DownloadTab.completed:
+        return state.completed.length;
+    }
+  }
+
   Widget _buildTabChip(String label, int count, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.blue : Colors.grey[300],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        '$label $count',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: isSelected ? Colors.white : Colors.grey[700],
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedTab = DownloadTab.values.firstWhere((tab) => tab.label == label);
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.grey[300],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          '$label $count',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: isSelected ? Colors.white : Colors.grey[700],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildDownloadsList(DownloadState state, bool isExpanded) {
-    final downloads = state.downloads;
+    List<DownloadTask> downloads;
+    switch (_selectedTab) {
+      case DownloadTab.active:
+        downloads = state.active;
+        break;
+      case DownloadTab.completed:
+        downloads = state.completed;
+        break;
+      case DownloadTab.all:
+        downloads = state.downloads;
+    }
+
     if (downloads.isEmpty) {
       return const SizedBox.shrink();
     }

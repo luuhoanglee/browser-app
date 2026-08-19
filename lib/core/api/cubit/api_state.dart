@@ -1,5 +1,5 @@
 import 'dart:io' show SocketException;
-import 'package:dio/dio.dart' show DioError;
+import 'package:dio/dio.dart' show DioException;
 
 abstract class ApiState {}
 
@@ -9,7 +9,7 @@ class SuccessState extends ApiState {}
 class UnAuthorize extends ApiState {}
 class TimeOutRequest extends ApiState {}
 class NoFoundNetwork extends ApiState {
-  DioError? error;
+  DioException? error;
 
   NoFoundNetwork({
     this.error,

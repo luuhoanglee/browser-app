@@ -12,7 +12,7 @@ class LocaleCubit extends Cubit<Locale> {
     _loadLocale();
   }
 
-  convertFullDate({required DateTime date}) {
+  String convertFullDate({required DateTime date}) {
     var formatted = DateFormat("EEEE d ${state.languageCode == 'es' ? "'de'" : ''} MMMM, y", '${state.languageCode}_${state.countryCode ?? ''}').format(date);
     formatted = formatted.replaceFirstMapped(
       RegExp(r' de ([a-záéíóúñ]+),'),
@@ -27,7 +27,7 @@ class LocaleCubit extends Cubit<Locale> {
     return formatted;
   }
 
-  convertFullDateYYYYMMDD({required DateTime date}) {
+  String convertFullDateYYYYMMDD({required DateTime date}) {
     var formatted = DateFormat("d ${state.languageCode == 'es' ? "'de'" : ''} MMMM, y", '${state.languageCode}_${state.countryCode ?? ''}').format(date);
     formatted = formatted.replaceFirstMapped(
       RegExp(r' de ([a-záéíóúñ]+),'),
@@ -42,7 +42,7 @@ class LocaleCubit extends Cubit<Locale> {
     return formatted;
   }
 
-  convertDate({required DateTime date}) {
+  String convertDate({required DateTime date}) {
     var formatted = DateFormat("EEEE, d ${state.languageCode == 'es' ? "'de'" : ''} MMMM", '${state.languageCode}_${state.countryCode ?? ''}').format(date);
     formatted = formatted.replaceFirstMapped(
       RegExp(r' de ([a-záéíóúñ]+)'),

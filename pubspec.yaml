@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.9+14
 
 environment:
   sdk: ^3.10.0
@@ -54,6 +54,7 @@ dependencies:
 
   # URL validation
   url_launcher: ^6.3.0
+  share_plus: ^12.0.0
 
   # Local storage
   shared_preferences: ^2.2.2
@@ -68,6 +69,7 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_crashlytics: ^4.1.3
   firebase_messaging: ^15.1.3
+  firebase_analytics: ^11.6.0
 
   # Local notifications
   flutter_local_notifications: ^17.2.3
@@ -89,6 +91,9 @@ dependencies:
   http: ^1.2.0
   dio: ^5.4.0
   curl_logger_dio_interceptor: ^1.0.0
+
+  # Background execution
+  flutter_background: ^1.3.0+1
 
   # Date time formatting
   timeago: ^3.6.1
@@ -117,6 +122,9 @@ dependencies:
   # Video player
   video_player: ^2.9.2
   chewie: ^1.8.5
+  cast: ^2.1.0
+  # cast 2.1.0 still uses the Bonsoir 5 discovery API.
+  bonsoir: 5.1.11
 
   # Video thumbnail
   video_thumbnail: ^0.5.3
@@ -124,6 +132,10 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+
+  # Integration (E2E) tests
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -184,10 +196,10 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 # App Icons Configuration
-# flutter_launcher_icons:
-#   android: true
-#   ios: true
-#   image_path: "assets/logo/logo-blackdog-no-background.png"
-#   adaptive_icon_background: "#ffffff"
-#   adaptive_icon_foreground: "assets/logo/logo-blackdog-no-background.png"
-#   remove_alpha_channel_ios: true
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo/logo.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/logo/logo.png"
+  remove_alpha_ios: true

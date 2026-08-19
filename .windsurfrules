@@ -1,0 +1,59 @@
+# Windsurf Rules — Pardix Browser
+
+## Project
+Flutter mobile browser (Android/iOS). Package: `com.dino.pardix`. Flutter ^3.10.0.
+Architecture: Clean Architecture + flutter_bloc.
+
+## Architecture Layers
+```
+core/          → shared utilities, never import from features/ or presentation/
+domain/        → pure Dart, zero Flutter/third-party dependencies
+data/          → implements domain contracts (repositories, services)
+features/      → self-contained modules (each has bloc/ widgets/ services/)
+presentation/  → top-level screens (HomePage is the root screen)
+```
+Import rule: presentation → features → domain ← data
+
+## BLoC Pattern
+- Feature state = BLoC only (no widget setState for feature data)
+- Events: NounVerbEvent (TabAddEvent, DownloadStartEvent)
+- States: Equatable, Freezed for sealed unions
+- BLoC access: context.read<XBloc>() only at top level, pass callbacks downward
+
+## Required Before Every Commit
+```bash
+flutter analyze           # zero errors
+dart format lib/          # formatted
+flutter test              # all pass
+# If .freezed source changed:
+dart run build_runner build --delete-conflicting-outputs
+```
+
+## Style Rules
+- snake_case files, PascalCase classes, camelCase methods/vars, _underscore private
+- Colors → AppColors | Strings → AppStrings | Sizes → AppSizes
+- Storage → StorageService only (never raw SharedPreferences)
+- HTTP → ApiClient only (never raw Dio)
+
+## Logging (lib/core/logger/app_logger.dart)
+Never use print() or the deprecated Logger class.
+
+```
+AppLogger.verbose / .debug / .info / .warning / .error / .fatal
+AppLogger.event(AnalyticsEvent.*, params: {AnalyticsParam.*: value})
+```
+
+Routing in release: INFO→breadcrumb, WARNING→breadcrumb+non-fatal, ERROR→non-fatal, FATAL→fatal, .event()→Analytics
+Tag = class name: 'TabBloc', 'WebView', 'Download', 'Search', 'Storage'
+Never call FirebaseCrashlytics or FirebaseAnalytics directly — always go through AppLogger
+
+## Do Not Touch
+- packages/flutter_inappwebview/ — local fork with custom patches
+- *.freezed.dart / *.g.dart — generated files
+- android/.key.properties / *.jks / google-services.json — secrets
+
+## Key Entry Points
+- App start: lib/main.dart
+- Main UI: lib/presentation/pages/home/home_page.dart
+- WebView: lib/features/webview/widgets/webview_page.dart
+- Tab state: lib/features/tabs/bloc/tab_bloc.dart

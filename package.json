@@ -1,0 +1,13 @@
+{
+  "name": "pardix-browser-appium",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "appium:test:warp": "node appium_tests/warp_smoke_test.mjs"
+  },
+  "devDependencies": {
+    "appium": "^2.19.0",
+    "appium-uiautomator2-driver": "^8.1.0",
+    "webdriverio": "^9.24.0"
+  }
+}

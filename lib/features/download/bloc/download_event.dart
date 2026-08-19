@@ -86,6 +86,22 @@ class DownloadBatchCancelEvent extends DownloadEvent {
   DownloadBatchCancelEvent();
 }
 
+class DownloadBatchItemCompletedEvent extends DownloadEvent {
+  DownloadBatchItemCompletedEvent();
+}
+
+class DownloadBatchItemFailedEvent extends DownloadEvent {
+  DownloadBatchItemFailedEvent();
+}
+
+class DownloadBatchItemCancelledEvent extends DownloadEvent {
+  DownloadBatchItemCancelledEvent();
+}
+
+class DownloadBatchProcessQueueEvent extends DownloadEvent {
+  DownloadBatchProcessQueueEvent();
+}
+
 class BatchDownloadItem {
   final String url;
   final String? customFileName;

@@ -48,7 +48,7 @@ class ContextMenuItem_ {
 
   @ExchangeableObjectMethod(toMapMergeWith: true)
   // ignore: unused_element
-  Map<String, dynamic> _toMapMergeWith({EnumMethod? enumMethod}) {
+  Map<String, dynamic> _toMapMergeWith() {
     return {"androidId": androidId, "iosId": iosId};
   }
 }

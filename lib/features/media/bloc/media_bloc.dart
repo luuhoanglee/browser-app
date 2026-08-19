@@ -35,10 +35,11 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
       final isImg = MediaUtils.isImage(url);
       final isVid = MediaUtils.isVideo(url);
       final isAud = MediaUtils.isAudio(url);
+      final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
 
       if (isImg) {
         images.add(url);
-      } else if (isVid) {
+      } else if (isVid && !path.endsWith('.ts')) {
         videos.add(url);
       } else if (isAud) {
         audios.add(url);
@@ -47,26 +48,20 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
       }
     }
 
-    return MediaExtractResult(
-      images: images,
-      videos: videos,
-      audios: audios,
-    );
+    return MediaExtractResult(images: images, videos: videos, audios: audios);
   }
 
   void _onExtractFromResources(
     MediaExtractFromResources event,
     Emitter<MediaState> emit,
   ) {
-
     final result = _filterResources(event.resources);
 
     // Don't emit if no media found
-    if (result.images.isEmpty && result.videos.isEmpty && result.audios.isEmpty) {
-      emit(MediaLoaded(
-        result: MediaExtractResult(),
-        activeFilter: null,
-      ));
+    if (result.images.isEmpty &&
+        result.videos.isEmpty &&
+        result.audios.isEmpty) {
+      emit(MediaLoaded(result: MediaExtractResult(), activeFilter: null));
       return;
     }
 
@@ -80,17 +75,13 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
       defaultFilter = MediaType.audio;
     }
 
-    emit(MediaLoaded(
-      result: result,
-      activeFilter: defaultFilter,
-    ));
+    emit(MediaLoaded(result: result, activeFilter: defaultFilter));
   }
 
   Future<void> _onRefreshRequested(
     MediaRefreshRequested event,
     Emitter<MediaState> emit,
   ) async {
-    
     final currentState = state;
     if (currentState is MediaLoaded) {
       emit(MediaLoading());
@@ -103,11 +94,7 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
     }
   }
 
-  void _onFilterChanged(
-    MediaFilterChanged event,
-    Emitter<MediaState> emit,
-  ) {
-
+  void _onFilterChanged(MediaFilterChanged event, Emitter<MediaState> emit) {
     final currentState = state;
 
     if (currentState is MediaLoaded) {
@@ -116,13 +103,7 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
     }
   }
 
-  void _onClearRequested(
-    MediaClearRequested event,
-    Emitter<MediaState> emit,
-  ) {
-    emit(MediaLoaded(
-      result: const MediaExtractResult(),
-      activeFilter: null,
-    ));
+  void _onClearRequested(MediaClearRequested event, Emitter<MediaState> emit) {
+    emit(MediaLoaded(result: const MediaExtractResult(), activeFilter: null));
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "19884595682",
+    "project_id": "browser---flutter",
+    "storage_bucket": "browser---flutter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:19884595682:android:25cfc644bcbde45c6c1bb",
+        "android_client_info": {
+          "package_name": "com.dino.pardix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALN8-xoqyH0Ct-piYwpFp6Qmj2B5ja8cs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

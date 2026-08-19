@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:browser_app/features/search/search_service.dart';
 import '../bloc/search_bloc.dart';
 import '../bloc/search_state.dart';
 import '../bloc/search_event.dart';
-import '../search_service.dart';
 
 class SearchPage extends StatefulWidget {
   final Function(String) onSearch;
   final String? initialUrl;
+  final bool skipHistory;
 
   const SearchPage({
     super.key,
     required this.onSearch,
     this.initialUrl,
+    this.skipHistory = false,
   });
 
   @override
@@ -168,10 +170,10 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _getEngineIcon(state.selectedEngine),
-                  size: 20,
-                  color: _getEngineColor(state.selectedEngine),
+                Image.asset(
+                  _getEngineLogo(state.selectedEngine),
+                  width: 20,
+                  height: 20,
                 ),
                 const SizedBox(width: 4),
                 const Icon(
@@ -213,8 +215,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
                   final query = value.trim();
-                  // Lưu vào search history
-                  _searchBloc.add(PerformSearchEvent(query));
+                  // Lưu vào search history (skip nếu incognito)
+                  _searchBloc.add(PerformSearchEvent(query, widget.skipHistory));
                   widget.onSearch(query);
                   Navigator.pop(context);
                 }
@@ -277,7 +279,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
             final index = entry.key;
             final suggestion = entry.value;
             return _buildSuggestionItem(suggestion, query, index);
-          }).toList(),
+          }),
       ],
     );
   }
@@ -298,8 +300,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       },
       child: InkWell(
         onTap: () {
-          // Lưu vào search history trước khi search
-          _searchBloc.add(PerformSearchEvent(suggestion));
+          // Lưu vào search history trước khi search (skip nếu incognito)
+          _searchBloc.add(PerformSearchEvent(suggestion, widget.skipHistory));
           widget.onSearch(suggestion);
           Navigator.pop(context);
         },
@@ -432,7 +434,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
           final index = entry.key;
           final query = entry.value;
           return _buildRecentItem(query, index);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -499,13 +501,16 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       },
       child: InkWell(
         onTap: () {
-          // Lưu vào search history trước khi search
-          _searchBloc.add(PerformSearchEvent(query));
+          // Lưu vào search history trước khi search (skip nếu incognito)
+          _searchBloc.add(PerformSearchEvent(query, widget.skipHistory));
           widget.onSearch(query);
           Navigator.pop(context);
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
+          constraints: const BoxConstraints(
+            maxWidth: 280,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: const Color(0xFFF2F2F7),
@@ -524,15 +529,17 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                 color: Color(0xFF8E8E93),
               ),
               const SizedBox(width: 6),
-              Text(
-                query,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  query,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -556,8 +563,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       },
       child: InkWell(
         onTap: () {
-          // Lưu vào search history để đưa lên đầu
-          _searchBloc.add(PerformSearchEvent(query));
+          // Lưu vào search history để đưa lên đầu (skip nếu incognito)
+          _searchBloc.add(PerformSearchEvent(query, widget.skipHistory));
           widget.onSearch(query);
           Navigator.pop(context);
         },
@@ -639,9 +646,10 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
               ...SearchEngine.values.map((engine) {
                 final isSelected = engine == state.selectedEngine;
                 return ListTile(
-                  leading: Icon(
-                    _getEngineIcon(engine),
-                    color: _getEngineColor(engine),
+                  leading: Image.asset(
+                    _getEngineLogo(engine),
+                    width: 24,
+                    height: 24,
                   ),
                   title: Text(
                     _getEngineName(engine),
@@ -658,7 +666,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                     Navigator.pop(sheetContext);
                   },
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -679,29 +687,16 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
     }
   }
 
-  IconData _getEngineIcon(SearchEngine engine) {
+  String _getEngineLogo(SearchEngine engine) {
     switch (engine) {
       case SearchEngine.google:
-        return Icons.public;
+        return 'assets/logo/google_logo.png';
       case SearchEngine.bing:
-        return Icons.bubble_chart;
+        return 'assets/logo/bing_logo.png';
       case SearchEngine.duckduckgo:
-        return Icons.shield;
+        return 'assets/logo/duckduckgo_logo.png';
       case SearchEngine.youtube:
-        return Icons.play_circle_filled;
-    }
-  }
-
-  Color _getEngineColor(SearchEngine engine) {
-    switch (engine) {
-      case SearchEngine.google:
-        return const Color(0xFF4285F4);
-      case SearchEngine.bing:
-        return const Color(0xFF008373);
-      case SearchEngine.duckduckgo:
-        return const Color(0xFFDE5833);
-      case SearchEngine.youtube:
-        return const Color(0xFFFF0000);
+        return 'assets/logo/youtube_logo.png';
     }
   }
 }

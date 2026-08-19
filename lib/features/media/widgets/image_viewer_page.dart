@@ -1,18 +1,23 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:http/http.dart' as http;
+
+import '../../../core/resources/app_strings.dart';
+import '../../download/bloc/download_bloc.dart';
+import '../../download/bloc/download_event.dart';
 
 /// Page to view images with zoom/pan support
 class ImageViewerPage extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
+  final ValueChanged<DownloadStartEvent>? onDownloadRequested;
 
   const ImageViewerPage({
     super.key,
     required this.imageUrls,
     this.initialIndex = 0,
+    this.onDownloadRequested,
   });
 
   @override
@@ -22,7 +27,6 @@ class ImageViewerPage extends StatefulWidget {
 class _ImageViewerPageState extends State<ImageViewerPage> {
   late PageController _pageController;
   int _currentIndex = 0;
-  final Map<String, String> _svgCache = {};
 
   @override
   void initState() {
@@ -41,22 +45,6 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
     setState(() {
       _currentIndex = index;
     });
-  }
-
-  Future<String> _loadSvg(String url) async {
-    if (_svgCache.containsKey(url)) {
-      return _svgCache[url]!;
-    }
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        _svgCache[url] = response.body;
-        return response.body;
-      }
-    } catch (e) {
-      print('Error loading SVG: $e');
-    }
-    throw Exception('Failed to load SVG');
   }
 
   @override
@@ -128,9 +116,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
           return PhotoView(
             imageProvider: NetworkImage(imageUrl),
             initialScale: PhotoViewComputedScale.contained,
-            heroAttributes: PhotoViewHeroAttributes(
-              tag: 'image_$index',
-            ),
+            heroAttributes: PhotoViewHeroAttributes(tag: 'image_$index'),
             minScale: PhotoViewComputedScale.contained * 0.5,
             maxScale: PhotoViewComputedScale.covered * 3.0,
             errorBuilder: (context, error, stackTrace) {
@@ -153,10 +139,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
                       const SizedBox(height: 8),
                       Text(
                         _getFileName(imageUrl),
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -175,16 +158,24 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
           children: [
             IconButton(
               icon: const Icon(Icons.download, color: Colors.white),
+              tooltip: 'Download image',
               onPressed: () {
-                // TODO: Implement download
+                final imageUrl = widget.imageUrls[_currentIndex];
+                final event = DownloadStartEvent(
+                  imageUrl,
+                  customFileName: _getFileName(imageUrl),
+                );
+                final callback = widget.onDownloadRequested;
+                if (callback != null) {
+                  callback(event);
+                } else {
+                  context.read<DownloadBloc>().add(event);
+                }
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("This feature will be developed in the future."),
-                  ),
+                  const SnackBar(content: Text(AppStrings.downloadQueued)),
                 );
               },
-            )
-
+            ),
           ],
         ),
       ),
@@ -192,6 +183,12 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
   }
 
   String _getFileName(String url) {
-    return url.split('/').last;
+    final uri = Uri.tryParse(url);
+    final name = uri?.pathSegments.isNotEmpty == true
+        ? uri!.pathSegments.last
+        : '';
+    return name.isEmpty
+        ? 'image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+        : Uri.decodeComponent(name);
   }
 }

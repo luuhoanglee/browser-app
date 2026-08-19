@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:browser_app/core/logger/logger.dart';
+import 'package:browser_app/core/logger/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocaleService {
@@ -18,7 +18,7 @@ class LocaleService {
     final prefs = await SharedPreferences.getInstance();
     final code = prefs.getString(_key);
     if (code != null) {
-      Logger.show('_currentLocale: $code');
+      AppLogger.debug('LocaleService', 'Loaded locale: $code');
       _currentLocale = Locale(code);
     }
     return _currentLocale;

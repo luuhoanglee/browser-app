@@ -77,6 +77,10 @@ class IOSContentBlockerService {
       ContentBlocker(
         trigger: ContentBlockerTrigger(
           urlFilter: '.*(pop|push|redirect|track|click|ads).*',
+          unlessTopUrl: const [
+            'https://tiktok.com/*',
+            'https://*.tiktok.com/*',
+          ],
           loadType: [ContentBlockerTriggerLoadType.THIRD_PARTY],
           resourceType: [
             ContentBlockerTriggerResourceType.DOCUMENT,
